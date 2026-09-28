@@ -1189,17 +1189,16 @@ img { max-width: 100%; display: block; }
     </div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
   <script>
     function loginGoogle() {
-      const nome = prompt('Simulação Google: digite seu nome', 'Jogador Google') || 'Jogador Google';
-      localStorage.setItem('xinzuh-logged', 'true');
-      localStorage.setItem('xinzuh-username', nome);
-      localStorage.setItem('xinzuh-login-method', 'google');
-      alert('Cadastro com Google simulado!\n\nNa versão real, o Google pediria permissão e criaria a conta automaticamente.');
-      window.location.href = 'index.html';
+      loginWithGoogle();
     }
     function registerEmail(e) {
       e.preventDefault();
+      alert('Cadastro por e-mail ainda é simulado. Use Cadastrar com Google.');
       const s1 = document.getElementById('senha').value;
       const s2 = document.getElementById('senha2').value;
       if (s1 !== s2) { alert('As senhas não coincidem'); return; }
@@ -1207,7 +1206,6 @@ img { max-width: 100%; display: block; }
       localStorage.setItem('xinzuh-logged', 'true');
       localStorage.setItem('xinzuh-username', nome);
       localStorage.setItem('xinzuh-login-method', 'email');
-      alert('Conta criada com sucesso!');
       window.location.href = 'index.html';
     }
   </script>
