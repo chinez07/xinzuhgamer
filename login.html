@@ -1172,7 +1172,11 @@ img { max-width: 100%; display: block; }
           <label>Senha</label>
           <input type="password" id="senha" placeholder="••••••••" required>
         </div>
+        <div style="text-align:right;margin:-4px 0 12px">
+          <a href="#" id="forgotLink" style="font-size:0.85rem;color:var(--primary);font-weight:600">Esqueci minha senha</a>
+        </div>
         <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+        <button type="button" id="btn-reset" class="btn btn-outline btn-block" style="display:none;margin-top:10px">Enviar link de recuperação</button>
       </form>
 
       <div class="auth-footer">
@@ -1181,7 +1185,7 @@ img { max-width: 100%; display: block; }
     </div>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script>
@@ -1193,11 +1197,42 @@ img { max-width: 100%; display: block; }
       const email = document.getElementById('email').value;
       const senha = document.getElementById('senha').value;
       if (!email || !senha) {
-        alert('Preencha e-mail e senha.');
+        if (typeof showMsg === 'function') showMsg('Preencha e-mail e senha.', 'err');
+        else alert('Preencha e-mail e senha.');
         return;
       }
       loginWithEmail(email, senha);
     }
+    (function () {
+      const forgot = document.getElementById('forgotLink');
+      const resetBtn = document.getElementById('btn-reset');
+      const senhaGroup = document.getElementById('senha') && document.getElementById('senha').closest('.form-group');
+      const submitBtn = document.querySelector('form button[type="submit"]');
+      if (forgot) {
+        forgot.addEventListener('click', function (e) {
+          e.preventDefault();
+          if (senhaGroup) senhaGroup.style.display = 'none';
+          if (submitBtn) submitBtn.style.display = 'none';
+          if (resetBtn) resetBtn.style.display = 'block';
+          forgot.textContent = 'Voltar ao login';
+          forgot.onclick = function (ev) {
+            ev.preventDefault();
+            location.reload();
+          };
+        });
+      }
+      if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+          const email = document.getElementById('email').value;
+          if (!email) {
+            if (typeof showMsg === 'function') showMsg('Digite seu e-mail acima.', 'err');
+            else alert('Digite seu e-mail.');
+            return;
+          }
+          resetPasswordWithEmail(email);
+        });
+      }
+    })();
   </script>
 </body>
 </html>
