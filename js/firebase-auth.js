@@ -52,15 +52,22 @@ function showMsg(text, type) {
   if (!el) {
     el = document.createElement('div');
     el.id = 'auth-msg';
-    el.style.cssText = 'margin:12px 0;padding:12px 14px;border-radius:10px;font-size:0.9rem;font-weight:500;';
-    const form = document.querySelector('form');
-    if (form) form.parentNode.insertBefore(el, form);
+    const card = document.querySelector('.auth-card') || document.querySelector('form')?.parentNode;
+    if (card) card.insertBefore(el, card.firstChild.nextSibling || card.firstChild);
     else document.body.prepend(el);
   }
-  el.style.background = type === 'ok' ? '#dcfce7' : '#fee2e2';
-  el.style.color = type === 'ok' ? '#166534' : '#991b1b';
+  el.style.cssText = 'display:block;margin:0 0 16px;padding:14px 16px;border-radius:10px;font-size:0.95rem;font-weight:600;line-height:1.4;';
+  if (type === 'ok') {
+    el.style.background = '#dcfce7';
+    el.style.color = '#166534';
+    el.style.border = '1px solid #86efac';
+  } else {
+    el.style.background = '#fee2e2';
+    el.style.color = '#991b1b';
+    el.style.border = '1px solid #fca5a5';
+  }
   el.textContent = text;
-  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  try { el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
 }
 
 function setLoading(btn, loading) {
@@ -130,7 +137,7 @@ async function registerWithEmail(email, password, displayName) {
 
 
 async function resetPasswordWithEmail(email) {
-  const btn = document.querySelector('#btn-reset, form button[type="submit"]');
+  const btn = document.getElementById('btn-reset');
   if (!email || !String(email).trim()) {
     showMsg('Coloque o e-mail primeiro.', 'err');
     return;
@@ -138,8 +145,11 @@ async function resetPasswordWithEmail(email) {
   if (btn) setLoading(btn, true);
   try {
     const em = email.trim();
-    await auth.sendPasswordResetEmail(em);
-    showMsg('Link enviado para ' + em + '. Abra seu e-mail (e o spam) para redefinir a senha.', 'ok');
+    await auth.sendPasswordResetEmail(em, {
+      url: 'https://bloxzuh.store/login.html',
+      handleCodeInApp: false
+    });
+    showMsg('Se existir conta com ' + em + ', enviamos o link. Confira a caixa de entrada e a pasta SPAM/Lixo eletrônico. O e-mail pode demorar alguns minutos.', 'ok');
   } catch (err) {
     showMsg(friendlyError(err), 'err');
     console.error(err);
