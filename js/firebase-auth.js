@@ -131,10 +131,15 @@ async function registerWithEmail(email, password, displayName) {
 
 async function resetPasswordWithEmail(email) {
   const btn = document.querySelector('#btn-reset, form button[type="submit"]');
+  if (!email || !String(email).trim()) {
+    showMsg('Coloque o e-mail primeiro.', 'err');
+    return;
+  }
   if (btn) setLoading(btn, true);
   try {
-    await auth.sendPasswordResetEmail(email.trim());
-    showMsg('Enviamos um e-mail para redefinir sua senha. Confira a caixa de entrada e o spam.', 'ok');
+    const em = email.trim();
+    await auth.sendPasswordResetEmail(em);
+    showMsg('Link enviado para ' + em + '. Abra seu e-mail (e o spam) para redefinir a senha.', 'ok');
   } catch (err) {
     showMsg(friendlyError(err), 'err');
     console.error(err);
