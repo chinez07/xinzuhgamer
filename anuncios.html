@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anúncios | XinzuhGamer</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+/* ===== Themes ===== */
+:root, [data-theme="purple"] {
+  --primary: #7c3aed;
+  --primary-hover: #6d28d9;
+  --primary-light: #ede9fe;
+  --primary-soft: rgba(124, 58, 237, 0.12);
+  --bg: #f8f7fc;
+  --bg-card: #ffffff;
+  --bg-header: #ffffff;
+  --text: #1a1a2e;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow-hover: 0 8px 24px rgba(124, 58, 237, 0.15);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --success: #16a34a;
+  --warning: #f59e0b;
+}
+
+[data-theme="blue"] {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #dbeafe;
+  --primary-soft: rgba(37, 99, 235, 0.12);
+  --shadow-hover: 0 8px 24px rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="green"] {
+  --primary: #059669;
+  --primary-hover: #047857;
+  --primary-light: #d1fae5;
+  --primary-soft: rgba(5, 150, 105, 0.12);
+  --shadow-hover: 0 8px 24px rgba(5, 150, 105, 0.15);
+}
+
+[data-theme="red"] {
+  --primary: #dc2626;
+  --primary-hover: #b91c1c;
+  --primary-light: #fee2e2;
+  --primary-soft: rgba(220, 38, 38, 0.12);
+  --shadow-hover: 0 8px 24px rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="orange"] {
+  --primary: #ea580c;
+  --primary-hover: #c2410c;
+  --primary-light: #ffedd5;
+  --primary-soft: rgba(234, 88, 12, 0.12);
+  --shadow-hover: 0 8px 24px rgba(234, 88, 12, 0.15);
+}
+
+/* Dark mode override */
+[data-mode="dark"] {
+  --bg: #0f0f14;
+  --bg-card: #1a1a24;
+  --bg-header: #14141c;
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --border: #2d2d3a;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --primary-light: rgba(124, 58, 237, 0.2);
+}
+
+[data-mode="dark"][data-theme="blue"] { --primary-light: rgba(37, 99, 235, 0.2); }
+[data-mode="dark"][data-theme="green"] { --primary-light: rgba(5, 150, 105, 0.2); }
+[data-mode="dark"][data-theme="red"] { --primary-light: rgba(220, 38, 38, 0.2); }
+[data-mode="dark"][data-theme="orange"] { --primary-light: rgba(234, 88, 12, 0.2); }
+
+/* ===== Base ===== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+
+.container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.accent { color: var(--primary); }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+}
+.btn-outline:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btn-lg { padding: 13px 26px; font-size: 1rem; }
+.btn-sm { padding: 7px 14px; font-size: 0.85rem; }
+
+/* ===== Header ===== */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  gap: 12px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--primary), #a78bfa);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+  position: relative;
+}
+
+.header-icon-btn:hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.header-icon-btn .badge-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+
+.btn-anunciar {
+  background: var(--primary);
+  color: #fff;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: 0.2s;
+}
+.btn-anunciar:hover {
+  background: var(--primary-hover);
+}
+
+/* Theme / Mode switcher */
+.theme-switcher { position: relative; }
+
+.theme-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  z-index: 50;
+}
+.theme-dropdown.show { display: flex; }
+
+.theme-option {
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: 0.15s;
+}
+.theme-option:hover, .theme-option.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.theme-option .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+/* User menu */
+.user-menu { position: relative; }
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  display: none;
+  flex-direction: column;
+  min-width: 240px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  z-index: 50;
+}
+.user-menu-dropdown.show { display: flex; }
+
+.user-menu-header {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.user-menu-header strong { display: block; font-size: 0.95rem; }
+.user-menu-header span { font-size: 0.8rem; color: var(--primary); font-weight: 600; }
+
+.user-menu-item {
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: 0.15s;
+  width: 100%;
+}
+.user-menu-item:hover { background: var(--primary-soft); color: var(--primary); }
+.user-menu-item i { width: 18px; text-align: center; color: var(--text-muted); }
+.user-menu-item:hover i { color: var(--primary); }
+
+.user-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+
+/* ===== Hero ===== */
+.hero {
+  padding: 48px 0 32px;
+  text-align: center;
+  background: linear-gradient(180deg, var(--primary-soft) 0%, transparent 70%);
+}
+
+.hero-tag {
+  display: inline-block;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.hero-tag span {
+  color: var(--primary);
+}
+
+.hero-sub {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-bottom: 28px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 4px 4px 4px 18px;
+  max-width: 520px;
+  margin: 0 auto 16px;
+  gap: 10px;
+  box-shadow: var(--shadow);
+  transition: 0.2s;
+}
+.search-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.search-box i { color: var(--text-muted); font-size: 1rem; }
+.search-box input {
+  flex: 1;
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 0.95rem;
+  color: var(--text);
+  padding: 12px 0;
+}
+.search-box input::placeholder { color: var(--text-muted); }
+
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  transition: 0.2s;
+}
+.hero-link:hover { color: var(--primary); }
+
+/* ===== Section common ===== */
+.section {
+  padding: 36px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.section-nav {
+  display: flex;
+  gap: 6px;
+}
+.section-nav button {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+}
+.section-nav button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ===== Categories carousel ===== */
+.categories-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.categories-scroll::-webkit-scrollbar { display: none; }
+
+.category-card {
+  flex: 0 0 140px;
+  scroll-snap-align: start;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: 0.25s;
+  text-align: center;
+}
+.category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary);
+}
+
+.category-img {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  position: relative;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+.category-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.category-card:hover .category-img img {
+  transform: scale(1.08);
+}
+.category-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(0,0,0,0.35));
+  pointer-events: none;
+}
+
+.cat-roblox { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
+.cat-valorant { background: linear-gradient(135deg, #ff4655, #0f1923); color: #fff; }
+.cat-freefire { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+.cat-genshin { background: linear-gradient(135deg, #5dade2, #2e86ab); color: #fff; }
+.cat-fortnite { background: linear-gradient(135deg, #9b59b6, #8e44ad); color: #fff; }
+.cat-lol { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+.cat-cs2 { background: linear-gradient(135deg, #e67e22, #d35400); color: #fff; }
+.cat-steam { background: linear-gradient(135deg, #2c3e50, #1a252f); color: #fff; }
+
+.category-card h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 8px 12px;
+}
+
+.btn-all-cats {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+.btn-all-cats a {
+  background: #2d2d3a;
+  color: #fff;
+  padding: 10px 22px;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.btn-all-cats a:hover { background: var(--primary); }
+
+[data-mode="dark"] .btn-all-cats a {
+  background: var(--primary);
+}
+
+/* ===== Product cards (ads) ===== */
+.products-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.products-scroll::-webkit-scrollbar { display: none; }
+
+.product-card {
+  flex: 0 0 260px;
+  scroll-snap-align: start;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: 0.25s;
+  cursor: pointer;
+}
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary);
+}
+
+.product-img {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  position: relative;
+  color: #fff;
+}
+.product-img .fav {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: 0.2s;
+}
+.product-img .fav:hover { color: #ef4444; }
+
+.prod-spotify { background: linear-gradient(135deg, #1db954, #191414); }
+.prod-youtube { background: linear-gradient(135deg, #ff0000, #282828); }
+.prod-roblox { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.prod-valorant { background: linear-gradient(135deg, #ff4655, #0f1923); }
+.prod-freefire { background: linear-gradient(135deg, #f39c12, #d35400); }
+.prod-lol { background: linear-gradient(135deg, #3498db, #1a5276); }
+.prod-genshin { background: linear-gradient(135deg, #5dade2, #1a5276); }
+.prod-default { background: linear-gradient(135deg, var(--primary), #4c1d95); }
+
+.product-body {
+  padding: 14px;
+}
+.product-body h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.7em;
+  line-height: 1.35;
+}
+.product-price {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 10px;
+}
+.product-seller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.product-seller .avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+.product-seller .rating {
+  color: var(--warning);
+}
+
+/* Grid version for anuncios page */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.products-grid .product-card {
+  flex: none;
+}
+
+/* ===== How it works ===== */
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.how-step {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 18px;
+  text-align: center;
+}
+.how-step .num {
+  width: 40px;
+  height: 40px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  margin: 0 auto 14px;
+  font-size: 1.1rem;
+}
+.how-step h3 { font-size: 1rem; margin-bottom: 6px; }
+.how-step p { font-size: 0.85rem; color: var(--text-muted); }
+
+/* ===== CTA ===== */
+.cta {
+  padding: 48px 0;
+  text-align: center;
+}
+.cta h2 { font-size: 1.6rem; margin-bottom: 8px; }
+.cta p { color: var(--text-muted); margin-bottom: 24px; }
+.cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* ===== Footer ===== */
+.footer {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 40px 0 24px;
+  margin-top: 20px;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 28px;
+  margin-bottom: 28px;
+}
+.footer-col p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-top: 12px;
+}
+.footer-col h4 {
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+.footer-col a {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  transition: 0.15s;
+}
+.footer-col a:hover { color: var(--primary); }
+.footer-bottom {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ===== Filters (anuncios) ===== */
+.page-header {
+  padding: 28px 0 12px;
+}
+.page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+.page-header p { color: var(--text-muted); font-size: 0.95rem; }
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  align-items: flex-end;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 120px;
+}
+.filter-group label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.filter-group select,
+.filter-group input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+}
+.filter-group select:focus,
+.filter-group input:focus {
+  border-color: var(--primary);
+}
+
+.results-info {
+  margin-bottom: 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ===== Ad Detail ===== */
+.ad-detail { padding: 24px 0 60px; }
+.ad-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+}
+.ad-gallery {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4.5rem;
+  color: var(--primary);
+}
+.ad-info { margin-top: 20px; }
+.ad-info .cat-label {
+  font-size: 0.8rem;
+  color: var(--primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.ad-info h1 { font-size: 1.4rem; margin-bottom: 10px; }
+.ad-info .price {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 16px;
+}
+.ad-info .description {
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.ad-sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  height: fit-content;
+  position: sticky;
+  top: 76px;
+}
+.seller-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.seller-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 1.1rem;
+}
+.seller-info h4 { font-size: 0.95rem; }
+.seller-info span { font-size: 0.8rem; color: var(--text-muted); }
+.buy-btn { width: 100%; margin-bottom: 10px; }
+.guarantee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--success);
+  justify-content: center;
+  margin-top: 12px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 800px) {
+  .how-steps { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .ad-detail-grid { grid-template-columns: 1fr; }
+  .ad-sidebar { position: static; }
+  .btn-anunciar span { display: none; }
+}
+
+@media (max-width: 500px) {
+  .hero-tag { font-size: 1.4rem; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .filters-bar { flex-direction: column; }
+  .filter-group { min-width: 100%; }
+}
+
+/* Toggle switch (versão experimental) */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: #ccc;
+  border-radius: 22px;
+  transition: 0.25s;
+}
+.slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.25s;
+}
+.switch input:checked + .slider {
+  background: var(--primary);
+}
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}
+
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-content">
+      <a href="index.html" class="logo">
+        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+        <span>Xinzuh<span class="accent">Gamer</span></span>
+      </a>
+      <div class="header-right">
+        <button class="btn-anunciar"><i class="fas fa-plus"></i> <span>Anunciar</span></button>
+        <button class="header-icon-btn"><i class="fas fa-search"></i></button>
+        <button class="header-icon-btn"><i class="fas fa-bell"></i></button>
+        <button class="header-icon-btn"><i class="fas fa-shopping-cart"></i></button>
+        <div class="theme-switcher">
+          <button class="header-icon-btn" id="themeToggle"><i class="fas fa-palette"></i></button>
+          <div class="theme-dropdown" id="themeDropdown">
+            <button data-theme="purple" class="theme-option active"><span class="dot" style="background:#7c3aed"></span> Roxo</button>
+            <button data-theme="blue" class="theme-option"><span class="dot" style="background:#2563eb"></span> Azul</button>
+            <button data-theme="green" class="theme-option"><span class="dot" style="background:#059669"></span> Verde</button>
+            <button data-theme="red" class="theme-option"><span class="dot" style="background:#dc2626"></span> Vermelho</button>
+            <button data-theme="orange" class="theme-option"><span class="dot" style="background:#ea580c"></span> Laranja</button>
+            <div style="height:1px;background:var(--border);margin:4px 0"></div>
+            <button id="modeToggle" class="theme-option"><i class="fas fa-moon"></i> Tema escuro</button>
+          </div>
+        </div>
+        <div class="user-menu">
+          <button class="header-icon-btn" id="userMenuBtn"><i class="fas fa-bars"></i></button>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="page-header">
+    <div class="container">
+      <h1>Todos os Anúncios</h1>
+      <p>Encontre contas, itens, gold e assinaturas</p>
+    </div>
+  </section>
+
+  <section style="padding-bottom:60px">
+    <div class="container">
+      <div class="filters-bar">
+        <div class="filter-group">
+          <label>Buscar</label>
+          <input type="text" id="searchFilter" placeholder="Nome, jogo, vendedor...">
+        </div>
+        <div class="filter-group">
+          <label>Categoria</label>
+          <select id="categoryFilter">
+            <option value="all">Todas</option>
+            <option value="roblox">Roblox</option>
+            <option value="valorant">Valorant</option>
+            <option value="freefire">Free Fire</option>
+            <option value="lol">League of Legends</option>
+            <option value="fortnite">Fortnite</option>
+            <option value="genshin">Genshin Impact</option>
+            <option value="premium">Assinaturas</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Preço mín.</label>
+          <input type="number" id="priceMin" placeholder="R$ 0" min="0">
+        </div>
+        <div class="filter-group">
+          <label>Preço máx.</label>
+          <input type="number" id="priceMax" placeholder="R$ 9999" min="0">
+        </div>
+        <div class="filter-group">
+          <label>Ordenar</label>
+          <select id="sortFilter">
+            <option value="relevance">Relevância</option>
+            <option value="price-asc">Menor preço</option>
+            <option value="price-desc">Maior preço</option>
+            <option value="rating">Melhor avaliação</option>
+            <option value="sales">Mais vendidos</option>
+          </select>
+        </div>
+      </div>
+      <div class="results-info"><span id="resultsCount">0 anúncios</span></div>
+      <div class="products-grid" id="adsList"></div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="index.html" class="logo">
+            <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+            <span>Xinzuh<span class="accent">Gamer</span></span>
+          </a>
+          <p>Marketplace de jogos online seguro e moderno.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Links</h4>
+          <a href="anuncios.html">Anúncios</a>
+          <a href="index.html#categorias">Categorias</a>
+        </div>
+        <div class="footer-col">
+          <h4>Suporte</h4>
+          <a href="#">Central de Ajuda</a>
+          <a href="#">FAQ</a>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <a href="#">Termos</a>
+          <a href="#">Privacidade</a>
+        </div>
+      </div>
+      <div class="footer-bottom"><p>&copy; 2026 XinzuhGamer</p></div>
+    </div>
+  </footer>
+
+  <script>
+const adsData = [
+  {
+    id: 1,
+    title: "Conta Roblox com 50k Robux + Itens Raros",
+    category: "roblox",
+    categoryLabel: "Roblox",
+    price: 189.90,
+    seller: "ProGamer_BR",
+    rating: 4.9,
+    sales: 312,
+    icon: "fa-cube",
+    imgClass: "prod-roblox",
+    description: "Conta original com 50.000 Robux, vários itens limitados, avatares exclusivos e histórico limpo. Entrega automática após confirmação do pagamento."
+  },
+  {
+    id: 2,
+    title: "Conta Valorant Imortal 3 - Full Skins",
+    category: "valorant",
+    categoryLabel: "Valorant",
+    price: 349.00,
+    seller: "ValorantKing",
+    rating: 5.0,
+    sales: 89,
+    icon: "fa-crosshairs",
+    imgClass: "prod-valorant",
+    description: "Conta rank Imortal 3 com mais de 80 skins, incluindo bundles completos (Reaver, Prime, Elderflame). Email próprio e dados de recuperação inclusos."
+  },
+  {
+    id: 3,
+    title: "Conta Free Fire Diamante - Booyah Pass",
+    category: "freefire",
+    categoryLabel: "Free Fire",
+    price: 79.90,
+    seller: "FFMaster",
+    rating: 4.8,
+    sales: 520,
+    icon: "fa-fire",
+    imgClass: "prod-freefire",
+    description: "Conta com nível alto, vários personagens lendários, skins de armas e Booyah Pass ativo. Entrega rápida via chat."
+  },
+  {
+    id: 4,
+    title: "Conta LoL Diamond - 150 Skins",
+    category: "lol",
+    categoryLabel: "League of Legends",
+    price: 299.00,
+    seller: "MidLaneGod",
+    rating: 4.9,
+    sales: 145,
+    icon: "fa-dragon",
+    imgClass: "prod-lol",
+    description: "Conta Diamond IV com mais de 150 skins, vários campeões maxados e histórico competitivo limpo. Região BR."
+  },
+  {
+    id: 5,
+    title: "Conta Fortnite com Skins Raras",
+    category: "fortnite",
+    categoryLabel: "Fortnite",
+    price: 220.00,
+    seller: "FortniteBR",
+    rating: 4.7,
+    sales: 67,
+    icon: "fa-parachute-box",
+    imgClass: "prod-default",
+    description: "Conta com skins exclusivas de temporadas antigas, V-Bucks e battle pass completo. Conta original com email."
+  },
+  {
+    id: 6,
+    title: "Conta Genshin Impact AR 60 - C6 Characters",
+    category: "genshin",
+    categoryLabel: "Genshin Impact",
+    price: 450.00,
+    seller: "GenshinPro",
+    rating: 5.0,
+    sales: 34,
+    icon: "fa-magic",
+    imgClass: "prod-genshin",
+    description: "Conta Adventure Rank 60 com vários personagens C6, armas 5 estrelas e recursos abundantes. Servidor América."
+  },
+  {
+    id: 7,
+    title: "Spotify Premium 30 Dias (Via Link)",
+    category: "premium",
+    categoryLabel: "Assinaturas",
+    price: 13.99,
+    seller: "LINcontas",
+    rating: 4.9,
+    sales: 290,
+    icon: "fab fa-spotify",
+    imgClass: "prod-spotify",
+    description: "Spotify Premium 30 dias via link. Não é conta compartilhada. Ativação rápida e suporte incluso."
+  },
+  {
+    id: 8,
+    title: "YouTube Premium 30 Dias",
+    category: "premium",
+    categoryLabel: "Assinaturas",
+    price: 2.50,
+    seller: "Tedlito_",
+    rating: 4.8,
+    sales: 8,
+    icon: "fab fa-youtube",
+    imgClass: "prod-youtube",
+    description: "YouTube Premium 30 dias. Sem anúncios e com background play. Entrega automática."
+  },
+  {
+    id: 9,
+    title: "Robux Barato - Entrega Automática",
+    category: "roblox",
+    categoryLabel: "Roblox",
+    price: 45.00,
+    seller: "RobuxFast",
+    rating: 4.8,
+    sales: 1200,
+    icon: "fa-cube",
+    imgClass: "prod-roblox",
+    description: "Pacote de 2.000 Robux com entrega automática 24h. Método seguro e rápido."
+  },
+  {
+    id: 10,
+    title: "Conta Valorant Radiant - Full Agents",
+    category: "valorant",
+    categoryLabel: "Valorant",
+    price: 599.00,
+    seller: "RadiantOnly",
+    rating: 5.0,
+    sales: 28,
+    icon: "fa-crosshairs",
+    imgClass: "prod-valorant",
+    description: "Conta Radiant com todos os agentes desbloqueados e skins premium. Ideal para competição."
+  },
+  {
+    id: 11,
+    title: "Diamantes Free Fire - 10.000",
+    category: "freefire",
+    categoryLabel: "Free Fire",
+    price: 120.00,
+    seller: "DiamanteShop",
+    rating: 4.6,
+    sales: 890,
+    icon: "fa-fire",
+    imgClass: "prod-freefire",
+    description: "10.000 diamantes com entrega via ID. Rápido e seguro."
+  },
+  {
+    id: 12,
+    title: "Netflix Premium 30 Dias",
+    category: "premium",
+    categoryLabel: "Assinaturas",
+    price: 9.90,
+    seller: "StreamBR",
+    rating: 4.7,
+    sales: 156,
+    icon: "fas fa-film",
+    imgClass: "prod-default",
+    description: "Netflix Premium 30 dias. Perfil próprio, 4K disponível. Renovação mensal opcional."
+  }
+];
+
+// ===== Theme & Mode =====
+const themeToggle = document.getElementById('themeToggle');
+const themeDropdown = document.getElementById('themeDropdown');
+const themeOptions = document.querySelectorAll('.theme-option[data-theme]');
+const modeToggle = document.getElementById('modeToggle');
+const modeToggleMenu = document.getElementById('modeToggleMenu');
+
+const savedTheme = localStorage.getItem('xinzuh-theme') || 'purple';
+const savedMode = localStorage.getItem('xinzuh-mode') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+document.documentElement.setAttribute('data-mode', savedMode);
+updateActiveTheme(savedTheme);
+
+if (themeToggle) {
+  themeToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (themeDropdown) themeDropdown.classList.toggle('show');
+    const um = document.getElementById('userMenuDropdown');
+    if (um) um.classList.remove('show');
+  });
+}
+
+themeOptions.forEach(option => {
+  option.addEventListener('click', () => {
+    const theme = option.dataset.theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('xinzuh-theme', theme);
+    updateActiveTheme(theme);
+    if (themeDropdown) themeDropdown.classList.remove('show');
+  });
+});
+
+function updateActiveTheme(theme) {
+  themeOptions.forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.theme === theme);
+  });
+}
+
+function toggleMode() {
+  const current = document.documentElement.getAttribute('data-mode');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-mode', next);
+  localStorage.setItem('xinzuh-mode', next);
+  updateModeLabels(next);
+}
+
+function updateModeLabels(mode) {
+  document.querySelectorAll('[data-mode-label]').forEach(el => {
+    el.textContent = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
+  });
+  document.querySelectorAll('[data-mode-icon]').forEach(el => {
+    el.className = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  });
+}
+updateModeLabels(savedMode);
+
+// ===== Login state (mock) =====
+let isLoggedIn = localStorage.getItem('xinzuh-logged') === 'true';
+const userName = localStorage.getItem('xinzuh-username') || 'Jogador';
+
+function renderUserMenu() {
+  const dropdown = document.getElementById('userMenuDropdown');
+  if (!dropdown) return;
+
+  if (isLoggedIn) {
+    dropdown.innerHTML = `
+      <div class="user-menu-header">
+        <strong>Olá, ${userName}!</strong>
+        <span>VER MINHA CONTA</span>
+      </div>
+      <button class="user-menu-item"><i class="fas fa-shopping-bag"></i> Minhas Compras</button>
+      <button class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</button>
+      <button class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</button>
+      <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
+      <button class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</button>
+      <button class="user-menu-item" onclick="toggleMode()">
+        <i data-mode-icon class="${document.documentElement.getAttribute('data-mode') === 'dark' ? 'fas fa-sun' : 'fas fa-moon'}"></i>
+        <span data-mode-label>${document.documentElement.getAttribute('data-mode') === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
+      </button>
+      <div class="user-menu-divider"></div>
+      <div class="user-menu-item" style="justify-content:space-between;cursor:default">
+        <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
+        <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+      </div>
+      <div class="user-menu-divider"></div>
+      <button class="user-menu-item" style="color:#ef4444" onclick="doLogout()">
+        <i class="fas fa-sign-out-alt"></i> Sair
+      </button>
+    `;
+  } else {
+    dropdown.innerHTML = `
+      <button class="user-menu-item" onclick="doLogin()">
+        <i class="fas fa-sign-in-alt"></i> Entrar
+      </button>
+      <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
+      <button class="user-menu-item" onclick="toggleMode()">
+        <i data-mode-icon class="${document.documentElement.getAttribute('data-mode') === 'dark' ? 'fas fa-sun' : 'fas fa-moon'}"></i>
+        <span data-mode-label>${document.documentElement.getAttribute('data-mode') === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
+      </button>
+      <div class="user-menu-divider"></div>
+      <div class="user-menu-item" style="justify-content:space-between;cursor:default">
+        <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
+        <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+      </div>
+    `;
+  }
+}
+
+function doLogin() {
+  const nome = prompt('Digite seu nome de usuário:', '07Chines') || 'Jogador';
+  localStorage.setItem('xinzuh-logged', 'true');
+  localStorage.setItem('xinzuh-username', nome);
+  isLoggedIn = true;
+  renderUserMenu();
+  const um = document.getElementById('userMenuDropdown');
+  if (um) um.classList.remove('show');
+}
+
+function doLogout() {
+  localStorage.setItem('xinzuh-logged', 'false');
+  isLoggedIn = false;
+  renderUserMenu();
+  const um = document.getElementById('userMenuDropdown');
+  if (um) um.classList.remove('show');
+}
+
+// expose for onclick
+window.doLogin = doLogin;
+window.doLogout = doLogout;
+window.toggleMode = toggleMode;
+
+renderUserMenu();
+
+// ===== User Menu toggle =====
+const userMenuBtn = document.getElementById('userMenuBtn');
+const userMenuDropdown = document.getElementById('userMenuDropdown');
+
+if (userMenuBtn) {
+  userMenuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (userMenuDropdown) userMenuDropdown.classList.toggle('show');
+    if (themeDropdown) themeDropdown.classList.remove('show');
+  });
+}
+
+document.addEventListener('click', () => {
+  if (themeDropdown) themeDropdown.classList.remove('show');
+  if (userMenuDropdown) userMenuDropdown.classList.remove('show');
+});
+
+// ===== Scroll helpers =====
+function scrollCats(dir) {
+  const el = document.getElementById('catsScroll');
+  if (el) el.scrollBy({ left: dir * 150, behavior: 'smooth' });
+}
+function scrollProds(id, dir) {
+  const el = document.getElementById(id + 'Scroll');
+  if (el) el.scrollBy({ left: dir * 280, behavior: 'smooth' });
+}
+window.scrollCats = scrollCats;
+window.scrollProds = scrollProds;
+
+// ===== Product card =====
+function createProductCard(ad) {
+  const initial = ad.seller.charAt(0).toUpperCase();
+  return `
+    <a href="anuncio.html?id=${ad.id}" class="product-card">
+      <div class="product-img ${ad.imgClass || 'prod-default'}">
+        <i class="${ad.icon.includes('fa-') ? (ad.icon.startsWith('fab') ? 'fab' : 'fas') : 'fas'} ${ad.icon.replace('fab ', '').replace('fas ', '')}"></i>
+        <button class="fav" onclick="event.preventDefault();event.stopPropagation();">
+          <i class="far fa-heart"></i>
+        </button>
+      </div>
+      <div class="product-body">
+        <h3>${ad.title}</h3>
+        <div class="product-price">R$ ${ad.price.toFixed(2).replace('.', ',')}</div>
+        <div class="product-seller">
+          <span class="avatar">${initial}</span>
+          ${ad.seller}
+          <span class="rating"><i class="fas fa-star"></i> ${ad.rating}</span>
+          <span>(${ad.sales})</span>
+        </div>
+      </div>
+    </a>
+  `;
+}
+
+// Home sections
+const premiumScroll = document.getElementById('premiumScroll');
+if (premiumScroll) {
+  premiumScroll.innerHTML = adsData.filter(a => a.category === 'premium').map(createProductCard).join('');
+}
+const featuredScroll = document.getElementById('featuredScroll');
+if (featuredScroll) {
+  featuredScroll.innerHTML = adsData.filter(a => a.category !== 'premium').slice(0, 6).map(createProductCard).join('');
+}
+
+// ===== Anúncios filters =====
+const adsListContainer = document.getElementById('adsList');
+const resultsCount = document.getElementById('resultsCount');
+const categoryFilter = document.getElementById('categoryFilter');
+const sortFilter = document.getElementById('sortFilter');
+const priceMin = document.getElementById('priceMin');
+const priceMax = document.getElementById('priceMax');
+const searchFilter = document.getElementById('searchFilter');
+
+function applyFilters() {
+  if (!adsListContainer) return;
+  let filtered = [...adsData];
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const catFromUrl = urlParams.get('cat');
+  if (catFromUrl && categoryFilter) categoryFilter.value = catFromUrl;
+
+  const cat = categoryFilter ? categoryFilter.value : '';
+  if (cat && cat !== 'all') filtered = filtered.filter(ad => ad.category === cat);
+
+  const min = priceMin && priceMin.value ? parseFloat(priceMin.value) : 0;
+  const max = priceMax && priceMax.value ? parseFloat(priceMax.value) : Infinity;
+  filtered = filtered.filter(ad => ad.price >= min && ad.price <= max);
+
+  const search = searchFilter ? searchFilter.value.toLowerCase() : '';
+  if (search) {
+    filtered = filtered.filter(ad =>
+      ad.title.toLowerCase().includes(search) ||
+      ad.categoryLabel.toLowerCase().includes(search) ||
+      ad.seller.toLowerCase().includes(search)
+    );
+  }
+
+  const sort = sortFilter ? sortFilter.value : 'relevance';
+  if (sort === 'price-asc') filtered.sort((a, b) => a.price - b.price);
+  else if (sort === 'price-desc') filtered.sort((a, b) => b.price - a.price);
+  else if (sort === 'rating') filtered.sort((a, b) => b.rating - a.rating);
+  else if (sort === 'sales') filtered.sort((a, b) => b.sales - a.sales);
+
+  adsListContainer.innerHTML = filtered.length
+    ? filtered.map(createProductCard).join('')
+    : '<p style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px">Nenhum anúncio encontrado.</p>';
+
+  if (resultsCount) {
+    resultsCount.textContent = `${filtered.length} anúncio${filtered.length !== 1 ? 's' : ''} encontrado${filtered.length !== 1 ? 's' : ''}`;
+  }
+}
+
+[categoryFilter, sortFilter, priceMin, priceMax, searchFilter].forEach(el => {
+  if (el) {
+    el.addEventListener('change', applyFilters);
+    el.addEventListener('input', applyFilters);
+  }
+});
+if (adsListContainer) applyFilters();
+
+// ===== Ad detail =====
+const adDetailContainer = document.getElementById('adDetail');
+if (adDetailContainer) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const adId = parseInt(urlParams.get('id'));
+  const ad = adsData.find(a => a.id === adId);
+
+  if (ad) {
+    const iconClass = ad.icon.includes('fab') ? 'fab' : 'fas';
+    const iconName = ad.icon.replace('fab ', '').replace('fas ', '');
+    adDetailContainer.innerHTML = `
+      <div class="ad-detail-grid">
+        <div>
+          <div class="ad-gallery ${ad.imgClass || ''}">
+            <i class="${iconClass} ${iconName}" style="font-size:4.5rem;color:#fff"></i>
+          </div>
+          <div class="ad-info">
+            <div class="cat-label">${ad.categoryLabel}</div>
+            <h1>${ad.title}</h1>
+            <div class="price">R$ ${ad.price.toFixed(2).replace('.', ',')}</div>
+            <p class="description">${ad.description}</p>
+            <h3 style="margin-bottom:10px;font-size:1rem">Detalhes</h3>
+            <ul style="color:var(--text-muted);line-height:2;font-size:0.95rem;list-style:none">
+              <li><strong>Categoria:</strong> ${ad.categoryLabel}</li>
+              <li><strong>Vendedor:</strong> ${ad.seller}</li>
+              <li><strong>Avaliação:</strong> ${ad.rating} ⭐ (${ad.sales} vendas)</li>
+              <li><strong>Entrega:</strong> Via chat da plataforma</li>
+            </ul>
+          </div>
+        </div>
+        <div class="ad-sidebar">
+          <div class="seller-card">
+            <div class="seller-avatar"><i class="fas fa-user"></i></div>
+            <div class="seller-info">
+              <h4>${ad.seller}</h4>
+              <span><i class="fas fa-star" style="color:var(--warning)"></i> ${ad.rating} · ${ad.sales} vendas</span>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-lg buy-btn"><i class="fas fa-shopping-cart"></i> Comprar Agora</button>
+          <button class="btn btn-outline" style="width:100%;margin-bottom:12px"><i class="fas fa-comments"></i> Falar com Vendedor</button>
+          <div class="guarantee"><i class="fas fa-shield-alt"></i> Compra 100% protegida</div>
+        </div>
+      </div>
+    `;
+  } else {
+    adDetailContainer.innerHTML = `
+      <div style="text-align:center;padding:60px 20px">
+        <h2>Anúncio não encontrado</h2>
+        <p style="color:var(--text-muted);margin:16px 0 24px">O anúncio que você procura não existe ou foi removido.</p>
+        <a href="anuncios.html" class="btn btn-primary">Ver todos os anúncios</a>
+      </div>
+    `;
+  }
+}
+
+  </script>
+</body>
+</html>
