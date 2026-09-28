@@ -41,6 +41,7 @@ function friendlyError(err) {
     'auth/popup-blocked': 'Popup bloqueado pelo navegador.',
     'auth/popup-closed-by-user': 'Login cancelado.',
     'auth/unauthorized-domain': 'Domínio não autorizado no Firebase.',
+    'auth/missing-email': 'Digite seu e-mail.',
     'auth/operation-not-allowed': 'Login por e-mail desativado no Firebase. Ative em Authentication → Método de login → E-mail/senha.',
   };
   return map[err.code] || (err.message || 'Erro desconhecido');
@@ -124,6 +125,21 @@ async function registerWithEmail(email, password, displayName) {
     showMsg(friendlyError(err), 'err');
     console.error(err);
     setLoading(btn, false);
+  }
+}
+
+
+async function resetPasswordWithEmail(email) {
+  const btn = document.querySelector('#btn-reset, form button[type="submit"]');
+  if (btn) setLoading(btn, true);
+  try {
+    await auth.sendPasswordResetEmail(email.trim());
+    showMsg('Enviamos um e-mail para redefinir sua senha. Confira a caixa de entrada e o spam.', 'ok');
+  } catch (err) {
+    showMsg(friendlyError(err), 'err');
+    console.error(err);
+  } finally {
+    if (btn) setLoading(btn, false);
   }
 }
 
