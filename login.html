@@ -1181,18 +1181,16 @@ img { max-width: 100%; display: block; }
     </div>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
   <script>
     function loginGoogle() {
-      // Simulação de login com Google (protótipo)
-      const nome = prompt('Simulação Google: digite seu nome', 'Jogador Google') || 'Jogador Google';
-      localStorage.setItem('xinzuh-logged', 'true');
-      localStorage.setItem('xinzuh-username', nome);
-      localStorage.setItem('xinzuh-login-method', 'google');
-      alert('Login com Google simulado com sucesso!\n\nNa versão real, aqui abriria a tela do Google.');
-      window.location.href = 'index.html';
+      loginWithGoogle();
     }
     function loginEmail(e) {
       e.preventDefault();
+      alert('Login por e-mail ainda é simulado. Use Continuar com Google.');
       const email = document.getElementById('email').value;
       const nome = email.split('@')[0];
       localStorage.setItem('xinzuh-logged', 'true');

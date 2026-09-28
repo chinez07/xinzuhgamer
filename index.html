@@ -1437,7 +1437,12 @@ function doLogin() {
 }
 
 function doLogout() {
-  localStorage.setItem('xinzuh-logged', 'false');
+  if (typeof logoutFirebase === 'function') {
+    logoutFirebase();
+    return;
+  }
+  localStorage.removeItem('xinzuh-logged');
+  localStorage.removeItem('xinzuh-username');
   isLoggedIn = false;
   renderUserMenu();
   const um = document.getElementById('userMenuDropdown');
@@ -1627,5 +1632,8 @@ if (adDetailContainer) {
 }
 
   </script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
 </body>
 </html>
