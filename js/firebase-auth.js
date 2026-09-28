@@ -22,7 +22,7 @@ function saveUser(user, method) {
     return;
   }
   localStorage.setItem('xinzuh-logged', 'true');
-  localStorage.setItem('xinzuh-username', user.displayName || user.email?.split('@')[0] || 'Jogador');
+  localStorage.setItem('xinzuh-username', user.displayName || (user.email ? user.email.split('@')[0] : 'Jogador'));
   localStorage.setItem('xinzuh-email', user.email || '');
   localStorage.setItem('xinzuh-photo', user.photoURL || '');
   localStorage.setItem('xinzuh-login-method', method || 'email');
@@ -40,9 +40,33 @@ function friendlyError(err) {
     'auth/network-request-failed': 'Erro de rede. Verifique a internet.',
     'auth/popup-blocked': 'Popup bloqueado pelo navegador.',
     'auth/popup-closed-by-user': 'Login cancelado.',
-    'auth/unauthorized-domain': 'Domínio não autorizado no Firebase. Adicione bloxzuh.store em Domínios autorizados.',
+    'auth/unauthorized-domain': 'Domínio não autorizado no Firebase.',
+    'auth/operation-not-allowed': 'Login por e-mail desativado no Firebase. Ative em Authentication → Método de login → E-mail/senha.',
   };
   return map[err.code] || (err.message || 'Erro desconhecido');
+}
+
+function showMsg(text, type) {
+  let el = document.getElementById('auth-msg');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'auth-msg';
+    el.style.cssText = 'margin:12px 0;padding:12px 14px;border-radius:10px;font-size:0.9rem;font-weight:500;';
+    const form = document.querySelector('form');
+    if (form) form.parentNode.insertBefore(el, form);
+    else document.body.prepend(el);
+  }
+  el.style.background = type === 'ok' ? '#dcfce7' : '#fee2e2';
+  el.style.color = type === 'ok' ? '#166534' : '#991b1b';
+  el.textContent = text;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setLoading(btn, loading) {
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.dataset.oldText = btn.dataset.oldText || btn.textContent;
+  btn.textContent = loading ? 'Aguarde...' : btn.dataset.oldText;
 }
 
 async function loginWithGoogle() {
@@ -57,38 +81,49 @@ async function loginWithGoogle() {
       try {
         await auth.signInWithRedirect(provider);
       } catch (e2) {
-        alert(friendlyError(e2));
+        showMsg(friendlyError(e2), 'err');
       }
     } else {
-      alert(friendlyError(err));
+      showMsg(friendlyError(err), 'err');
       console.error(err);
     }
   }
 }
 
 async function loginWithEmail(email, password) {
+  const btn = document.querySelector('form button[type="submit"]');
+  setLoading(btn, true);
   try {
     const result = await auth.signInWithEmailAndPassword(email.trim(), password);
     saveUser(result.user, 'email');
+    showMsg('Login ok! Redirecionando...', 'ok');
     window.location.href = 'index.html';
   } catch (err) {
-    alert(friendlyError(err));
+    showMsg(friendlyError(err), 'err');
     console.error(err);
+    setLoading(btn, false);
   }
 }
 
 async function registerWithEmail(email, password, displayName) {
+  const btn = document.querySelector('form button[type="submit"]');
+  setLoading(btn, true);
   try {
     const result = await auth.createUserWithEmailAndPassword(email.trim(), password);
     if (displayName) {
-      await result.user.updateProfile({ displayName: displayName.trim() });
+      try {
+        await result.user.updateProfile({ displayName: displayName.trim() });
+      } catch (e) {
+        console.warn('updateProfile', e);
+      }
     }
-    saveUser(auth.currentUser, 'email');
-    alert('Conta criada com sucesso!');
-    window.location.href = 'index.html';
+    saveUser(auth.currentUser || result.user, 'email');
+    showMsg('Conta criada com sucesso! Entrando...', 'ok');
+    setTimeout(function () { window.location.href = 'index.html'; }, 800);
   } catch (err) {
-    alert(friendlyError(err));
+    showMsg(friendlyError(err), 'err');
     console.error(err);
+    setLoading(btn, false);
   }
 }
 
@@ -105,13 +140,13 @@ async function handleRedirectResult() {
 }
 
 function logoutFirebase() {
-  auth.signOut().then(() => {
+  auth.signOut().then(function () {
     saveUser(null);
     window.location.href = 'index.html';
   });
 }
 
-auth.onAuthStateChanged((user) => {
+auth.onAuthStateChanged(function (user) {
   if (user) saveUser(user, localStorage.getItem('xinzuh-login-method') || 'email');
 });
 
