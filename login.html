@@ -1223,10 +1223,11 @@ img { max-width: 100%; display: block; }
       }
       if (resetBtn) {
         resetBtn.addEventListener('click', function () {
-          const email = document.getElementById('email').value;
+          const email = (document.getElementById('email').value || '').trim();
           if (!email) {
-            if (typeof showMsg === 'function') showMsg('Digite seu e-mail acima.', 'err');
-            else alert('Digite seu e-mail.');
+            if (typeof showMsg === 'function') showMsg('Coloque o e-mail primeiro.', 'err');
+            else alert('Coloque o e-mail primeiro.');
+            document.getElementById('email').focus();
             return;
           }
           resetPasswordWithEmail(email);
