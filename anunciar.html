@@ -439,7 +439,7 @@
             const c = document.createElement('canvas');
             c.width = w; c.height = h;
             c.getContext('2d').drawImage(img, 0, 0, w, h);
-            resolve(c.toDataURL('image/jpeg', 0.75));
+            resolve(c.toDataURL('image/jpeg', 0.55));
           };
           img.onerror = reject;
           img.src = reader.result;
@@ -456,7 +456,7 @@
       const f = coverInput.files[0];
       if (!f) return;
       try {
-        state.cover = await fileToDataUrl(f, 800);
+        state.cover = await fileToDataUrl(f, 480);
         coverZone.innerHTML = '<img src="' + state.cover + '" alt="Capa"><p>Escolher outra imagem</p>';
       } catch (e) { showMsg('Erro ao ler imagem.', 'err'); }
     });
@@ -467,9 +467,9 @@
     galInput.addEventListener('change', async () => {
       const files = [...galInput.files].slice(0, 8);
       for (const f of files) {
-        if (state.gallery.length >= 8) break;
+        if (state.gallery.length >= 2) break;
         try {
-          const url = await fileToDataUrl(f, 600);
+          const url = await fileToDataUrl(f, 360);
           state.gallery.push(url);
         } catch (e) {}
       }
@@ -515,6 +515,13 @@
       let fee = state.feePercent;
       if (state.plan === 'max') fee += 2.99;
       try {
+        let cover = state.cover || '';
+        if (cover.length > 700000) {
+          // recompact attempt already done; drop if still huge
+          console.warn('Capa muito grande, publicando sem imagem embutida');
+          showMsg('Imagem muito grande — publicando com capa reduzida/sem capa se falhar.', 'err');
+          cover = cover.substring(0, 0); // empty - better publish than fail
+        }
         await fsCreateAd({
           title: document.getElementById('title').value.trim(),
           category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Outros',
@@ -531,8 +538,8 @@
           visibility: state.visibility,
           plan: state.plan,
           feePercent: fee,
-          cover: state.cover,
-          gallery: state.gallery.slice(0, 4)
+          cover: cover,
+          gallery: state.gallery.slice(0, 2)
         });
         showMsg('Anúncio publicado com sucesso!', 'ok');
         setTimeout(() => { window.location.href = 'painel.html'; }, 1200);

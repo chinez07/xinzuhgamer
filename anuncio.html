@@ -1221,94 +1221,62 @@ function applyFilters() {
 if (adsListContainer) applyFilters();
 
 // ===== Ad detail =====
-const adDetailContainer = document.getElementById('adDetail');
-if (adDetailContainer) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const adId = parseInt(urlParams.get('id'));
-  const ad = adsData.find(a => a.id === adId);
 
-  if (ad) {
-    const iconClass = ad.icon.includes('fab') ? 'fab' : 'fas';
-    const iconName = ad.icon.replace('fab ', '').replace('fas ', '');
-    adDetailContainer.innerHTML = `
-      <div class="ad-detail-grid">
-        <div>
-          <div class="ad-gallery ${ad.imgClass || ''}">
-            <i class="${iconClass} ${iconName}" style="font-size:4.5rem;color:#fff"></i>
-          </div>
-          <div class="ad-info">
-            <div class="cat-label">${ad.categoryLabel}</div>
-            <h1>${ad.title}</h1>
-            <div class="price">R$ ${ad.price.toFixed(2).replace('.', ',')}</div>
-            <p class="description">${ad.description}</p>
-            <h3 style="margin-bottom:10px;font-size:1rem">Detalhes</h3>
-            <ul style="color:var(--text-muted);line-height:2;font-size:0.95rem;list-style:none">
-              <li><strong>Categoria:</strong> ${ad.categoryLabel}</li>
-              <li><strong>Vendedor:</strong> ${ad.seller}</li>
-              <li><strong>Avaliação:</strong> ${ad.rating} ⭐ (${ad.sales} vendas)</li>
-              <li><strong>Entrega:</strong> Via chat da plataforma</li>
-            </ul>
-          </div>
-        </div>
-        <div class="ad-sidebar">
-          <div class="seller-card">
-            <div class="seller-avatar"><i class="fas fa-user"></i></div>
-            <div class="seller-info">
-              <h4>${ad.seller}</h4>
-              <span><i class="fas fa-star" style="color:var(--warning)"></i> ${ad.rating} · ${ad.sales} vendas</span>
-            </div>
-          </div>
-          <button class="btn btn-primary btn-lg buy-btn"><i class="fas fa-shopping-cart"></i> Comprar Agora</button>
-          <button class="btn btn-outline" style="width:100%;margin-bottom:12px"><i class="fas fa-comments"></i> Falar com Vendedor</button>
-          <div class="guarantee"><i class="fas fa-shield-alt"></i> Compra 100% protegida</div>
-        </div>
-      </div>
-    `;
-  } else {
-    adDetailContainer.innerHTML = `
-      <div style="text-align:center;padding:60px 20px">
-        <h2>Anúncio não encontrado</h2>
-        <p style="color:var(--text-muted);margin:16px 0 24px">O anúncio que você procura não existe ou foi removido.</p>
-        <a href="anuncios.html" class="btn btn-primary">Ver todos os anúncios</a>
-      </div>
-    `;
+// ===== Detalhe do anúncio (Firestore) =====
+(async function loadAdPage() {
+  const box = document.getElementById('adDetail');
+  if (!box) return;
+  const params = new URLSearchParams(window.location.search);
+  let id = params.get('id');
+  if (id) id = decodeURIComponent(id).trim();
+
+  box.innerHTML = '<p style="padding:40px;text-align:center;color:var(--text-muted)">Carregando anúncio…</p>';
+
+  if (!id) {
+    box.innerHTML = '<div class="ad-not-found" style="text-align:center;padding:48px 16px"><h2>Anúncio não encontrado</h2><p style="color:var(--text-muted);margin:12px 0">Link inválido.</p><a class="btn btn-primary" href="anuncios.html">Ver todos os anúncios</a></div>';
+    return;
   }
-}
 
-  
-async function loadAdFromFirestore() {
-  const params = new URLSearchParams(location.search);
-  const id = params.get('id');
-  if (!id || typeof fsGetAdById !== 'function') return;
-  // if numeric demo id, skip
-  if (/^\d+$/.test(id) && Number(id) < 1000) return;
   try {
+    if (typeof fsGetAdById !== 'function') {
+      throw new Error('Firestore não carregou. Atualize a página.');
+    }
     const ad = await fsGetAdById(id);
     if (!ad) {
-      const box = document.getElementById('adDetail');
-      if (box) box.innerHTML = '<p style="padding:24px">Anúncio não encontrado.</p>';
+      box.innerHTML = '<div class="ad-not-found" style="text-align:center;padding:48px 16px"><h2>Anúncio não encontrado</h2><p style="color:var(--text-muted);margin:12px 0">O anúncio não existe ou foi removido.</p><a class="btn btn-primary" href="anuncios.html">Ver todos os anúncios</a></div>';
       return;
     }
-    const box = document.getElementById('adDetail');
-    if (!box) return;
-    const price = (ad.price || 0).toFixed(2).replace('.', ',');
-    const cover = ad.cover ? '<img src="'+ad.cover+'" style="width:100%;max-height:280px;object-fit:cover;border-radius:14px;margin-bottom:16px">' : '';
-    box.innerHTML = `
-      <div class="ad-detail">
-        ${cover}
-        <div class="ad-info">
-          <span class="cat-tag">${ad.categoryLabel || ad.category}</span>
-          <h1>${ad.title}</h1>
-          <div class="price">R$ ${price}</div>
-          <p class="description">${(ad.description || 'Sem descrição.').replace(/</g,'&lt;')}</p>
-          <div class="seller-line">Vendedor: <strong>${ad.seller}</strong> · Estoque: ${ad.stock || 1}</div>
-          <button class="btn btn-primary buy-btn" type="button" onclick="alert('Compra simulada! Em breve pagamento real na Bloxzuh.')">Comprar agora</button>
-          <button class="btn btn-outline buy-btn" type="button" onclick="toggleFav && toggleFav('${ad.id}')">Favoritar</button>
-        </div>
-      </div>`;
-  } catch (e) { console.error(e); }
-}
-loadAdFromFirestore();
-  </script>
+    const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');
+    const cover = ad.cover
+      ? '<img src="' + ad.cover + '" alt="" style="width:100%;max-height:320px;object-fit:cover;border-radius:14px;margin-bottom:16px;background:#222">'
+      : '<div style="height:160px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#2e1065);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#fff;font-size:2.5rem"><i class="fas fa-gamepad"></i></div>';
+    const desc = String(ad.description || 'Sem descrição.').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    box.innerHTML =
+      '<div class="ad-detail">' +
+        cover +
+        '<div class="ad-info">' +
+          '<span class="cat-tag">' + (ad.categoryLabel || ad.category || '') + '</span>' +
+          '<h1>' + String(ad.title).replace(/</g,'&lt;') + '</h1>' +
+          '<div class="price">R$ ' + price + '</div>' +
+          '<p class="description">' + desc + '</p>' +
+          '<div class="seller-line">Vendedor: <strong>' + String(ad.seller).replace(/</g,'&lt;') + '</strong> · Estoque: ' + (ad.stock || 1) + '</div>' +
+          '<button class="btn btn-primary buy-btn" type="button" id="btnBuy">Comprar agora</button>' +
+          '<button class="btn btn-outline buy-btn" type="button" id="btnFavAd">Favoritar</button>' +
+        '</div>' +
+      '</div>';
+    const buy = document.getElementById('btnBuy');
+    if (buy) buy.onclick = function () { alert('Compra simulada! Em breve pagamento real na Bloxzuh.'); };
+    const fav = document.getElementById('btnFavAd');
+    if (fav) fav.onclick = function () {
+      if (typeof toggleFav === 'function') toggleFav(ad.id);
+      else alert('Favorito salvo localmente.');
+    };
+  } catch (e) {
+    console.error(e);
+    box.innerHTML = '<div style="text-align:center;padding:48px 16px"><h2>Erro ao carregar</h2><p style="color:var(--text-muted);margin:12px 0">' + (e.message || e) + '</p><a class="btn btn-primary" href="anuncios.html">Ver anúncios</a></div>';
+  }
+})();
+
+</script>
 </body>
 </html>
