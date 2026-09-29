@@ -557,7 +557,19 @@ img { max-width: 100%; display: block; }
   font-size: 3rem;
   position: relative;
   color: #fff;
+  overflow: hidden;
+  background: linear-gradient(135deg, #4c1d95, #1e1b4b);
 }
+.product-img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.product-img .fav { z-index: 2; }
+
 .product-img .fav {
   position: absolute;
   top: 10px;
@@ -1019,7 +1031,26 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   transform: translateX(18px);
 }
 
-  </style>
+  
+.fav, .fav-btn {
+  background: rgba(0,0,0,0.35);
+  border: none;
+  color: #fff;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.fav i, .fav-btn i { font-size: 1rem; pointer-events: none; }
+.fav.is-fav, .fav-btn.is-fav {
+  background: rgba(239, 68, 68, 0.95);
+  color: #fff;
+}
+.fav.is-fav i, .fav-btn.is-fav i { color: #fff; }
+.fav:not(.is-fav) i { color: #fff; opacity: 0.95; }
+
+</style>
 </head>
 <body>
   <!-- Header -->
@@ -1279,6 +1310,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/firestore-db.js"></script>
+  <script src="js/favs.js"></script>
   <script>
 const adsData = [];
 
@@ -1356,7 +1388,7 @@ function renderUserMenu() {
       <a href="painel.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>
       <a href="conta.html" class="user-menu-item"><i class="fas fa-user-cog"></i> Minha conta</a>
-      <a href="anuncios.html?fav=1" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>
+      <a href="favoritos.html" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>
       <a href="#ajuda" class="user-menu-item" onclick="document.getElementById('ajudaBox')?.scrollIntoView({behavior:'smooth'})"><i class="fas fa-question-circle"></i> Central de ajuda</a>
       <a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>
       <button class="user-menu-item" onclick="toggleMode()">
@@ -1588,15 +1620,20 @@ window.scrollProds = scrollProds;
 function createProductCard(ad) {
   const initial = (ad.seller || 'V').charAt(0).toUpperCase();
   const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');
+  const id = String(ad.id);
+  const favOn = (typeof isFav === 'function') ? isFav(id) : false;
+  const heart = favOn ? 'fas fa-heart' : 'far fa-heart';
+  const favCls = favOn ? 'fav is-fav' : 'fav';
   const img = ad.cover
     ? '<img src="' + ad.cover + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0">'
     : '<i class="fas ' + (ad.icon || 'fa-gamepad') + '"></i>';
   return (
-    '<a href="anuncio.html?id=' + encodeURIComponent(ad.id) + '" class="product-card">' +
-      '<div class="product-img ' + (ad.imgClass || 'prod-default') + '" style="overflow:hidden">' +
+    '<a href="anuncio.html?id=' + encodeURIComponent(id) + '" class="product-card">' +
+      '<div class="product-img ' + (ad.imgClass || 'prod-default') + '" style="overflow:hidden;position:relative">' +
         img +
-        '<button class="fav" type="button" onclick="event.preventDefault();event.stopPropagation();toggleFav(\'' + ad.id + '\')">' +
-          '<i class="far fa-heart"></i>' +
+        '<button class="' + favCls + '" type="button" data-id="' + id + '" title="' + (favOn ? 'Remover dos favoritos' : 'Adicionar aos favoritos') + '" ' +
+          'onclick="event.preventDefault();event.stopPropagation();toggleFav(\'' + id + '\', this)">' +
+          '<i class="' + heart + '"></i>' +
         '</button>' +
       '</div>' +
       '<div class="product-body">' +
@@ -1616,15 +1653,7 @@ function escapeHtmlHome(s) {
     return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
   });
 }
-function toggleFav(id) {
-  let favs = [];
-  try { favs = JSON.parse(localStorage.getItem('bloxzuh-favs') || '[]'); } catch (e) {}
-  const i = favs.indexOf(String(id));
-  if (i >= 0) favs.splice(i, 1); else favs.push(String(id));
-  localStorage.setItem('bloxzuh-favs', JSON.stringify(favs));
-  alert(i >= 0 ? 'Removido dos favoritos' : 'Adicionado aos favoritos');
-}
-window.toggleFav = toggleFav;
+
 
 
 // Home sections
@@ -1659,7 +1688,7 @@ async function loadFirestoreAdsHome() {
     console.warn('Firestore home', e);
   }
 }
-loadFirestoreAdsHome();
+loadFirestoreAdsHome().then(function(){ if (typeof syncFavButtonsIn==="function") syncFavButtonsIn(document); });
 (function(){
   var hs = document.getElementById('homeSearch');
   if (hs) hs.addEventListener('keydown', function(e){
