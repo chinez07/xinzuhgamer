@@ -17,14 +17,15 @@ function saveUser(user, method) {
     localStorage.removeItem('xinzuh-logged');
     localStorage.removeItem('xinzuh-username');
     localStorage.removeItem('xinzuh-email');
-    localStorage.removeItem('xinzuh-photo');
+    // não apaga foto local do uid
     localStorage.removeItem('xinzuh-login-method');
     return;
   }
   localStorage.setItem('xinzuh-logged', 'true');
   localStorage.setItem('xinzuh-username', user.displayName || (user.email ? user.email.split('@')[0] : 'Jogador'));
   localStorage.setItem('xinzuh-email', user.email || '');
-  localStorage.setItem('xinzuh-photo', user.photoURL || '');
+  var custom = localStorage.getItem('xinzuh-photo-' + user.uid);
+  localStorage.setItem('xinzuh-photo', custom || user.photoURL || '');
   localStorage.setItem('xinzuh-login-method', method || 'email');
 }
 
@@ -219,7 +220,7 @@ async function uploadProfilePhoto(file) {
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.82));
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
       };
       img.onerror = function () { reject(new Error('Não foi possível ler a imagem.')); };
       img.src = reader.result;
@@ -228,18 +229,22 @@ async function uploadProfilePhoto(file) {
     reader.readAsDataURL(file);
   });
 
-  localStorage.setItem('xinzuh-photo-' + user.uid, dataUrl);
-  localStorage.setItem('xinzuh-photo', dataUrl);
   try {
-    // photoURL do Firebase não aceita data URL grande; mantemos só local
-  } catch (e) {}
+    localStorage.setItem('xinzuh-photo-' + user.uid, dataUrl);
+    localStorage.setItem('xinzuh-photo', dataUrl);
+  } catch (e) {
+    throw new Error('Espaço insuficiente no navegador. Use uma imagem menor.');
+  }
   return dataUrl;
 }
 
 
 function getLocalPhoto(uid) {
-  if (!uid) return localStorage.getItem('xinzuh-photo') || '';
-  return localStorage.getItem('xinzuh-photo-' + uid) || localStorage.getItem('xinzuh-photo') || '';
+  if (uid) {
+    var p = localStorage.getItem('xinzuh-photo-' + uid);
+    if (p) return p;
+  }
+  return '';
 }
 
 function getBio() {
