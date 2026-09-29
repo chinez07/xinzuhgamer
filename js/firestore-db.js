@@ -151,7 +151,12 @@ async function fsGetPublicAds(limit) {
 }
 
 async function fsGetAdById(id) {
+  if (!id) return null;
+  id = String(id).trim();
   const doc = await db.collection('ads').doc(id).get();
-  if (!doc.exists) return null;
+  if (!doc.exists) {
+    console.warn('Ad not found:', id);
+    return null;
+  }
   return normalizeAd(doc.id, doc.data());
 }
