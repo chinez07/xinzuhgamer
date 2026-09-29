@@ -108,15 +108,50 @@ async function fsGetMySales() {
   return list;
 }
 
-/** Anúncios ativos públicos (para a home no futuro) */
+
+
+
+function normalizeAd(id, data) {
+  const cat = (data.subcategory || data.category || 'outros').toLowerCase().replace(/\s+/g, '');
+  const map = {
+    roblox: 'roblox', valorant: 'valorant', freefire: 'freefire', 'freefire': 'freefire',
+    'leagueoflegends': 'lol', lol: 'lol', fortnite: 'fortnite', cs2: 'cs2',
+    genshinimpact: 'genshin', genshin: 'genshin', premium: 'premium', assinaturas: 'premium'
+  };
+  let category = map[cat] || map[(data.category || '').toLowerCase()] || 'outros';
+  if ((data.category || '').toLowerCase().indexOf('assinat') >= 0) category = 'premium';
+  return {
+    id: id,
+    title: data.title || 'Anúncio',
+    category: category,
+    categoryLabel: data.subcategory || data.category || 'Jogos',
+    price: Number(data.price) || 0,
+    seller: data.sellerName || 'Vendedor',
+    rating: 5.0,
+    sales: data.sales || 0,
+    icon: 'fa-gamepad',
+    imgClass: 'prod-default',
+    cover: data.cover || '',
+    description: data.desc || '',
+    stock: data.stock || 1,
+    visibility: data.visibility || 'prata',
+    productType: data.productType || '',
+    raw: data
+  };
+}
+
 async function fsGetPublicAds(limit) {
-  const snap = await db.collection('ads')
-    .where('status', '==', 'ativo')
-    .limit(limit || 24)
-    .get();
+  const snap = await db.collection('ads').where('status', '==', 'ativo').limit(limit || 40).get();
   const list = [];
   snap.forEach(function (doc) {
-    list.push(Object.assign({ id: doc.id }, doc.data()));
+    list.push(normalizeAd(doc.id, doc.data()));
   });
+  list.sort(function (a, b) { return (b.raw && b.raw.createdAtMs || 0) - (a.raw && a.raw.createdAtMs || 0); });
   return list;
+}
+
+async function fsGetAdById(id) {
+  const doc = await db.collection('ads').doc(id).get();
+  if (!doc.exists) return null;
+  return normalizeAd(doc.id, doc.data());
 }
