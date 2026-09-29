@@ -1051,14 +1051,27 @@ img { max-width: 100%; display: block; }
     }
 
     function renderAvatar(user) {
-      const box = document.getElementById('avatarBox');
-      if (user.photoURL) {
-        box.outerHTML = '<img id="avatarBox" class="avatar" src="' + user.photoURL + '" alt="Foto">';
+      var box = document.getElementById('avatarBox');
+      if (!box) return;
+      var local = '';
+      try {
+        local = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
+      } catch (e) {}
+      var src = local || user.photoURL || '';
+      var letter = (user.displayName || user.email || '?').charAt(0).toUpperCase();
+      if (src) {
+        if (box.tagName === 'IMG') {
+          box.src = src;
+        } else {
+          box.outerHTML = '<img id="avatarBox" class="avatar" src="' + src + '" alt="Foto">';
+        }
       } else {
-        const letter = (user.displayName || user.email || '?').charAt(0).toUpperCase();
-        box.className = 'avatar-placeholder';
-        box.id = 'avatarBox';
-        box.textContent = letter;
+        if (box.tagName === 'IMG') {
+          box.outerHTML = '<div id="avatarBox" class="avatar-placeholder">' + letter + '</div>';
+        } else {
+          box.className = 'avatar-placeholder';
+          box.textContent = letter;
+        }
       }
     }
 
@@ -1083,10 +1096,14 @@ img { max-width: 100%; display: block; }
       msg('Enviando foto...', 'ok');
       try {
         const url = await uploadProfilePhoto(file);
-        const img = document.getElementById('avatarBox');
-        if (img && img.tagName === 'IMG') img.src = url;
-        else renderAvatar(auth.currentUser);
-        msg('Foto atualizada!', 'ok');
+        renderAvatar(auth.currentUser);
+        // confirma que gravou
+        var check = localStorage.getItem('xinzuh-photo-' + auth.currentUser.uid);
+        if (!check) {
+          msg('Não foi possível salvar a foto. Tente uma imagem menor.', 'err');
+          return;
+        }
+        msg('Foto atualizada! Ela ficará salva neste navegador.', 'ok');
       } catch (err) {
         msg(err.message || 'Erro ao enviar foto.', 'err');
         console.error(err);
