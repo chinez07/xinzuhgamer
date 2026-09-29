@@ -1,4 +1,4 @@
-// Firebase Auth - XinzuhGamer
+// Firebase Auth - Bloxzuh
 const firebaseConfig = {
   apiKey: "AIzaSyCaBMtonCi3KKKCvr8MuaMbsNOC14960Is",
   authDomain: "xinzuhgamer-87ff5.firebaseapp.com",
