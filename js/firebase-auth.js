@@ -182,3 +182,84 @@ auth.onAuthStateChanged(function (user) {
 });
 
 handleRedirectResult();
+
+
+async function updateDisplayName(name) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Faça login primeiro.');
+  await user.updateProfile({ displayName: name.trim() });
+  saveUser(auth.currentUser, localStorage.getItem('xinzuh-login-method') || 'email');
+}
+
+async function updateUserPassword(newPassword) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Faça login primeiro.');
+  await user.updatePassword(newPassword);
+}
+
+async function uploadProfilePhoto(file) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Faça login primeiro.');
+  if (!file) throw new Error('Escolha uma imagem.');
+  if (!file.type.startsWith('image/')) throw new Error('Envie uma imagem (JPG, PNG, etc).');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Imagem no máximo 5 MB.');
+
+  const dataUrl = await new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function () {
+      const img = new Image();
+      img.onload = function () {
+        const max = 400;
+        let w = img.width, h = img.height;
+        if (w > max || h > max) {
+          if (w > h) { h = Math.round(h * max / w); w = max; }
+          else { w = Math.round(w * max / h); h = max; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = function () { reject(new Error('Não foi possível ler a imagem.')); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { reject(new Error('Falha ao ler o arquivo.')); };
+    reader.readAsDataURL(file);
+  });
+
+  localStorage.setItem('xinzuh-photo-' + user.uid, dataUrl);
+  localStorage.setItem('xinzuh-photo', dataUrl);
+  try {
+    // photoURL do Firebase não aceita data URL grande; mantemos só local
+  } catch (e) {}
+  return dataUrl;
+}
+
+
+function getLocalPhoto(uid) {
+  if (!uid) return localStorage.getItem('xinzuh-photo') || '';
+  return localStorage.getItem('xinzuh-photo-' + uid) || localStorage.getItem('xinzuh-photo') || '';
+}
+
+function getBio() {
+  const user = auth.currentUser;
+  if (!user) return '';
+  return localStorage.getItem('xinzuh-bio-' + user.uid) || '';
+}
+
+function saveBio(text) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Faça login primeiro.');
+  localStorage.setItem('xinzuh-bio-' + user.uid, text || '');
+}
+
+async function deactivateAccountLocal() {
+  // Soft flag local + sign out (exclusão real exige reauth e delete())
+  const user = auth.currentUser;
+  if (!user) return;
+  localStorage.setItem('xinzuh-deactivated-' + user.uid, '1');
+  await auth.signOut();
+  saveUser(null);
+  window.location.href = 'index.html';
+}
