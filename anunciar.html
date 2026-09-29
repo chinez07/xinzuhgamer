@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anunciar | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: #7c3aed;
+      --primary-hover: #6d28d9;
+      --primary-soft: rgba(124,58,237,0.12);
+      --bg: #f5f3ff;
+      --card: #fff;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --ok: #16a34a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--text); font-weight: 800; }
+    .logo-i { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg,#7c3aed,#a855f7); color:#fff; display:flex; align-items:center; justify-content:center; }
+    .link { color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 80px; }
+    .steps {
+      display: flex; align-items: center; justify-content: center; gap: 0; margin: 8px 0 24px; flex-wrap: wrap;
+    }
+    .step-dot {
+      display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 64px;
+    }
+    .step-dot .n {
+      width: 28px; height: 28px; border-radius: 50%; background: #e5e7eb; color: #6b7280;
+      display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700;
+    }
+    .step-dot.active .n, .step-dot.done .n { background: var(--primary); color: #fff; }
+    .step-dot.done .n::after { content: none; }
+    .step-dot span { font-size: 0.7rem; color: var(--muted); }
+    .step-line { width: 28px; height: 3px; background: #e5e7eb; margin: 0 2px 18px; border-radius: 2px; }
+    .step-line.on { background: var(--primary); }
+    h1 { text-align: center; font-size: 1.45rem; margin-bottom: 6px; }
+    .sub { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      margin-bottom: 12px; overflow: hidden;
+    }
+    .acc-head {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer;
+      font-weight: 600; user-select: none;
+    }
+    .acc-head .ico {
+      width: 36px; height: 36px; border-radius: 10px; background: var(--primary-soft); color: var(--primary);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .acc-head .check { margin-left: auto; color: var(--ok); font-size: 0.85rem; display: none; }
+    .acc-head.done .check { display: inline; }
+    .acc-head .chev { color: var(--muted); margin-left: 8px; }
+    .acc-body { display: none; padding: 0 16px 16px; border-top: 1px solid transparent; }
+    .acc.open .acc-body { display: block; border-top-color: var(--border); padding-top: 14px; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 0.95rem; margin-bottom: 12px; background: #fafafa;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hint { font-size: 0.8rem; color: var(--muted); margin: -6px 0 12px; }
+    .warn {
+      background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+      padding: 10px 12px; border-radius: 10px; font-size: 0.82rem; margin-bottom: 12px;
+    }
+    .model-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .model-opt {
+      border: 2px solid var(--border); border-radius: 12px; padding: 12px 8px; text-align: center;
+      cursor: pointer; font-size: 0.8rem;
+    }
+    .model-opt i { display: block; font-size: 1.2rem; margin-bottom: 6px; color: var(--primary); }
+    .model-opt.sel { border-color: var(--primary); background: var(--primary-soft); }
+    .vis-opt, .plan-opt {
+      border: 2px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer;
+    }
+    .vis-opt.sel, .plan-opt.sel { border-color: var(--primary); background: #f5f3ff; }
+    .vis-opt h4, .plan-opt h4 { margin-bottom: 6px; font-size: 1rem; }
+    .vis-opt ul, .plan-opt ul { list-style: none; font-size: 0.82rem; color: var(--muted); }
+    .vis-opt ul li, .plan-opt ul li { margin: 4px 0; }
+    .vis-opt ul li::before, .plan-opt ul li::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+    .badge-fee {
+      display: inline-block; margin-top: 8px; font-size: 0.75rem; font-weight: 700;
+      background: #ede9fe; color: var(--primary); padding: 3px 8px; border-radius: 999px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 18px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; font-size: 0.95rem;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:disabled { opacity: 0.5; }
+    .btn-outline { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-block { width: 100%; }
+    .footer-nav {
+      display: flex; justify-content: space-between; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+    }
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 12px; padding: 28px 16px; text-align: center;
+      color: var(--muted); cursor: pointer; margin-bottom: 10px;
+    }
+    .upload-zone img { max-width: 100%; max-height: 180px; border-radius: 10px; display: block; margin: 0 auto 8px; }
+    .account-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .account-card {
+      background: #f8f7fc; border: 1px solid var(--border); border-radius: 14px; padding: 18px; text-align: center;
+    }
+    .account-card h3 { font-size: 1rem; margin: 10px 0 6px; }
+    .account-card p { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+    .summary-row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; margin: 6px 0; flex-wrap: wrap; }
+    .summary-row .k { color: var(--muted); }
+    .msg { display:none; padding:12px; border-radius:10px; margin-bottom:12px; font-weight:600; font-size:0.9rem; }
+    .msg.show { display:block; }
+    .msg.ok { background:#dcfce7; color:#166534; }
+    .msg.err { background:#fee2e2; color:#991b1b; }
+    .faq-item { background:#f9fafb; border-radius:10px; padding:10px; margin-bottom:8px; }
+    @media (max-width: 480px) {
+      .model-grid { grid-template-columns: 1fr; }
+      .account-grid { grid-template-columns: 1fr; }
+      .row2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a class="link" href="index.html">Voltar ao site</a>
+  </div>
+
+  <div class="wrap">
+    <div class="steps" id="stepsBar">
+      <div class="step-dot active" data-s="1"><div class="n">1</div><span>Conta</span></div>
+      <div class="step-line" id="line1"></div>
+      <div class="step-dot" data-s="2"><div class="n">2</div><span>Anúncio</span></div>
+      <div class="step-line" id="line2"></div>
+      <div class="step-dot" data-s="3"><div class="n">3</div><span>Imagens</span></div>
+      <div class="step-line" id="line3"></div>
+      <div class="step-dot" data-s="4"><div class="n">4</div><span>Resumo</span></div>
+    </div>
+
+    <div id="msg" class="msg"></div>
+
+    <!-- STEP 1 CONTA -->
+    <div class="panel active" id="step1">
+      <h1>Conta</h1>
+      <p class="sub">Identifique-se para começar a criar o seu anúncio.</p>
+      <div class="account-grid">
+        <div class="account-card">
+          <i class="fas fa-sign-out-alt" style="font-size:1.4rem;color:#f59e0b"></i>
+          <h3>Trocar de conta?</h3>
+          <p>Entre com outro usuário para anunciar.</p>
+          <button type="button" class="btn btn-outline" id="btnLogout" style="border-color:#f59e0b;color:#d97706">Sair</button>
+        </div>
+        <div class="account-card">
+          <i class="fas fa-user" style="font-size:1.4rem;color:var(--primary)"></i>
+          <h3 id="helloName">Olá!</h3>
+          <p>Continue com esta conta para criar o anúncio.</p>
+          <button type="button" class="btn btn-primary" id="btnContaNext">Continuar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 ANÚNCIO -->
+    <div class="panel" id="step2">
+      <h1>Anúncio</h1>
+      <p class="sub">Informe os detalhes do que você está anunciando.</p>
+
+      <div class="card acc open" data-acc="title">
+        <div class="acc-head"><div class="ico"><i class="fas fa-bullhorn"></i></div> Anúncio <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <label>Título do anúncio</label>
+          <input type="text" id="title" maxlength="80" placeholder="Ex: Conta Roblox — Blox Fruits">
+          <p class="hint">Exemplos: Conta Valorant, Free Fire Diamante, Spotify Premium…</p>
+          <label>Modelo do anúncio</label>
+          <div class="model-grid">
+            <div class="model-opt sel" data-model="normal"><i class="fas fa-shopping-cart"></i><strong>Normal</strong><br>1 item com este título</div>
+            <div class="model-opt" data-model="dinamico"><i class="fas fa-layer-group"></i><strong>Dinâmico</strong><br>Vários itens</div>
+            <div class="model-opt" data-model="servico"><i class="fas fa-briefcase"></i><strong>Serviço</strong><br>Preço sob consulta</div>
+          </div>
+          <button type="button" class="btn btn-primary" data-next-acc="price">Continuar</button>
+        </div>
+      </div>
+
+      <div class="card acc" data-acc="price">
+        <div class="acc-head"><div class="ico"><i class="fas fa-tag"></i></div> Valor e estoque <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <div class="row2">
+            <div><label>Valor (R$)</label><input type="number" id="price" min="1" step="0.01" placeholder="20,00"></div>
+            <div><label>Estoque</label><input type="number" id="stock" min="1" value="1"></div>
+          </div>
+          <button type="button" class="btn btn-primary" data-next-acc="cat">Continuar</button>
+        </div>
+      </div>
+
+      <div class="card acc" data-acc="cat">
+        <div class="acc-head"><div class="ico"><i class="fas fa-sitemap"></i></div> Categoria <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <label>Categoria</label>
+          <select id="category">
+            <option value="">Selecione</option>
+            <option value="Jogos">Jogos</option>
+            <option value="Outros">Outros</option>
+          </select>
+          <label>Subcategoria (jogo)</label>
+          <select id="subcategory">
+            <option value="">Selecione</option>
+            <option>Roblox</option><option>Valorant</option><option>Free Fire</option>
+            <option>League of Legends</option><option>Fortnite</option><option>CS2</option>
+            <option>Genshin Impact</option><option>Outro jogo</option>
+          </select>
+          <label>Seção</label>
+          <input type="text" id="section" placeholder="Ex: Blox Fruits, Conta Ranked…">
+          <label>O que você está vendendo?</label>
+          <select id="productType">
+            <option>Conta</option><option>Gold</option><option>Item</option><option>Serviço</option><option>Outros</option>
+          </select>
+          <label>Procedência</label>
+          <select id="origin">
+            <option value="">Selecione</option>
+            <option>Criador da Conta</option>
+            <option>Revenda</option>
+          </select>
+          <label>Informações da conta</label>
+          <select id="accountInfo">
+            <option>Não possui dados de recuperação</option>
+            <option>Possui e-mail de recuperação</option>
+            <option>Não se aplica</option>
+          </select>
+          <button type="button" class="btn btn-primary" data-next-acc="desc">Continuar</button>
+        </div>
+      </div>
+
+      <div class="card acc" data-acc="desc">
+        <div class="acc-head"><div class="ico"><i class="fas fa-align-left"></i></div> Descrição <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <div class="warn">Não coloque WhatsApp, Discord ou contatos pessoais na descrição — o anúncio pode ser reprovado.</div>
+          <label>Descreva o anúncio</label>
+          <textarea id="desc" placeholder="Detalhes do produto, entrega, o que está incluso…"></textarea>
+          <button type="button" class="btn btn-primary" data-next-acc="faq">Continuar</button>
+        </div>
+      </div>
+
+      <div class="card acc" data-acc="faq">
+        <div class="acc-head"><div class="ico"><i class="fas fa-question-circle"></i></div> FAQ dos anúncios <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <p class="hint">Opcional. Até 5 perguntas para os compradores.</p>
+          <div id="faqList"></div>
+          <button type="button" class="btn btn-outline btn-block" id="btnAddFaq" style="margin-bottom:12px">+ Adicionar pergunta</button>
+          <button type="button" class="btn btn-primary" data-next-acc="vis">Continuar</button>
+        </div>
+      </div>
+
+      <div class="card acc" data-acc="vis">
+        <div class="acc-head"><div class="ico"><i class="fas fa-eye"></i></div> Visibilidade <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <p class="hint">Define destaque e a taxa sobre cada venda.</p>
+          <div class="vis-opt sel" data-vis="prata" data-fee="9.99"><h4>Prata</h4><ul><li>Visibilidade padrão nas categorias</li></ul><span class="badge-fee">Taxa 9,99%</span></div>
+          <div class="vis-opt" data-vis="ouro" data-fee="11.99"><h4>Ouro</h4><ul><li>Destaque na página principal</li><li>Mais visibilidade</li></ul><span class="badge-fee">Taxa 11,99%</span></div>
+          <div class="vis-opt" data-vis="diamante" data-fee="12.99"><h4>Diamante</h4><ul><li>Destaque na página principal</li><li>Destaque nas pesquisas</li><li>Máxima visibilidade</li></ul><span class="badge-fee">Taxa 12,99%</span></div>
+          <button type="button" class="btn btn-primary" data-next-acc="plan">Continuar</button>
+        </div>
+      </div>
+
+      <div class="card acc" data-acc="plan">
+        <div class="acc-head"><div class="ico"><i class="fas fa-star"></i></div> Plano <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <div class="acc-body">
+          <div class="plan-opt sel" data-plan="none"><h4>Sem plano</h4><ul><li>Pagamento protegido</li><li>Saque padrão</li></ul></div>
+          <div class="plan-opt" data-plan="max"><h4>Plano MAX <span class="badge-fee">+2,99%</span></h4><ul><li>Saque acelerado</li><li>Mensagem automática</li><li>Estoque automático</li></ul></div>
+          <button type="button" class="btn btn-primary" id="btnToImages">Próxima etapa — Imagens</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 IMAGENS -->
+    <div class="panel" id="step3">
+      <h1>Imagens</h1>
+      <p class="sub">Adicione a capa e as imagens do seu anúncio.</p>
+      <div class="card" style="padding:16px">
+        <label>Capa *</label>
+        <div class="upload-zone" id="coverZone">
+          <i class="fas fa-cloud-upload-alt" style="font-size:1.5rem"></i>
+          <p>Toque para carregar a capa<br><small>.jpg .png</small></p>
+        </div>
+        <input type="file" id="coverInput" accept="image/*" hidden>
+        <div class="warn">Por segurança, evite mostrar nome da conta ou do personagem nas imagens.</div>
+        <label>Galeria (opcional)</label>
+        <div class="upload-zone" id="galZone" style="padding:18px">
+          <p>Toque para adicionar fotos da galeria</p>
+        </div>
+        <input type="file" id="galInput" accept="image/*" multiple hidden>
+        <div id="galPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+      </div>
+      <div class="footer-nav">
+        <button type="button" class="btn btn-outline" data-goto="2">Voltar</button>
+        <button type="button" class="btn btn-primary" id="btnToSummary">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 RESUMO -->
+    <div class="panel" id="step4">
+      <h1>Resumo</h1>
+      <p class="sub">Revise as informações antes de publicar.</p>
+      <div class="card" style="padding:16px" id="summaryBox"></div>
+      <div class="card" style="padding:16px;margin-top:12px">
+        <label style="display:flex;align-items:flex-start;gap:10px;font-weight:500">
+          <input type="checkbox" id="terms" style="width:auto;margin:3px 0 0">
+          Li e aceito os Termos de uso da Bloxzuh
+        </label>
+      </div>
+      <div class="footer-nav">
+        <button type="button" class="btn btn-outline" data-goto="3">Voltar</button>
+        <button type="button" class="btn btn-primary" id="btnPublish"><i class="fas fa-check"></i> Anunciar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script>
+  (function () {
+    const state = {
+      model: 'normal',
+      visibility: 'prata',
+      feePercent: 9.99,
+      plan: 'none',
+      cover: '',
+      gallery: [],
+      faq: []
+    };
+
+    function showMsg(t, type) {
+      const el = document.getElementById('msg');
+      el.textContent = t;
+      el.className = 'msg show ' + (type || 'ok');
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function goStep(n) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('step' + n).classList.add('active');
+      document.querySelectorAll('.step-dot').forEach(d => {
+        const s = parseInt(d.getAttribute('data-s'), 10);
+        d.classList.toggle('active', s === n);
+        d.classList.toggle('done', s < n);
+      });
+      document.getElementById('line1').classList.toggle('on', n > 1);
+      document.getElementById('line2').classList.toggle('on', n > 2);
+      document.getElementById('line3').classList.toggle('on', n > 3);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (n === 4) renderSummary();
+    }
+
+    // Accordion
+    document.querySelectorAll('.acc-head').forEach(h => {
+      h.addEventListener('click', () => {
+        const card = h.parentElement;
+        document.querySelectorAll('.acc').forEach(a => { if (a !== card) a.classList.remove('open'); });
+        card.classList.toggle('open');
+      });
+    });
+    function openAcc(name) {
+      document.querySelectorAll('.acc').forEach(a => {
+        const on = a.getAttribute('data-acc') === name;
+        a.classList.toggle('open', on);
+        if (on) a.querySelector('.acc-head').classList.add('done');
+      });
+    }
+    document.querySelectorAll('[data-next-acc]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cur = btn.closest('.acc');
+        if (cur) cur.querySelector('.acc-head').classList.add('done');
+        openAcc(btn.getAttribute('data-next-acc'));
+      });
+    });
+
+    // Models
+    document.querySelectorAll('.model-opt').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.model-opt').forEach(x => x.classList.remove('sel'));
+        el.classList.add('sel');
+        state.model = el.getAttribute('data-model');
+      });
+    });
+    document.querySelectorAll('.vis-opt').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.vis-opt').forEach(x => x.classList.remove('sel'));
+        el.classList.add('sel');
+        state.visibility = el.getAttribute('data-vis');
+        state.feePercent = parseFloat(el.getAttribute('data-fee'));
+      });
+    });
+    document.querySelectorAll('.plan-opt').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.plan-opt').forEach(x => x.classList.remove('sel'));
+        el.classList.add('sel');
+        state.plan = el.getAttribute('data-plan');
+      });
+    });
+
+    // FAQ
+    document.getElementById('btnAddFaq').addEventListener('click', () => {
+      if (state.faq.length >= 5) { showMsg('Máximo 5 perguntas.', 'err'); return; }
+      const i = state.faq.length;
+      state.faq.push({ q: '', a: '' });
+      const div = document.createElement('div');
+      div.className = 'faq-item';
+      div.innerHTML = '<input placeholder="Pergunta" data-faq-q="' + i + '"><textarea placeholder="Resposta" data-faq-a="' + i + '" style="min-height:60px"></textarea>';
+      document.getElementById('faqList').appendChild(div);
+      div.querySelector('[data-faq-q]').addEventListener('input', e => { state.faq[i].q = e.target.value; });
+      div.querySelector('[data-faq-a]').addEventListener('input', e => { state.faq[i].a = e.target.value; });
+    });
+
+    // Images compress
+    function fileToDataUrl(file, max) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const m = max || 900;
+            let w = img.width, h = img.height;
+            if (w > m || h > m) {
+              if (w > h) { h = Math.round(h * m / w); w = m; }
+              else { w = Math.round(w * m / h); h = m; }
+            }
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(c.toDataURL('image/jpeg', 0.75));
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const coverZone = document.getElementById('coverZone');
+    const coverInput = document.getElementById('coverInput');
+    coverZone.addEventListener('click', () => coverInput.click());
+    coverInput.addEventListener('change', async () => {
+      const f = coverInput.files[0];
+      if (!f) return;
+      try {
+        state.cover = await fileToDataUrl(f, 800);
+        coverZone.innerHTML = '<img src="' + state.cover + '" alt="Capa"><p>Escolher outra imagem</p>';
+      } catch (e) { showMsg('Erro ao ler imagem.', 'err'); }
+    });
+
+    const galZone = document.getElementById('galZone');
+    const galInput = document.getElementById('galInput');
+    galZone.addEventListener('click', () => galInput.click());
+    galInput.addEventListener('change', async () => {
+      const files = [...galInput.files].slice(0, 8);
+      for (const f of files) {
+        if (state.gallery.length >= 8) break;
+        try {
+          const url = await fileToDataUrl(f, 600);
+          state.gallery.push(url);
+        } catch (e) {}
+      }
+      document.getElementById('galPreview').innerHTML = state.gallery.map(src =>
+        '<img src="' + src + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px">'
+      ).join('');
+    });
+
+    document.getElementById('btnContaNext').addEventListener('click', () => goStep(2));
+    document.getElementById('btnToImages').addEventListener('click', () => {
+      if (!document.getElementById('title').value.trim()) { showMsg('Preencha o título.', 'err'); openAcc('title'); return; }
+      if (!parseFloat(document.getElementById('price').value)) { showMsg('Informe o preço.', 'err'); openAcc('price'); return; }
+      goStep(3);
+    });
+    document.getElementById('btnToSummary').addEventListener('click', () => {
+      if (!state.cover) { showMsg('Adicione a imagem de capa.', 'err'); return; }
+      goStep(4);
+    });
+    document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => goStep(parseInt(b.getAttribute('data-goto'), 10))));
+
+    function renderSummary() {
+      const price = parseFloat(document.getElementById('price').value) || 0;
+      let fee = state.feePercent;
+      if (state.plan === 'max') fee += 2.99;
+      const receive = price - (price * fee / 100);
+      const cat = [document.getElementById('category').value, document.getElementById('subcategory').value, document.getElementById('section').value].filter(Boolean).join(' > ');
+      document.getElementById('summaryBox').innerHTML =
+        '<div class="summary-row"><span class="k">Título</span><strong>' + (document.getElementById('title').value || '—') + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Preço</span><strong>R$ ' + price.toFixed(2).replace('.', ',') + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Estoque</span><strong>' + (document.getElementById('stock').value || 1) + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Categoria</span><strong>' + (cat || '—') + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Tipo</span><strong>' + document.getElementById('productType').value + ' · ' + state.model + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Visibilidade</span><strong>' + state.visibility + ' (' + fee.toFixed(2).replace('.', ',') + '%)</strong></div>' +
+        '<div class="summary-row"><span class="k">Você recebe (por venda)</span><strong style="color:#16a34a">R$ ' + receive.toFixed(2).replace('.', ',') + '</strong></div>' +
+        (state.cover ? '<img src="' + state.cover + '" style="margin-top:12px;max-width:160px;border-radius:10px">' : '');
+    }
+
+    document.getElementById('btnPublish').addEventListener('click', async () => {
+      if (!document.getElementById('terms').checked) { showMsg('Aceite os Termos de uso.', 'err'); return; }
+      const btn = document.getElementById('btnPublish');
+      btn.disabled = true;
+      btn.textContent = 'Publicando...';
+      let fee = state.feePercent;
+      if (state.plan === 'max') fee += 2.99;
+      try {
+        await fsCreateAd({
+          title: document.getElementById('title').value.trim(),
+          category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Outros',
+          subcategory: document.getElementById('subcategory').value,
+          section: document.getElementById('section').value.trim(),
+          productType: document.getElementById('productType').value,
+          origin: document.getElementById('origin').value,
+          accountInfo: document.getElementById('accountInfo').value,
+          model: state.model,
+          price: parseFloat(document.getElementById('price').value),
+          stock: parseInt(document.getElementById('stock').value, 10) || 1,
+          desc: document.getElementById('desc').value.trim(),
+          faq: state.faq.filter(f => f.q && f.a),
+          visibility: state.visibility,
+          plan: state.plan,
+          feePercent: fee,
+          cover: state.cover,
+          gallery: state.gallery.slice(0, 4)
+        });
+        showMsg('Anúncio publicado com sucesso!', 'ok');
+        setTimeout(() => { window.location.href = 'painel.html'; }, 1200);
+      } catch (err) {
+        console.error(err);
+        showMsg(err.message || 'Erro ao publicar. Verifique o Firestore.', 'err');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check"></i> Anunciar';
+      }
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      if (typeof logoutFirebase === 'function') logoutFirebase();
+      else { localStorage.clear(); location.href = 'login.html'; }
+    });
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) { location.href = 'login.html'; return; }
+      const name = user.displayName || (user.email && user.email.split('@')[0]) || 'Vendedor';
+      document.getElementById('helloName').textContent = 'Olá, ' + name + '!';
+    });
+  })();
+  </script>
+</body>
+</html>
