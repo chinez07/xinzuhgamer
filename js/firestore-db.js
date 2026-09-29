@@ -160,3 +160,75 @@ async function fsGetAdById(id) {
   }
   return normalizeAd(doc.id, doc.data());
 }
+
+
+/** Comprime imagem (File) -> dataURL jpeg pequena */
+function compressImageFile(file, maxSide, quality) {
+  maxSide = maxSide || 320;
+  quality = quality || 0.45;
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function () {
+      const img = new Image();
+      img.onload = function () {
+        let w = img.width, h = img.height;
+        if (w > maxSide || h > maxSide) {
+          if (w > h) { h = Math.round(h * maxSide / w); w = maxSide; }
+          else { w = Math.round(w * maxSide / h); h = maxSide; }
+        }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function () { reject(new Error('Imagem inválida')); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { reject(new Error('Falha ao ler arquivo')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Prepara capa para gravar no anúncio.
+ * 1) Comprime forte
+ * 2) Se houver chave ImgBB (localStorage bloxzuh-imgbb-key), envia e retorna URL https
+ * 3) Senão grava dataURL pequena no Firestore
+ */
+async function prepareAdCover(file) {
+  if (!file) return '';
+  let dataUrl = await compressImageFile(file, 320, 0.42);
+  if (dataUrl.length > 220000) {
+    dataUrl = await compressImageFile(file, 240, 0.32);
+  }
+  if (dataUrl.length > 220000) {
+    dataUrl = await compressImageFile(file, 180, 0.28);
+  }
+
+  const imgbbKey = localStorage.getItem('bloxzuh-imgbb-key') || window.IMGBB_API_KEY || '';
+  if (imgbbKey) {
+    try {
+      const b64 = dataUrl.split(',')[1] || '';
+      const body = new FormData();
+      body.append('image', b64);
+      const res = await fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(imgbbKey), {
+        method: 'POST',
+        body: body
+      });
+      const json = await res.json();
+      if (json && json.success && json.data && json.data.url) {
+        return json.data.url;
+      }
+      console.warn('ImgBB', json);
+    } catch (e) {
+      console.warn('ImgBB falhou, usando dataURL', e);
+    }
+  }
+
+  // Firestore: evita documento gigante
+  if (dataUrl.length > 250000) {
+    console.warn('Capa ainda grande:', dataUrl.length);
+    return dataUrl.substring(0, 0);
+  }
+  return dataUrl;
+}
