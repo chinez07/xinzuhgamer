@@ -1021,6 +1021,11 @@ img { max-width: 100%; display: block; }
     </div>
   </footer>
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
   <script>
 const adsData = [
   {
@@ -1345,28 +1350,46 @@ window.scrollProds = scrollProds;
 
 // ===== Product card =====
 function createProductCard(ad) {
-  const initial = ad.seller.charAt(0).toUpperCase();
-  return `
-    <a href="anuncio.html?id=${ad.id}" class="product-card">
-      <div class="product-img ${ad.imgClass || 'prod-default'}">
-        <i class="${ad.icon.includes('fa-') ? (ad.icon.startsWith('fab') ? 'fab' : 'fas') : 'fas'} ${ad.icon.replace('fab ', '').replace('fas ', '')}"></i>
-        <button class="fav" onclick="event.preventDefault();event.stopPropagation();">
-          <i class="far fa-heart"></i>
-        </button>
-      </div>
-      <div class="product-body">
-        <h3>${ad.title}</h3>
-        <div class="product-price">R$ ${ad.price.toFixed(2).replace('.', ',')}</div>
-        <div class="product-seller">
-          <span class="avatar">${initial}</span>
-          ${ad.seller}
-          <span class="rating"><i class="fas fa-star"></i> ${ad.rating}</span>
-          <span>(${ad.sales})</span>
-        </div>
-      </div>
-    </a>
-  `;
+  const initial = (ad.seller || 'V').charAt(0).toUpperCase();
+  const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');
+  const img = ad.cover
+    ? '<img src="' + ad.cover + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0">'
+    : '<i class="fas ' + (ad.icon || 'fa-gamepad') + '"></i>';
+  return (
+    '<a href="anuncio.html?id=' + encodeURIComponent(ad.id) + '" class="product-card">' +
+      '<div class="product-img ' + (ad.imgClass || 'prod-default') + '" style="overflow:hidden">' +
+        img +
+        '<button class="fav" type="button" onclick="event.preventDefault();event.stopPropagation();toggleFav(\'' + ad.id + '\')">' +
+          '<i class="far fa-heart"></i>' +
+        '</button>' +
+      '</div>' +
+      '<div class="product-body">' +
+        '<h3>' + escapeHtmlHome(ad.title) + '</h3>' +
+        '<div class="product-price">R$ ' + price + '</div>' +
+        '<div class="product-seller">' +
+          '<span class="avatar">' + initial + '</span> ' + escapeHtmlHome(ad.seller) +
+          ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
+          ' <span>(' + (ad.sales || 0) + ')</span>' +
+        '</div>' +
+      '</div>' +
+    '</a>'
+  );
 }
+function escapeHtmlHome(s) {
+  return String(s || '').replace(/[&<>"']/g, function (c) {
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  });
+}
+function toggleFav(id) {
+  let favs = [];
+  try { favs = JSON.parse(localStorage.getItem('bloxzuh-favs') || '[]'); } catch (e) {}
+  const i = favs.indexOf(String(id));
+  if (i >= 0) favs.splice(i, 1); else favs.push(String(id));
+  localStorage.setItem('bloxzuh-favs', JSON.stringify(favs));
+  alert(i >= 0 ? 'Removido dos favoritos' : 'Adicionado aos favoritos');
+}
+window.toggleFav = toggleFav;
+
 
 // Home sections
 const premiumScroll = document.getElementById('premiumScroll');
@@ -1489,6 +1512,26 @@ if (adDetailContainer) {
   }
 }
 
+  
+async function loadFirestoreAdsList() {
+  try {
+    if (typeof fsGetPublicAds !== 'function') return;
+    const live = await fsGetPublicAds(50);
+    if (!live.length) return;
+    window.adsData = live.concat(adsData);
+    if (typeof applyFilters === 'function') applyFilters();
+    else {
+      const grid = document.getElementById('adsList') || document.querySelector('.products-grid');
+      if (grid) grid.innerHTML = live.map(createProductCard).join('');
+    }
+    const q = new URLSearchParams(location.search).get('q');
+    if (q && document.getElementById('searchFilter')) {
+      document.getElementById('searchFilter').value = q;
+      if (typeof applyFilters === 'function') applyFilters();
+    }
+  } catch (e) { console.warn(e); }
+}
+loadFirestoreAdsList();
   </script>
 </body>
 </html>

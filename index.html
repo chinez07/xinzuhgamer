@@ -1093,7 +1093,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
 
       <div class="search-box">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="Anúncio, usuário ou categoria">
+        <input id="homeSearch" type="text" placeholder="Anúncio, usuário ou categoria">
       </div>
 
       <a href="#como-funciona" class="hero-link">
@@ -1274,6 +1274,11 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
     </div>
   </footer>
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
   <script>
 const adsData = [
   {
@@ -1500,17 +1505,17 @@ function renderUserMenu() {
 
   if (isLoggedIn) {
     dropdown.innerHTML = `
-      <div class="user-menu-header">
+      <div class="user-menu-header" onclick="location.href='conta.html'" style="cursor:pointer">
         <strong>Olá, ${userName}!</strong>
         <span>VER MINHA CONTA</span>
       </div>
-      <button class="user-menu-item"><i class="fas fa-shopping-bag"></i> Minhas Compras</button>
+      <a href="anuncios.html" class="user-menu-item"><i class="fas fa-shopping-bag"></i> Minhas Compras</a>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>
       <a href="conta.html" class="user-menu-item"><i class="fas fa-user-cog"></i> Minha conta</a>
-      <button class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</button>
-      <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
-      <button class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</button>
+      <a href="anuncios.html?fav=1" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>
+      <a href="#ajuda" class="user-menu-item" onclick="document.getElementById('ajudaBox')?.scrollIntoView({behavior:'smooth'})"><i class="fas fa-question-circle"></i> Central de ajuda</a>
+      <a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>
       <button class="user-menu-item" onclick="toggleMode()">
         <i data-mode-icon class="${document.documentElement.getAttribute('data-mode') === 'dark' ? 'fas fa-sun' : 'fas fa-moon'}"></i>
         <span data-mode-label>${document.documentElement.getAttribute('data-mode') === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
@@ -1533,7 +1538,7 @@ function renderUserMenu() {
       <a href="cadastro.html" class="user-menu-item">
         <i class="fas fa-user-plus"></i> Criar conta
       </a>
-      <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
+      <a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>
       <button class="user-menu-item" onclick="toggleMode()">
         <i data-mode-icon class="${document.documentElement.getAttribute('data-mode') === 'dark' ? 'fas fa-sun' : 'fas fa-moon'}"></i>
         <span data-mode-label>${document.documentElement.getAttribute('data-mode') === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
@@ -1738,28 +1743,46 @@ window.scrollProds = scrollProds;
 
 // ===== Product card =====
 function createProductCard(ad) {
-  const initial = ad.seller.charAt(0).toUpperCase();
-  return `
-    <a href="anuncio.html?id=${ad.id}" class="product-card">
-      <div class="product-img ${ad.imgClass || 'prod-default'}">
-        <i class="${ad.icon.includes('fa-') ? (ad.icon.startsWith('fab') ? 'fab' : 'fas') : 'fas'} ${ad.icon.replace('fab ', '').replace('fas ', '')}"></i>
-        <button class="fav" onclick="event.preventDefault();event.stopPropagation();">
-          <i class="far fa-heart"></i>
-        </button>
-      </div>
-      <div class="product-body">
-        <h3>${ad.title}</h3>
-        <div class="product-price">R$ ${ad.price.toFixed(2).replace('.', ',')}</div>
-        <div class="product-seller">
-          <span class="avatar">${initial}</span>
-          ${ad.seller}
-          <span class="rating"><i class="fas fa-star"></i> ${ad.rating}</span>
-          <span>(${ad.sales})</span>
-        </div>
-      </div>
-    </a>
-  `;
+  const initial = (ad.seller || 'V').charAt(0).toUpperCase();
+  const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');
+  const img = ad.cover
+    ? '<img src="' + ad.cover + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0">'
+    : '<i class="fas ' + (ad.icon || 'fa-gamepad') + '"></i>';
+  return (
+    '<a href="anuncio.html?id=' + encodeURIComponent(ad.id) + '" class="product-card">' +
+      '<div class="product-img ' + (ad.imgClass || 'prod-default') + '" style="overflow:hidden">' +
+        img +
+        '<button class="fav" type="button" onclick="event.preventDefault();event.stopPropagation();toggleFav(\'' + ad.id + '\')">' +
+          '<i class="far fa-heart"></i>' +
+        '</button>' +
+      '</div>' +
+      '<div class="product-body">' +
+        '<h3>' + escapeHtmlHome(ad.title) + '</h3>' +
+        '<div class="product-price">R$ ' + price + '</div>' +
+        '<div class="product-seller">' +
+          '<span class="avatar">' + initial + '</span> ' + escapeHtmlHome(ad.seller) +
+          ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
+          ' <span>(' + (ad.sales || 0) + ')</span>' +
+        '</div>' +
+      '</div>' +
+    '</a>'
+  );
 }
+function escapeHtmlHome(s) {
+  return String(s || '').replace(/[&<>"']/g, function (c) {
+    return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+  });
+}
+function toggleFav(id) {
+  let favs = [];
+  try { favs = JSON.parse(localStorage.getItem('bloxzuh-favs') || '[]'); } catch (e) {}
+  const i = favs.indexOf(String(id));
+  if (i >= 0) favs.splice(i, 1); else favs.push(String(id));
+  localStorage.setItem('bloxzuh-favs', JSON.stringify(favs));
+  alert(i >= 0 ? 'Removido dos favoritos' : 'Adicionado aos favoritos');
+}
+window.toggleFav = toggleFav;
+
 
 // Home sections
 const premiumScroll = document.getElementById('premiumScroll');
@@ -1770,6 +1793,46 @@ const featuredScroll = document.getElementById('featuredScroll');
 if (featuredScroll) {
   featuredScroll.innerHTML = adsData.filter(a => a.category !== 'premium').slice(0, 6).map(createProductCard).join('');
 }
+
+// ===== Firestore: anúncios reais na home =====
+async function loadFirestoreAdsHome() {
+  try {
+    if (typeof fsGetPublicAds !== 'function') return;
+    const live = await fsGetPublicAds(30);
+    if (!live.length) return;
+    // mescla: Firestore primeiro, depois demo
+    const ids = {};
+    live.forEach(function (a) { ids[a.id] = true; });
+    window.adsDataLive = live.concat(adsData.filter(function (a) { return !ids[a.id]; }));
+    const premium = live.filter(function (a) { return a.category === 'premium' || a.visibility === 'diamante' || a.visibility === 'ouro'; });
+    const featured = live.filter(function (a) { return a.category !== 'premium'; });
+    const premiumScroll = document.getElementById('premiumScroll');
+    const featuredScroll = document.getElementById('featuredScroll');
+    if (premiumScroll && premium.length) {
+      premiumScroll.innerHTML = premium.slice(0, 10).map(createProductCard).join('');
+    } else if (premiumScroll && live.length) {
+      premiumScroll.innerHTML = live.slice(0, 6).map(createProductCard).join('');
+    }
+    if (featuredScroll && featured.length) {
+      featuredScroll.innerHTML = featured.slice(0, 12).map(createProductCard).join('');
+    } else if (featuredScroll) {
+      featuredScroll.innerHTML = live.slice(0, 12).map(createProductCard).join('');
+    }
+  } catch (e) {
+    console.warn('Firestore home', e);
+  }
+}
+loadFirestoreAdsHome();
+(function(){
+  var hs = document.getElementById('homeSearch');
+  if (hs) hs.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      var q = hs.value.trim();
+      location.href = 'anuncios.html' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+    }
+  });
+})();
+
 
 // ===== Anúncios filters =====
 const adsListContainer = document.getElementById('adsList');
