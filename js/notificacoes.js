@@ -5,12 +5,14 @@ function timeAgo(ts) {
   if (typeof ts === 'string') {
     var parsed = Date.parse(ts);
     if (!isNaN(parsed)) ts = parsed;
-    else return ts; // already human text
+    else return ts;
   }
-  var now = Date.now();
-  var diff = Math.max(0, now - Number(ts));
+  var n = Number(ts);
+  if (!n || isNaN(n)) return '';
+  var diff = Math.max(0, Date.now() - n);
   var sec = Math.floor(diff / 1000);
-  if (sec < 45) return 'agora';
+  if (sec < 10) return 'agora';
+  if (sec < 60) return sec === 1 ? 'há 1 segundo' : 'há ' + sec + ' segundos';
   var min = Math.floor(sec / 60);
   if (min < 60) return min === 1 ? 'há 1 minuto' : 'há ' + min + ' minutos';
   var hr = Math.floor(min / 60);
@@ -28,17 +30,12 @@ function timeAgo(ts) {
 function notifKey(uid) {
   return 'bloxzuh-notifs-' + (uid || localStorage.getItem('xinzuh-email') || 'guest');
 }
-
 function getLocalNotifs(uid) {
-  try {
-    return JSON.parse(localStorage.getItem(notifKey(uid)) || '[]');
-  } catch (e) { return []; }
+  try { return JSON.parse(localStorage.getItem(notifKey(uid)) || '[]'); } catch (e) { return []; }
 }
-
 function setLocalNotifs(uid, list) {
-  localStorage.setItem(notifKey(uid), JSON.stringify(list.slice(0, 100)));
+  localStorage.setItem(notifKey(uid), JSON.stringify((list || []).slice(0, 100)));
 }
-
 function addLocalNotif(uid, n) {
   if (!uid) return;
   var list = getLocalNotifs(uid);
@@ -56,13 +53,13 @@ function addLocalNotif(uid, n) {
 }
 
 async function fsAddNotification(userId, data) {
-  if (!userId || typeof firebase === 'undefined') {
+  if (!userId) return;
+  if (typeof firebase === 'undefined' || !firebase.firestore) {
     addLocalNotif(userId, data);
     return;
   }
   try {
-    var db = firebase.firestore();
-    await db.collection('notifications').add({
+    await firebase.firestore().collection('notifications').add({
       userId: userId,
       type: data.type || 'sistema',
       title: data.title || 'Notificação',
@@ -79,14 +76,15 @@ async function fsAddNotification(userId, data) {
 }
 
 async function fsGetMyNotifications(limit) {
-  var u = firebase.auth().currentUser;
+  var u = null;
+  try { u = firebase.auth().currentUser; } catch (e) {}
   if (!u) return getLocalNotifs(null);
+  var list = [];
   try {
     var snap = await firebase.firestore().collection('notifications')
       .where('userId', '==', u.uid)
       .limit(limit || 50)
       .get();
-    var list = [];
     snap.forEach(function (doc) {
       var d = doc.data();
       list.push({
@@ -99,30 +97,24 @@ async function fsGetMyNotifications(limit) {
         createdAtMs: d.createdAtMs || 0
       });
     });
-    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
-    // merge local
-    getLocalNotifs(u.uid).forEach(function (n) {
-      if (!list.some(function (x) { return x.id === n.id; })) list.push(n);
-    });
-    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
-    return list;
-  } catch (e) {
-    console.warn(e);
-    return getLocalNotifs(u.uid);
-  }
+  } catch (e) { console.warn(e); }
+  getLocalNotifs(u.uid).forEach(function (n) {
+    if (!list.some(function (x) { return x.id === n.id; })) list.push(n);
+  });
+  list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+  return list;
 }
 
 async function fsMarkNotifRead(id) {
-  var u = firebase.auth().currentUser;
+  var u = null;
+  try { u = firebase.auth().currentUser; } catch (e) {}
   if (!u || !id) return;
-  try {
-    await firebase.firestore().collection('notifications').doc(id).update({ read: true });
-  } catch (e) {}
-  var list = getLocalNotifs(u.uid).map(function (n) {
+  try { await firebase.firestore().collection('notifications').doc(id).update({ read: true }); } catch (e) {}
+  setLocalNotifs(u.uid, getLocalNotifs(u.uid).map(function (n) {
     if (n.id === id) n.read = true;
     return n;
-  });
-  setLocalNotifs(u.uid, list);
+  }));
+  updateNotifBadge();
 }
 
 async function fsMarkAllNotifsRead() {
@@ -131,19 +123,13 @@ async function fsMarkAllNotifsRead() {
     if (!list[i].read) await fsMarkNotifRead(list[i].id);
   }
   var u = firebase.auth().currentUser;
-  if (u) {
-    setLocalNotifs(u.uid, getLocalNotifs(u.uid).map(function (n) { n.read = true; return n; }));
-  }
+  if (u) setLocalNotifs(u.uid, getLocalNotifs(u.uid).map(function (n) { n.read = true; return n; }));
   updateNotifBadge();
 }
 
-function updateNotifBadge() {
+function setBadgeCount(count) {
   var badge = document.getElementById('notifBadge');
   if (!badge) return;
-  var uid = (firebase.auth && firebase.auth().currentUser && firebase.auth().currentUser.uid) || null;
-  var count = 0;
-  // optimistic from local; full count async
-  getLocalNotifs(uid).forEach(function (n) { if (!n.read) count++; });
   if (count > 0) {
     badge.style.display = 'flex';
     badge.textContent = count > 99 ? '99+' : String(count);
@@ -151,16 +137,18 @@ function updateNotifBadge() {
     badge.style.display = 'none';
     badge.textContent = '';
   }
-  // refine from cloud
-  if (typeof fsGetMyNotifications === 'function' && firebase.auth && firebase.auth().currentUser) {
-    fsGetMyNotifications(30).then(function (list) {
-      var c = list.filter(function (n) { return !n.read; }).length;
-      if (c > 0) {
-        badge.style.display = 'flex';
-        badge.textContent = c > 99 ? '99+' : String(c);
-      } else {
-        badge.style.display = 'none';
-      }
+}
+
+function updateNotifBadge() {
+  var badge = document.getElementById('notifBadge');
+  if (!badge) return;
+  var u = null;
+  try { u = firebase.auth && firebase.auth().currentUser; } catch (e) {}
+  var localCount = getLocalNotifs(u && u.uid).filter(function (n) { return !n.read; }).length;
+  setBadgeCount(localCount);
+  if (u) {
+    fsGetMyNotifications(50).then(function (list) {
+      setBadgeCount(list.filter(function (n) { return !n.read; }).length);
     }).catch(function () {});
   }
 }
@@ -185,51 +173,80 @@ function renderNotifDropdown(list) {
       '<a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
     return;
   }
-  var html = list.slice(0, 8).map(function (n) {
+  panel.innerHTML = list.slice(0, 8).map(function (n) {
     return '<a class="notif-item' + (n.read ? '' : ' unread') + '" href="' + (n.link || 'notificacoes.html') + '" data-nid="' + n.id + '">' +
       '<div class="notif-ico"><i class="fas ' + notifIcon(n.type) + '"></i></div>' +
       '<div><div class="notif-title">' + (n.title || '') + '</div>' +
       '<div class="notif-body">' + (n.body || '') + '</div>' +
       '<div class="notif-time">' + timeAgo(n.createdAtMs) + '</div></div></a>';
-  }).join('');
-  panel.innerHTML = html + '<a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
+  }).join('') + '<a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
   panel.querySelectorAll('[data-nid]').forEach(function (el) {
-    el.addEventListener('click', function () {
-      fsMarkNotifRead(el.getAttribute('data-nid'));
-    });
+    el.addEventListener('click', function () { fsMarkNotifRead(el.getAttribute('data-nid')); });
   });
+}
+
+function positionNotifPanel(btn, panel) {
+  var r = btn.getBoundingClientRect();
+  panel.style.cssText =
+    'display:block;position:fixed;z-index:99999;' +
+    'top:' + Math.min(r.bottom + 8, window.innerHeight - 100) + 'px;' +
+    'right:' + Math.max(8, window.innerWidth - r.right) + 'px;' +
+    'left:auto;width:min(340px, calc(100vw - 24px));' +
+    'max-height:min(70vh,480px);overflow:auto;' +
+    'background:#1a1a24;border:1px solid #2d2d3a;border-radius:14px;' +
+    'box-shadow:0 16px 48px rgba(0,0,0,.55);';
 }
 
 function setupNotifBell() {
   var btn = document.getElementById('notifBellBtn');
   var panel = document.getElementById('notifPanel');
-  if (!btn || !panel) return;
+  if (!btn || !panel) {
+    console.warn('notif bell elements missing');
+    return;
+  }
+  // avoid double bind
+  if (btn.dataset.bound === '1') return;
+  btn.dataset.bound = '1';
+
   btn.addEventListener('click', async function (e) {
+    e.preventDefault();
     e.stopPropagation();
-    var open = panel.classList.toggle('show');
-    if (open) {
-      // fix panel in front of everything (mobile safe)
-      try {
-        var r = btn.getBoundingClientRect();
-        panel.style.position = 'fixed';
-        panel.style.top = Math.min(r.bottom + 8, window.innerHeight - 80) + 'px';
-        panel.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
-        panel.style.left = 'auto';
-        panel.style.zIndex = '99999';
-      } catch (err) {}
+    var isOpen = panel.classList.contains('show');
+    if (isOpen) {
+      panel.classList.remove('show');
+      panel.style.display = 'none';
+      return;
+    }
+    positionNotifPanel(btn, panel);
+    panel.classList.add('show');
+    panel.innerHTML = '<div class="notif-empty">Carregando…</div>';
+    try {
       var list = await fsGetMyNotifications(20);
       renderNotifDropdown(list);
+      positionNotifPanel(btn, panel);
       updateNotifBadge();
+    } catch (err) {
+      panel.innerHTML = '<div class="notif-empty">Erro ao carregar</div><a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
     }
   });
-  document.addEventListener('click', function () {
-    panel.classList.remove('show');
+
+  document.addEventListener('click', function (e) {
+    if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      panel.classList.remove('show');
+      panel.style.display = 'none';
+    }
   });
   panel.addEventListener('click', function (e) { e.stopPropagation(); });
+
   updateNotifBadge();
-  if (firebase.auth) {
-    firebase.auth().onAuthStateChanged(function () { updateNotifBadge(); });
-  }
+  try {
+    firebase.auth().onAuthStateChanged(function () {
+      updateNotifBadge();
+    });
+  } catch (e) {}
+  // retry badge after auth settles
+  setTimeout(updateNotifBadge, 1500);
+  setTimeout(updateNotifBadge, 4000);
 }
 
 window.timeAgo = timeAgo;
@@ -239,3 +256,10 @@ window.fsMarkNotifRead = fsMarkNotifRead;
 window.fsMarkAllNotifsRead = fsMarkAllNotifsRead;
 window.setupNotifBell = setupNotifBell;
 window.updateNotifBadge = updateNotifBadge;
+
+// auto-init when DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function () { setupNotifBell(); });
+} else {
+  setupNotifBell();
+}
