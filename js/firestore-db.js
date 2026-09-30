@@ -1,7 +1,16 @@
 // Firestore helpers - Bloxzuh
 // Requires: firebase-app, firebase-auth, firebase-firestore already loaded
 
-const db = firebase.firestore();
+var db = null;
+try {
+  db = firebase.firestore();
+} catch (e) {
+  console.error('Firestore init failed', e);
+}
+function getDb() {
+  if (!db) db = firebase.firestore();
+  return db;
+}
 
 function requireUser() {
   const u = firebase.auth().currentUser;
@@ -12,7 +21,7 @@ function requireUser() {
 /** Anúncios do vendedor logado */
 async function fsGetMyAds() {
   const u = requireUser();
-  const snap = await db.collection('ads')
+  const snap = await getDb().collection('ads')
     .where('sellerUid', '==', u.uid)
     .get();
   const list = [];
@@ -54,13 +63,13 @@ async function fsCreateAd(data) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     createdAtMs: Date.now()
   };
-  const ref = await db.collection('ads').add(payload);
+  const ref = await getDb().collection('ads').add(payload);
   return ref.id;
 }
 
 async function fsUpdateAd(adId, patch) {
   const u = requireUser();
-  const ref = db.collection('ads').doc(adId);
+  const ref = getDb().collection('ads').doc(adId);
   const doc = await ref.get();
   if (!doc.exists) throw new Error('Anúncio não encontrado.');
   if (doc.data().sellerUid !== u.uid) throw new Error('Sem permissão.');
@@ -69,7 +78,7 @@ async function fsUpdateAd(adId, patch) {
 
 async function fsDeleteAd(adId) {
   const u = requireUser();
-  const ref = db.collection('ads').doc(adId);
+  const ref = getDb().collection('ads').doc(adId);
   const doc = await ref.get();
   if (!doc.exists) throw new Error('Anúncio não encontrado.');
   if (doc.data().sellerUid !== u.uid) throw new Error('Sem permissão.');
@@ -78,7 +87,7 @@ async function fsDeleteAd(adId) {
 
 async function fsGetWallet() {
   const u = requireUser();
-  const doc = await db.collection('wallets').doc(u.uid).get();
+  const doc = await getDb().collection('wallets').doc(u.uid).get();
   if (!doc.exists) return { saldo: 0, pending: 0 };
   const d = doc.data();
   return { saldo: Number(d.saldo) || 0, pending: Number(d.pending) || 0 };
@@ -86,16 +95,16 @@ async function fsGetWallet() {
 
 async function fsSetWallet(saldo, pending) {
   const u = requireUser();
-  await db.collection('wallets').doc(u.uid).set({
+  await getDb().collection('wallets').doc(u.uid).set({
     saldo: Number(saldo) || 0,
     pending: Number(pending) || 0,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
 }
 
-async function fsGetMySales() {
+async function fsGetLegacySales() {
   const u = requireUser();
-  const snap = await db.collection('sales')
+  const snap = await getDb().collection('sales')
     .where('sellerUid', '==', u.uid)
     .get();
   const list = [];
@@ -141,7 +150,7 @@ function normalizeAd(id, data) {
 }
 
 async function fsGetPublicAds(limit) {
-  const snap = await db.collection('ads').where('status', '==', 'ativo').limit(limit || 40).get();
+  const snap = await getDb().collection('ads').where('status', '==', 'ativo').limit(limit || 40).get();
   const list = [];
   snap.forEach(function (doc) {
     list.push(normalizeAd(doc.id, doc.data()));
@@ -153,7 +162,7 @@ async function fsGetPublicAds(limit) {
 async function fsGetAdById(id) {
   if (!id) return null;
   id = String(id).trim();
-  const doc = await db.collection('ads').doc(id).get();
+  const doc = await getDb().collection('ads').doc(id).get();
   if (!doc.exists) {
     console.warn('Ad not found:', id);
     return null;
@@ -237,7 +246,7 @@ async function prepareAdCover(file) {
 async function fsGetAdsBySeller(uid, limit) {
   if (!uid) return [];
   // only sellerUid filter (no composite index needed); filter status client-side
-  const snap = await db.collection('ads')
+  const snap = await getDb().collection('ads')
     .where('sellerUid', '==', uid)
     .limit(limit || 40)
     .get();
@@ -280,13 +289,13 @@ async function fsSaveProfile(data) {
   if (payload.photo && payload.photo.length > 900000) {
     throw new Error('Foto muito grande. Use uma imagem menor que 1 MB.');
   }
-  await db.collection('profiles').doc(u.uid).set(payload, { merge: true });
+  await getDb().collection('profiles').doc(u.uid).set(payload, { merge: true });
   return payload;
 }
 
 async function fsGetProfile(uid) {
   if (!uid) return null;
-  const doc = await db.collection('profiles').doc(uid).get();
+  const doc = await getDb().collection('profiles').doc(uid).get();
   if (!doc.exists) return null;
   return Object.assign({ uid: uid }, doc.data());
 }
@@ -326,13 +335,13 @@ async function fsCreateOrder(ad, extra) {
     createdAtMs: Date.now(),
     updatedAtMs: Date.now()
   };
-  const ref = await db.collection('orders').add(payload);
+  const ref = await getDb().collection('orders').add(payload);
   return Object.assign({ id: ref.id }, payload);
 }
 
 async function fsGetMyPurchases() {
   const u = requireUser();
-  const snap = await db.collection('orders').where('buyerUid', '==', u.uid).limit(50).get();
+  const snap = await getDb().collection('orders').where('buyerUid', '==', u.uid).limit(50).get();
   const list = [];
   snap.forEach(function (doc) {
     list.push(Object.assign({ id: doc.id }, doc.data()));
@@ -343,7 +352,7 @@ async function fsGetMyPurchases() {
 
 async function fsGetMySales() {
   const u = requireUser();
-  const snap = await db.collection('orders').where('sellerUid', '==', u.uid).limit(50).get();
+  const snap = await getDb().collection('orders').where('sellerUid', '==', u.uid).limit(50).get();
   const list = [];
   snap.forEach(function (doc) {
     list.push(Object.assign({ id: doc.id }, doc.data()));
@@ -354,7 +363,7 @@ async function fsGetMySales() {
 
 async function fsGetOrder(id) {
   if (!id) return null;
-  const doc = await db.collection('orders').doc(id).get();
+  const doc = await getDb().collection('orders').doc(id).get();
   if (!doc.exists) return null;
   return Object.assign({ id: doc.id }, doc.data());
 }
@@ -366,7 +375,7 @@ async function fsUpdateOrderStatus(id, status) {
   if (order.buyerUid !== u.uid && order.sellerUid !== u.uid) {
     throw new Error('Sem permissão.');
   }
-  await db.collection('orders').doc(id).update({
+  await getDb().collection('orders').doc(id).update({
     status: status,
     updatedAtMs: Date.now()
   });
@@ -390,7 +399,7 @@ async function fsAddOrderMessage(orderId, text) {
   };
   const messages = Array.isArray(order.messages) ? order.messages.slice() : [];
   messages.push(msg);
-  await db.collection('orders').doc(orderId).update({
+  await getDb().collection('orders').doc(orderId).update({
     messages: messages,
     updatedAtMs: Date.now()
   });
@@ -428,19 +437,14 @@ async function fsSetOrderPayment(orderId, data) {
     pixCopyPaste: data.pixCopyPaste || ('00020126BLOXZUH' + (order.code || '') + 'VAL' + String(order.total || 0).replace('.', '')),
     updatedAtMs: Date.now()
   };
-  await db.collection('orders').doc(orderId).update(patch);
+  await getDb().collection('orders').doc(orderId).update(patch);
   return Object.assign(order, patch);
 }
 
 
-window.fsGetMyAds = typeof fsGetMyAds !== 'undefined' ? fsGetMyAds : window.fsGetMyAds;
-window.fsCreateAd = typeof fsCreateAd !== 'undefined' ? fsCreateAd : window.fsCreateAd;
-window.fsGetPublicAds = typeof fsGetPublicAds !== 'undefined' ? fsGetPublicAds : window.fsGetPublicAds;
-window.fsGetAdById = typeof fsGetAdById !== 'undefined' ? fsGetAdById : window.fsGetAdById;
-window.fsGetAdsBySeller = typeof fsGetAdsBySeller !== 'undefined' ? fsGetAdsBySeller : window.fsGetAdsBySeller;
-window.fsGetSellerPublic = typeof fsGetSellerPublic !== 'undefined' ? fsGetSellerPublic : window.fsGetSellerPublic;
-window.fsSaveProfile = typeof fsSaveProfile !== 'undefined' ? fsSaveProfile : window.fsSaveProfile;
-window.fsGetProfile = typeof fsGetProfile !== 'undefined' ? fsGetProfile : window.fsGetProfile;
+
+// Exports globais (garante disponibilidade no checkout)
+window.requireUser = requireUser;
 window.fsCreateOrder = fsCreateOrder;
 window.fsGetMyPurchases = fsGetMyPurchases;
 window.fsGetMySales = fsGetMySales;
@@ -448,3 +452,13 @@ window.fsGetOrder = fsGetOrder;
 window.fsUpdateOrderStatus = fsUpdateOrderStatus;
 window.fsAddOrderMessage = fsAddOrderMessage;
 window.fsSetOrderPayment = fsSetOrderPayment;
+window.fsGetAdById = fsGetAdById;
+window.fsGetPublicAds = fsGetPublicAds;
+window.fsGetMyAds = fsGetMyAds;
+window.fsCreateAd = fsCreateAd;
+window.fsGetAdsBySeller = fsGetAdsBySeller;
+window.fsGetSellerPublic = fsGetSellerPublic;
+window.fsSaveProfile = fsSaveProfile;
+window.fsGetProfile = fsGetProfile;
+window.fsGetWallet = fsGetWallet;
+console.log('[Bloxzuh] firestore-db carregado, fsCreateOrder=', typeof fsCreateOrder);
