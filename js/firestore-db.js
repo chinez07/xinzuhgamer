@@ -372,3 +372,79 @@ async function fsUpdateOrderStatus(id, status) {
   });
   return true;
 }
+
+
+async function fsAddOrderMessage(orderId, text) {
+  const u = requireUser();
+  const order = await fsGetOrder(orderId);
+  if (!order) throw new Error('Pedido não encontrado.');
+  if (order.buyerUid !== u.uid && order.sellerUid !== u.uid) {
+    throw new Error('Sem permissão.');
+  }
+  const msg = {
+    id: 'm' + Date.now(),
+    text: String(text || '').slice(0, 2000),
+    senderUid: u.uid,
+    senderName: u.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
+    createdAtMs: Date.now()
+  };
+  const messages = Array.isArray(order.messages) ? order.messages.slice() : [];
+  messages.push(msg);
+  await db.collection('orders').doc(orderId).update({
+    messages: messages,
+    updatedAtMs: Date.now()
+  });
+  // notify the other party
+  try {
+    const other = u.uid === order.buyerUid ? order.sellerUid : order.buyerUid;
+    if (other && typeof fsAddNotification === 'function') {
+      fsAddNotification(other, {
+        type: 'venda',
+        title: 'Mensagem no pedido #' + (order.code || ''),
+        body: msg.text.slice(0, 120),
+        link: 'pedido.html?id=' + encodeURIComponent(orderId),
+        createdAtMs: Date.now()
+      });
+    }
+  } catch (e) {}
+  return msg;
+}
+
+async function fsSetOrderPayment(orderId, data) {
+  const u = requireUser();
+  const order = await fsGetOrder(orderId);
+  if (!order) throw new Error('Pedido não encontrado.');
+  if (order.buyerUid !== u.uid) throw new Error('Só o comprador pode pagar.');
+  const patch = {
+    paymentMethod: data.method || 'pix',
+    payerName: data.payerName || '',
+    payerCpf: data.payerCpf || '',
+    vipPlan: data.vipPlan || 'none',
+    total: data.total != null ? Number(data.total) : order.total,
+    status: 'aguardando_pagamento',
+    paymentId: 'PAY' + Date.now().toString().slice(-8),
+    paymentExpiresAtMs: Date.now() + 20 * 60 * 1000,
+    // placeholder copia-cola (estrutura — gateway real depois)
+    pixCopyPaste: data.pixCopyPaste || ('00020126BLOXZUH' + (order.code || '') + 'VAL' + String(order.total || 0).replace('.', '')),
+    updatedAtMs: Date.now()
+  };
+  await db.collection('orders').doc(orderId).update(patch);
+  return Object.assign(order, patch);
+}
+
+
+window.fsGetMyAds = typeof fsGetMyAds !== 'undefined' ? fsGetMyAds : window.fsGetMyAds;
+window.fsCreateAd = typeof fsCreateAd !== 'undefined' ? fsCreateAd : window.fsCreateAd;
+window.fsGetPublicAds = typeof fsGetPublicAds !== 'undefined' ? fsGetPublicAds : window.fsGetPublicAds;
+window.fsGetAdById = typeof fsGetAdById !== 'undefined' ? fsGetAdById : window.fsGetAdById;
+window.fsGetAdsBySeller = typeof fsGetAdsBySeller !== 'undefined' ? fsGetAdsBySeller : window.fsGetAdsBySeller;
+window.fsGetSellerPublic = typeof fsGetSellerPublic !== 'undefined' ? fsGetSellerPublic : window.fsGetSellerPublic;
+window.fsSaveProfile = typeof fsSaveProfile !== 'undefined' ? fsSaveProfile : window.fsSaveProfile;
+window.fsGetProfile = typeof fsGetProfile !== 'undefined' ? fsGetProfile : window.fsGetProfile;
+window.fsCreateOrder = fsCreateOrder;
+window.fsGetMyPurchases = fsGetMyPurchases;
+window.fsGetMySales = fsGetMySales;
+window.fsGetOrder = fsGetOrder;
+window.fsUpdateOrderStatus = fsUpdateOrderStatus;
+window.fsAddOrderMessage = fsAddOrderMessage;
+window.fsSetOrderPayment = fsSetOrderPayment;
