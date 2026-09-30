@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar Pix MP | Bloxzuh</title>
+  <style>
+    body{font-family:system-ui;background:#0f0f14;color:#f3f4f6;padding:20px;line-height:1.5;max-width:640px;margin:0 auto}
+    h1{font-size:1.3rem;color:#c4b5fd}
+    h2{font-size:1.05rem;margin-top:24px}
+    code,pre{background:#1a1a24;padding:2px 6px;border-radius:6px;font-size:0.85rem}
+    pre{padding:12px;overflow:auto;white-space:pre-wrap}
+    .box{background:#16161f;border:1px solid #2a2a36;border-radius:12px;padding:14px;margin:12px 0}
+    a{color:#a78bfa}
+    ol{padding-left:20px}
+    li{margin:8px 0}
+  </style>
+</head>
+<body>
+  <h1>Configurar Pix (Mercado Pago)</h1>
+  <p>O token do MP <strong>nunca</strong> vai no site público. Ele fica no Cloudflare Worker.</p>
+
+  <h2>1. Access Token</h2>
+  <ol>
+    <li>Abra <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank">Painel de Desenvolvedores MP</a></li>
+    <li>Crie uma aplicação (ou use uma existente)</li>
+    <li>Credenciais de <strong>teste</strong> primeiro (depois produção)</li>
+    <li>Copie o <strong>Access Token</strong> (começa com <code>APP_USR-</code> ou <code>TEST-</code>)</li>
+  </ol>
+
+  <h2>2. Cloudflare Worker</h2>
+  <ol>
+    <li>Cloudflare → <strong>Workers & Pages</strong> → Create Worker</li>
+    <li>Nome: <code>bloxzuh-pix</code></li>
+    <li>Cole o código de <code>workers/mp-pix.js</code></li>
+    <li>Deploy</li>
+    <li>Settings → Variables and Secrets → Add <strong>Secret</strong>:<br>
+      Nome: <code>MP_ACCESS_TOKEN</code><br>
+      Valor: seu Access Token</li>
+    <li>Copie a URL, tipo:<br><code>https://bloxzuh-pix.xxxx.workers.dev</code></li>
+  </ol>
+
+  <h2>3. Site</h2>
+  <ol>
+    <li>Edite <code>js/mp-config.js</code>:</li>
+  </ol>
+  <pre>window.MP_WORKER_URL = 'https://bloxzuh-pix.xxxx.workers.dev';</pre>
+  <ol start="2">
+    <li>Commit no GitHub → Cloudflare Pages atualiza</li>
+  </ol>
+
+  <h2>4. Testar</h2>
+  <ol>
+    <li>COMPRAR → checkout → Pix com nome e CPF válidos</li>
+    <li>QR real do Mercado Pago aparece</li>
+    <li>Pague com conta de <strong>teste</strong> do MP (ou produção depois)</li>
+    <li>Em ~3s o site detecta e libera o chat</li>
+  </ol>
+
+  <div class="box">
+    <strong>Contas de teste MP:</strong> no painel de desenvolvedores há compradores de teste para Pix sandbox.
+  </div>
+</body>
+</html>
