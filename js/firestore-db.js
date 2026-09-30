@@ -232,3 +232,33 @@ async function prepareAdCover(file) {
   }
   return dataUrl;
 }
+
+
+async function fsGetAdsBySeller(uid, limit) {
+  if (!uid) return [];
+  const snap = await db.collection('ads')
+    .where('sellerUid', '==', uid)
+    .where('status', '==', 'ativo')
+    .limit(limit || 20)
+    .get();
+  const list = [];
+  snap.forEach(function (doc) {
+    list.push(normalizeAd(doc.id, doc.data()));
+  });
+  return list;
+}
+
+async function fsGetSellerPublic(uid) {
+  // ads already have sellerName; optional profile doc
+  let profile = { uid: uid, name: 'Vendedor', photo: '', bio: '' };
+  try {
+    const doc = await db.collection('profiles').doc(uid).get();
+    if (doc.exists) {
+      const d = doc.data();
+      profile.name = d.displayName || d.name || profile.name;
+      profile.photo = d.photoURL || d.photo || '';
+      profile.bio = d.bio || '';
+    }
+  } catch (e) {}
+  return profile;
+}
