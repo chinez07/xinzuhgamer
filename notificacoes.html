@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Central de notificações | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root { --primary:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .top {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:12px 16px; background:var(--card); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:10;
+    }
+    .logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:#fff; font-weight:800; }
+    .logo-i { width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff; }
+    a.link { color:#c4b5fd; text-decoration:none; font-weight:600; font-size:0.9rem; }
+    .wrap { max-width:720px; margin:0 auto; padding:20px 16px 48px; }
+    h1 { font-size:1.4rem; margin-bottom:4px; }
+    .sub { color:var(--muted); font-size:0.9rem; margin-bottom:16px; }
+    .tabs { display:flex; gap:4px; overflow-x:auto; border-bottom:1px solid var(--border); margin-bottom:14px; }
+    .tabs button {
+      background:none; border:none; color:var(--muted); padding:10px 14px; font-weight:700;
+      cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; font-size:0.9rem;
+    }
+    .tabs button.active { color:var(--primary); border-bottom-color:var(--primary); }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap; }
+    .toolbar button {
+      background:transparent; border:1px solid var(--border); color:var(--text);
+      padding:8px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
+    }
+    .item {
+      display:flex; gap:12px; padding:14px; background:var(--card); border:1px solid var(--border);
+      border-radius:12px; margin-bottom:10px; text-decoration:none; color:inherit;
+    }
+    .item.unread { border-color: rgba(124,58,237,.5); background: rgba(124,58,237,.08); }
+    .ico {
+      width:40px; height:40px; border-radius:10px; background:rgba(124,58,237,.15);
+      color:#a78bfa; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .title { font-weight:700; margin-bottom:4px; }
+    .body { color:var(--muted); font-size:0.88rem; line-height:1.4; }
+    .time { font-size:0.75rem; color:var(--muted); margin-top:6px; }
+    .empty { text-align:center; padding:40px 16px; color:var(--muted); }
+    .empty i { font-size:2rem; opacity:.4; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a class="link" href="index.html">Voltar</a>
+  </div>
+  <div class="wrap">
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px">Conta › Central de notificações</p>
+    <h1>Central de notificações</h1>
+    <p class="sub">Veja e gerencie as notificações da sua conta.</p>
+    <div class="tabs" id="tabs">
+      <button type="button" class="active" data-tab="todos">Todos</button>
+      <button type="button" data-tab="anuncio">Anúncios</button>
+      <button type="button" data-tab="venda">Vendas</button>
+    </div>
+    <div class="toolbar">
+      <span id="countLabel" style="color:var(--muted);font-size:0.85rem"></span>
+      <button type="button" id="btnReadAll"><i class="fas fa-check-double"></i> Marcar todos como lido</button>
+    </div>
+    <div id="list"><div class="empty">Carregando…</div></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/notificacoes.js"></script>
+  <script>
+  (function () {
+    var filter = 'todos';
+    var cache = [];
+    function icon(t) {
+      if (t === 'pergunta' || t === 'resposta') return 'fa-comment';
+      if (t === 'venda' || t === 'compra') return 'fa-dollar-sign';
+      if (t === 'anuncio') return 'fa-bullhorn';
+      return 'fa-bell';
+    }
+    function render() {
+      var list = cache;
+      if (filter === 'anuncio') list = cache.filter(function (n) { return n.type === 'anuncio' || n.type === 'resposta' || n.type === 'pergunta'; });
+      if (filter === 'venda') list = cache.filter(function (n) { return n.type === 'venda' || n.type === 'compra'; });
+      document.getElementById('countLabel').textContent = list.length + ' notificação(ões)';
+      var el = document.getElementById('list');
+      if (!list.length) {
+        el.innerHTML = '<div class="empty"><i class="fas fa-bell"></i><p>Nenhuma notificação nesta categoria.</p></div>';
+        return;
+      }
+      el.innerHTML = list.map(function (n) {
+        return '<a class="item' + (n.read ? '' : ' unread') + '" href="' + (n.link || '#') + '" data-id="' + n.id + '">' +
+          '<div class="ico"><i class="fas ' + icon(n.type) + '"></i></div>' +
+          '<div><div class="title">' + (n.title || '') + '</div>' +
+          '<div class="body">' + (n.body || '') + '</div>' +
+          '<div class="time">' + timeAgo(n.createdAtMs) + '</div></div></a>';
+      }).join('');
+      el.querySelectorAll('[data-id]').forEach(function (a) {
+        a.addEventListener('click', function () { fsMarkNotifRead(a.getAttribute('data-id')); });
+      });
+    }
+    document.getElementById('tabs').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-tab]');
+      if (!b) return;
+      document.querySelectorAll('#tabs button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      filter = b.getAttribute('data-tab');
+      render();
+    });
+    document.getElementById('btnReadAll').onclick = async function () {
+      await fsMarkAllNotifsRead();
+      cache.forEach(function (n) { n.read = true; });
+      render();
+    };
+    firebase.auth().onAuthStateChanged(async function (user) {
+      if (!user) { location.href = 'login.html'; return; }
+      cache = await fsGetMyNotifications(50);
+      render();
+    });
+  })();
+  </script>
+</body>
+</html>
