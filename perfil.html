@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perfil | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --primary: #7c3aed; --bg: #0f0f14; --card: #16161f; --text: #f3f4f6; --muted: #9ca3af; --border: #2a2a36; --ok: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    .top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: var(--card); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:var(--text); font-weight:800; }
+    .logo-i { width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;display:flex;align-items:center;justify-content:center; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 16px 14px 60px; }
+    .head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .av {
+      width: 64px; height: 64px; border-radius: 50%; background: var(--primary); color:#fff;
+      display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:800; overflow:hidden;
+    }
+    .av img { width:100%; height:100%; object-fit:cover; }
+    .on { background:#22c55e; color:#fff; font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:999px; margin-left:6px; }
+    .level { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .rating-box { text-align: center; padding: 12px; }
+    .rating-box .n { font-size: 2.2rem; font-weight: 800; }
+    .stars { color: #fbbf24; margin: 6px 0; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      background: rgba(34,197,94,.15); color: var(--ok); font-size: 0.8rem; font-weight: 700;
+      padding: 6px 10px; border-radius: 999px;
+    }
+    .rep-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+    .rep-grid .box { background: var(--bg); border-radius: 12px; padding: 14px 8px; }
+    .rep-grid .n { font-size: 1.3rem; font-weight: 800; }
+    .rep-grid .k { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+    .rev { padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    .rev:last-child { border-bottom: none; }
+    .rev .meta { font-size: 0.78rem; color: var(--muted); margin-top: 6px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .product-card {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      text-decoration: none; color: inherit; display: block;
+    }
+    .product-img { height: 100px; background: #1e1b4b; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .product-img img { width:100%; height:100%; object-fit:cover; }
+    .product-body { padding: 10px; }
+    .product-body h3 { font-size: 0.85rem; margin-bottom: 4px; }
+    .product-price { font-weight: 800; color: #c4b5fd; }
+    .empty { text-align: center; color: var(--muted); padding: 24px; font-size: 0.9rem; }
+    h2 { font-size: 1rem; margin-bottom: 12px; }
+    a.back { color: var(--muted); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a href="anuncios.html" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Anúncios</a>
+  </div>
+  <div class="wrap" id="page"><p class="empty">Carregando perfil…</p></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script>
+  (function () {
+    function esc(s) {
+      return String(s || '').replace(/[&<>"']/g, function (c) {
+        return ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c];
+      });
+    }
+    function money(n) {
+      return 'R$ ' + (Number(n) || 0).toFixed(2).replace('.', ',');
+    }
+    async function main() {
+      const params = new URLSearchParams(location.search);
+      const uid = (params.get('uid') || '').trim();
+      let name = params.get('name') || 'Vendedor';
+      const page = document.getElementById('page');
+      if (!uid && !name) {
+        page.innerHTML = '<p class="empty">Perfil não encontrado.</p>';
+        return;
+      }
+      let photo = '';
+      try {
+        if (uid && typeof fsGetSellerPublic === 'function') {
+          const p = await fsGetSellerPublic(uid);
+          if (p.name) name = p.name;
+          photo = p.photo || '';
+        }
+      } catch (e) {}
+      // local photo if same user
+      try {
+        if (uid) {
+          const lp = localStorage.getItem('xinzuh-photo-' + uid);
+          if (lp) photo = lp;
+        }
+      } catch (e) {}
+
+      let ads = [];
+      try {
+        if (uid && typeof fsGetAdsBySeller === 'function') {
+          ads = await fsGetAdsBySeller(uid, 24);
+        }
+      } catch (e) { console.warn(e); }
+
+      const initial = (name || 'V').charAt(0).toUpperCase();
+      const av = photo
+        ? '<img src="' + photo + '" alt="">'
+        : initial;
+
+      page.innerHTML =
+        '<a class="back" href="javascript:history.back()">← Voltar</a>' +
+        '<div class="head">' +
+          '<div class="av">' + av + '</div>' +
+          '<div><div style="font-size:1.2rem;font-weight:800">' + esc(name) + ' <span class="on">ON</span></div>' +
+          '<div class="level">Vendedor Bloxzuh</div></div>' +
+        '</div>' +
+        '<div class="card rating-box">' +
+          '<div class="n">5.0</div><div class="stars">★★★★★</div>' +
+          '<div style="color:var(--muted);font-size:0.85rem">' + ads.length + ' anúncio(s) ativo(s)</div>' +
+        '</div>' +
+        '<div class="card"><h2>Verificações</h2><div class="chips">' +
+          '<span class="chip"><i class="fas fa-check"></i> Email</span>' +
+          '<span class="chip"><i class="fas fa-check"></i> Conta Bloxzuh</span>' +
+        '</div></div>' +
+        '<div class="card"><h2>Reputação</h2><div class="rep-grid">' +
+          '<div class="box"><div class="n" style="color:var(--ok)">—</div><div class="k">Positivas</div></div>' +
+          '<div class="box"><div class="n">—</div><div class="k">Neutras</div></div>' +
+          '<div class="box"><div class="n" style="color:#ef4444">—</div><div class="k">Negativas</div></div>' +
+        '</div><p style="color:var(--muted);font-size:0.85rem;margin-top:12px;text-align:center">Avaliações reais aparecem após vendas concluídas.</p></div>' +
+        '<div class="card"><h2>Anúncios ativos</h2>' +
+        (ads.length
+          ? '<div class="grid">' + ads.map(function (a) {
+              const img = a.cover
+                ? '<img src="' + a.cover + '" alt="">'
+                : '<i class="fas fa-gamepad" style="color:#fff;opacity:.5"></i>';
+              return '<a class="product-card" href="anuncio.html?id=' + encodeURIComponent(a.id) + '">' +
+                '<div class="product-img">' + img + '</div>' +
+                '<div class="product-body"><h3>' + esc(a.title) + '</h3><div class="product-price">' + money(a.price) + '</div></div></a>';
+            }).join('') + '</div>'
+          : '<div class="empty"><i class="fas fa-bullhorn" style="font-size:1.5rem;opacity:.4"></i><p style="margin-top:8px">Nenhum anúncio disponível.</p><p style="font-size:0.85rem">Este vendedor ainda não possui anúncios ativos.</p></div>') +
+        '</div>';
+    }
+    main();
+  })();
+  </script>
+</body>
+</html>
