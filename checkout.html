@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root { --p:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+    .logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#fff;font-weight:800}
+    .logo-i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center}
+    .wrap{max-width:560px;margin:0 auto;padding:16px 14px 80px}
+    .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+    h1{font-size:1.15rem;margin-bottom:4px}
+    .muted{color:var(--muted);font-size:0.88rem}
+    .row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.9rem}
+    .row:last-child{border-bottom:none}
+    .thumb{width:100%;border-radius:10px;margin:12px 0;max-height:160px;object-fit:cover;background:#1e1b4b}
+    .vip{border:1px solid var(--border);border-radius:12px;padding:14px;margin:10px 0;cursor:pointer}
+    .vip.sel{border-color:var(--p);background:rgba(124,58,237,.12)}
+    .vip h3{font-size:1rem;margin-bottom:8px}
+    .vip ul{margin:0;padding-left:18px;color:var(--muted);font-size:0.85rem;line-height:1.5}
+    .pay-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .pay{border:1px solid var(--border);border-radius:12px;padding:14px 10px;text-align:center;cursor:pointer;font-size:0.85rem;background:transparent;color:var(--text)}
+    .pay.sel{border-color:var(--p);background:rgba(124,58,237,.15)}
+    .pay i{font-size:1.4rem;display:block;margin-bottom:6px;color:#a78bfa}
+    .pay .rec{display:inline-block;font-size:0.65rem;background:#22c55e;color:#fff;padding:2px 6px;border-radius:6px;margin-bottom:4px}
+    label{display:block;font-size:0.85rem;margin:10px 0 4px;color:var(--muted)}
+    input{width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0f0f14;color:var(--text);font-size:0.95rem}
+    .btn{width:100%;padding:14px;border:none;border-radius:12px;background:var(--p);color:#fff;font-weight:800;font-size:1rem;cursor:pointer;margin-top:12px}
+    .btn:disabled{opacity:.6}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .step{display:none}
+    .step.on{display:block}
+    .price{font-weight:800;color:#c4b5fd}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a href="javascript:history.back()" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Voltar</a>
+  </div>
+  <div class="wrap" id="app"><p class="muted">Carregando…</p></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script src="js/notificacoes.js"></script>
+  <script>
+  function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
+  function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  var ad=null, order=null, vip='none', payMethod='pix';
+
+  function vipFee(total){
+    if(vip==='basico') return total*0.0299;
+    if(vip==='premium') return total*0.0499;
+    return 0;
+  }
+  function finalTotal(){
+    var t=Number(ad&&ad.price)||0;
+    return t + vipFee(t);
+  }
+
+  function render(){
+    var app=document.getElementById('app');
+    if(!ad){ app.innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
+    var img = ad.cover ? '<img class="thumb" src="'+ad.cover+'" alt="">' : '';
+    app.innerHTML =
+      '<div class="step on" id="step1">'+
+        '<div class="box">'+
+          '<h1><i class="fas fa-shopping-cart"></i> Pedido</h1>'+
+          '<p class="muted">Revise os dados antes de pagar</p>'+
+          '<div class="row"><span>Produto</span><span>'+esc(ad.title)+'</span></div>'+
+          '<div class="row"><span>Vendedor</span><span>'+esc(ad.seller)+'</span></div>'+
+          '<div class="row"><span>Categoria</span><span>'+esc(ad.categoryLabel||ad.category)+'</span></div>'+
+          '<div class="row"><span>Subtotal</span><span class="price">'+money(ad.price)+'</span></div>'+
+          img+
+          '<div class="muted">1 × '+money(ad.price)+'</div>'+
+        '</div>'+
+        '<div class="box">'+
+          '<h1>Plano adicional (opcional)</h1>'+
+          '<p class="muted" style="margin-bottom:10px">Proteção extra — ainda em estrutura, sem cobrança real de gateway.</p>'+
+          '<div class="vip'+(vip==='none'?' sel':'')+'" data-vip="none"><h3>Sem plano adicional</h3><ul><li>Fluxo padrão da Bloxzuh</li></ul></div>'+
+          '<div class="vip'+(vip==='basico'?' sel':'')+'" data-vip="basico"><h3>VIP Básico · +2,99%</h3><ul><li>Suporte prioritário (estrutura)</li><li>Taxa extra 2,99%</li></ul></div>'+
+          '<div class="vip'+(vip==='premium'?' sel':'')+'" data-vip="premium"><h3>VIP Premium · +4,99%</h3><ul><li>Suporte prioritário (estrutura)</li><li>Taxa extra 4,99%</li></ul></div>'+
+          '<button type="button" class="btn" id="btnToPay">Continuar · '+money(finalTotal())+'</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="step" id="step2">'+
+        '<div class="box">'+
+          '<h1><i class="fas fa-credit-card"></i> Pagamento</h1>'+
+          '<p class="muted">Valor final: <span class="price">'+money(finalTotal())+'</span></p>'+
+          '<p style="margin:12px 0 8px;font-weight:700">Métodos de pagamento</p>'+
+          '<div class="pay-grid">'+
+            '<button type="button" class="pay'+(payMethod==='pix'?' sel':'')+'" data-pay="pix"><span class="rec">Recomendado</span><i class="fas fa-qrcode"></i>Pix</button>'+
+            '<button type="button" class="pay" disabled style="opacity:.45"><i class="fas fa-credit-card"></i>Cartão (em breve)</button>'+
+            '<button type="button" class="pay" disabled style="opacity:.45"><i class="fas fa-barcode"></i>Boleto (em breve)</button>'+
+            '<button type="button" class="pay" disabled style="opacity:.45"><i class="fas fa-wallet"></i>Saldo (em breve)</button>'+
+          '</div>'+
+          '<div id="pixFields" style="margin-top:14px">'+
+            '<p class="muted" style="margin-bottom:8px">Na próxima etapa geramos o QR Code / copia e cola Pix (estrutura). Gateway real entra depois.</p>'+
+            '<label>Nome completo</label><input id="payerName" placeholder="Digite o seu nome completo" autocomplete="name">'+
+            '<label>CPF</label><input id="payerCpf" placeholder="000.000.000-00" inputmode="numeric">'+
+            '<button type="button" class="btn" id="btnPix">Gerar QR Code e copia/cola</button>'+
+            '<button type="button" class="btn btn-ghost" id="btnBack1">Voltar</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>';
+
+    document.querySelectorAll('[data-vip]').forEach(function(el){
+      el.onclick=function(){ vip=el.getAttribute('data-vip'); render(); document.getElementById('step1').classList.add('on'); document.getElementById('step2').classList.remove('on'); };
+    });
+    document.getElementById('btnToPay').onclick=function(){
+      document.getElementById('step1').classList.remove('on');
+      document.getElementById('step2').classList.add('on');
+    };
+    document.getElementById('btnBack1').onclick=function(){
+      document.getElementById('step2').classList.remove('on');
+      document.getElementById('step1').classList.add('on');
+    };
+    document.querySelectorAll('[data-pay]').forEach(function(el){
+      el.onclick=function(){ if(el.disabled) return; payMethod=el.getAttribute('data-pay'); render(); document.getElementById('step1').classList.remove('on'); document.getElementById('step2').classList.add('on'); };
+    });
+    document.getElementById('btnPix').onclick=async function(){
+      var name=(document.getElementById('payerName').value||'').trim();
+      var cpf=(document.getElementById('payerCpf').value||'').trim();
+      if(name.length<3){ alert('Informe o nome completo.'); return; }
+      if(cpf.replace(/\D/g,'').length<11){ alert('Informe um CPF válido.'); return; }
+      var btn=document.getElementById('btnPix');
+      btn.disabled=true; btn.textContent='Criando pedido…';
+      try{
+        if(typeof fsCreateOrder!=='function') throw new Error('Sistema de pedidos não carregou. Atualize a página.');
+        order = await fsCreateOrder(ad, { quantity:1 });
+        await fsSetOrderPayment(order.id, {
+          method:'pix',
+          payerName:name,
+          payerCpf:cpf,
+          vipPlan:vip,
+          total: finalTotal()
+        });
+        if(typeof fsAddNotification==='function' && order.sellerUid){
+          fsAddNotification(order.sellerUid,{
+            type:'venda',
+            title:'Novo pedido #'+order.code,
+            body:(order.buyerName||'Comprador')+' · '+money(finalTotal()),
+            link:'pedido.html?id='+encodeURIComponent(order.id),
+            createdAtMs:Date.now()
+          });
+        }
+        location.href='pagamento.html?id='+encodeURIComponent(order.id);
+      }catch(e){
+        alert(e.message||'Erro ao criar pedido');
+        btn.disabled=false; btn.textContent='Gerar QR Code e copia/cola';
+      }
+    };
+  }
+
+  firebase.auth().onAuthStateChanged(async function(user){
+    if(!user){ location.href='login.html?redirect='+encodeURIComponent(location.href); return; }
+    var adId=new URLSearchParams(location.search).get('adId')||'';
+    if(!adId){ document.getElementById('app').innerHTML='<p class="muted">Anúncio inválido.</p>'; return; }
+    try{
+      ad=await fsGetAdById(adId);
+      if(!ad){ document.getElementById('app').innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
+      render();
+    }catch(e){
+      document.getElementById('app').innerHTML='<p class="muted">Erro: '+esc(e.message)+'</p>';
+    }
+  });
+  </script>
+</body>
+</html>

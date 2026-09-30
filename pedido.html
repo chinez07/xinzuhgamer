@@ -6,44 +6,42 @@
   <title>Pedido | Bloxzuh</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    :root { --primary:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; --ok:#22c55e; --warn:#f59e0b; }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
-    .top { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
-    .logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:#fff; font-weight:800; }
-    .logo-i { width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center; }
-    a.link { color:#c4b5fd; text-decoration:none; font-weight:600; font-size:0.9rem; }
-    .wrap { max-width:720px; margin:0 auto; padding:20px 16px 48px; }
-    h1 { font-size:1.35rem; margin-bottom:4px; }
-    .sub { color:var(--muted); font-size:0.9rem; margin-bottom:18px; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; text-decoration:none; color:inherit; display:block; }
-    .card:hover { border-color: rgba(124,58,237,.5); }
-    .row { display:flex; gap:12px; }
-    .thumb { width:72px; height:72px; border-radius:10px; object-fit:cover; background:#1e1b4b; flex-shrink:0; }
-    .title { font-weight:700; margin-bottom:4px; }
-    .meta { font-size:0.82rem; color:var(--muted); line-height:1.45; }
-    .price { font-weight:800; color:#c4b5fd; margin-top:6px; }
-    .badge { display:inline-block; font-size:0.72rem; font-weight:700; padding:3px 8px; border-radius:999px; margin-top:6px; }
-    .st-aguardando_pagamento { background:rgba(245,158,11,.2); color:#fbbf24; }
-    .st-pago, .st-em_entrega { background:rgba(59,130,246,.2); color:#93c5fd; }
-    .st-concluido { background:rgba(34,197,94,.2); color:#4ade80; }
-    .st-cancelado { background:rgba(239,68,68,.15); color:#f87171; }
-    .empty { text-align:center; padding:40px 16px; color:var(--muted); }
-    .btn { display:inline-block; background:var(--primary); color:#fff; border:none; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; text-decoration:none; font-size:0.9rem; }
-    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
-    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
-
-    .box { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
-    .k { color:var(--muted); font-size:0.8rem; }
-    .v { font-weight:600; margin-top:2px; margin-bottom:10px; }
+    :root { --p:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; --ok:#22c55e; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+    .logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#fff;font-weight:800}
+    .logo-i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center}
+    .wrap{max-width:640px;margin:0 auto;padding:16px 14px 40px}
+    .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px}
+    h1{font-size:1.2rem}
+    .muted{color:var(--muted);font-size:0.88rem}
+    .row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.9rem}
+    .row:last-child{border-bottom:none}
+    .badge{display:inline-block;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px}
+    .st-pago,.st-em_entrega{background:rgba(59,130,246,.2);color:#93c5fd}
+    .st-concluido{background:rgba(34,197,94,.2);color:#4ade80}
+    .st-aguardando_pagamento{background:rgba(245,158,11,.2);color:#fbbf24}
+    .st-cancelado{background:rgba(239,68,68,.15);color:#f87171}
+    .btn{padding:10px 14px;border:none;border-radius:10px;background:var(--p);color:#fff;font-weight:700;cursor:pointer;font-size:0.9rem;text-decoration:none;display:inline-block}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .chat{display:flex;flex-direction:column;gap:10px;max-height:360px;overflow:auto;padding:8px 0}
+    .bubble{max-width:85%;padding:10px 12px;border-radius:12px;font-size:0.9rem;line-height:1.4}
+    .bubble.me{align-self:flex-end;background:var(--p);color:#fff;border-bottom-right-radius:4px}
+    .bubble.them{align-self:flex-start;background:#2a2a36;border-bottom-left-radius:4px}
+    .bubble .t{font-size:0.7rem;opacity:.75;margin-top:4px}
+    .send{display:flex;gap:8px;margin-top:10px}
+    .send input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0f0f14;color:var(--text)}
+    .thumb{width:100%;border-radius:10px;max-height:140px;object-fit:cover;margin:10px 0}
   </style>
 </head>
 <body>
   <div class="top">
     <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
-    <a class="link" href="javascript:history.back()">Voltar</a>
+    <a href="compras.html" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Compras</a>
   </div>
-  <div class="wrap" id="page"><div class="empty">Carregando pedido…</div></div>
+  <div class="wrap" id="page"><p class="muted">Carregando…</p></div>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -51,82 +49,99 @@
   <script src="js/firestore-db.js"></script>
   <script src="js/notificacoes.js"></script>
   <script>
-  function money(n) { return 'R$ ' + (Number(n)||0).toFixed(2).replace('.', ','); }
-  function label(s) {
-    return ({
-      aguardando_pagamento: 'Aguardando pagamento',
-      pago: 'Pago',
-      em_entrega: 'Em entrega',
-      concluido: 'Concluído',
-      cancelado: 'Cancelado'
-    })[s] || s;
+  function money(n){ return 'R$ '+(Number(n)||0).toFixed(2).replace('.',','); }
+  function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function label(s){
+    return ({aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_entrega:'Em entrega',concluido:'Concluído / Entregue',cancelado:'Cancelado'})[s]||s;
   }
-  function esc(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+  function timeAgo(ts){
+    if(typeof window.timeAgo==='function') return window.timeAgo(ts);
+    return '';
+  }
 
-  firebase.auth().onAuthStateChanged(async function (user) {
-    if (!user) { location.href = 'login.html'; return; }
-    var id = new URLSearchParams(location.search).get('id') || '';
-    var page = document.getElementById('page');
-    if (!id) { page.innerHTML = '<div class="empty">Pedido não encontrado.</div>'; return; }
-    try {
-      var o = await fsGetOrder(id);
-      if (!o) { page.innerHTML = '<div class="empty">Pedido não encontrado.</div>'; return; }
-      if (o.buyerUid !== user.uid && o.sellerUid !== user.uid) {
-        page.innerHTML = '<div class="empty">Você não tem acesso a este pedido.</div>';
-        return;
-      }
-      var isBuyer = o.buyerUid === user.uid;
-      var isSeller = o.sellerUid === user.uid;
-      var img = o.adCover ? '<img class="thumb" src="'+o.adCover+'" alt="">' : '<div class="thumb"></div>';
+  var orderId='', currentUser=null, order=null;
 
-      var actions = '';
-      if (isBuyer && o.status === 'aguardando_pagamento') {
-        actions += '<button type="button" class="btn" id="btnPaid">Marcar como pago (teste)</button>';
-        actions += '<button type="button" class="btn btn-ghost" id="btnCancel">Cancelar pedido</button>';
-      }
-      if (isSeller && (o.status === 'pago' || o.status === 'aguardando_pagamento')) {
-        actions += '<button type="button" class="btn" id="btnDeliver">Marcar em entrega</button>';
-      }
-      if (isSeller && o.status === 'em_entrega') {
-        actions += '<button type="button" class="btn" id="btnDoneSeller">Marcar concluído</button>';
-      }
-      if (isBuyer && o.status === 'em_entrega') {
-        actions += '<button type="button" class="btn" id="btnDoneBuyer">Confirmar recebimento</button>';
-      }
+  function renderChat(){
+    var msgs=Array.isArray(order.messages)?order.messages:[];
+    if(!msgs.length) return '<p class="muted">Nenhuma mensagem ainda. Use o chat para combinar a entrega.</p>';
+    return '<div class="chat">'+msgs.map(function(m){
+      var me=m.senderUid===currentUser.uid;
+      return '<div class="bubble '+(me?'me':'them')+'">'+esc(m.text)+'<div class="t">'+esc(m.senderName)+' · '+timeAgo(m.createdAtMs)+'</div></div>';
+    }).join('')+'</div>';
+  }
 
-      page.innerHTML =
-        '<h1>Pedido #'+ esc(o.code) +'</h1>' +
-        '<p class="sub"><span class="badge st-'+ esc(o.status) +'">'+ label(o.status) +'</span></p>' +
-        '<div class="box"><div class="row">'+ img +'<div>' +
-          '<div class="title">'+ esc(o.adTitle) +'</div>' +
-          '<div class="price">'+ money(o.total||o.price) +'</div>' +
-          (o.adId ? '<a class="link" href="anuncio.html?id='+encodeURIComponent(o.adId)+'">Ver anúncio</a>' : '') +
-        '</div></div></div>' +
-        '<div class="box">' +
-          '<div class="k">Comprador</div><div class="v">'+ esc(o.buyerName) +'</div>' +
-          '<div class="k">Vendedor</div><div class="v">'+ esc(o.sellerName) +'</div>' +
-          '<div class="k">Valor</div><div class="v">'+ money(o.total||o.price) +'</div>' +
-          '<div class="k">Status</div><div class="v">'+ label(o.status) +'</div>' +
-          '<div class="k">Obs.</div><div class="v" style="color:var(--muted);font-weight:400">Pagamento online ainda não está ativo. Use os botões abaixo só para testar o fluxo.</div>' +
-        '</div>' +
-        '<div class="actions">'+ actions +
-          '<a class="btn btn-ghost" href="'+(isBuyer?'compras.html':'vendas.html')+'">Voltar à lista</a>' +
-        '</div>';
+  async function reload(){
+    order=await fsGetOrder(orderId);
+    draw();
+  }
 
-      async function setStatus(st) {
-        try {
-          await fsUpdateOrderStatus(id, st);
-          location.reload();
-        } catch (e) { alert(e.message || 'Erro'); }
+  function draw(){
+    var o=order;
+    var isBuyer=o.buyerUid===currentUser.uid;
+    var isSeller=o.sellerUid===currentUser.uid;
+    var canChat=o.status==='pago'||o.status==='em_entrega'||o.status==='concluido';
+    var img=o.adCover?'<img class="thumb" src="'+o.adCover+'" alt="">':'';
+    var actions='';
+    if(isBuyer && o.status==='aguardando_pagamento'){
+      actions+='<a class="btn" href="pagamento.html?id='+encodeURIComponent(o.id)+'">Pagar com Pix</a>';
+      actions+='<button type="button" class="btn btn-ghost" id="btnCancel">Cancelar</button>';
+    }
+    if(isSeller && o.status==='pago'){
+      actions+='<button type="button" class="btn" id="btnDeliver">Marcar em entrega</button>';
+    }
+    if((isBuyer||isSeller) && o.status==='em_entrega'){
+      actions+='<button type="button" class="btn" id="btnDone">Confirmar entrega / concluir</button>';
+    }
+
+    document.getElementById('page').innerHTML=
+      '<div class="box">'+
+        '<h1>Pedido #'+esc(o.code)+'</h1>'+
+        '<p class="muted" style="margin:8px 0"><span class="badge st-'+esc(o.status)+'">'+label(o.status)+'</span></p>'+
+        '<div class="row"><span>Data</span><span>'+timeAgo(o.createdAtMs)+'</span></div>'+
+        '<div class="row"><span>Subtotal</span><span>'+money(o.price)+'</span></div>'+
+        '<div class="row"><span>Total</span><span style="font-weight:800;color:#c4b5fd">'+money(o.total||o.price)+'</span></div>'+
+        '<div class="row"><span>Vendedor</span><span>'+esc(o.sellerName)+'</span></div>'+
+        '<div class="row"><span>Comprador</span><span>'+esc(o.buyerName)+'</span></div>'+
+        '<div class="row"><span>Categoria</span><span>'+esc(o.category)+'</span></div>'+
+        img+
+        '<div style="font-weight:700">'+esc(o.adTitle)+'</div>'+
+        (o.adId?'<div class="actions"><a class="btn btn-ghost" href="anuncio.html?id='+encodeURIComponent(o.adId)+'">Ver anúncio</a></div>':'')+
+        '<div class="actions">'+actions+'</div>'+
+      '</div>'+
+      (o.paymentMethod?'<div class="box"><h1>Pagamento</h1><div class="row"><span>Método</span><span>Pix</span></div><div class="row"><span>Status</span><span>'+(o.status==='aguardando_pagamento'?'Pendente':'Aprovado')+'</span></div></div>':'')+
+      (canChat?
+        '<div class="box"><h1><span style="color:#4ade80">●</span> Chat com o '+(isBuyer?'vendedor':'comprador')+'</h1>'+
+        renderChat()+
+        '<div class="send"><input id="msgIn" placeholder="Digite sua mensagem..."><button type="button" class="btn" id="btnSend"><i class="fas fa-paper-plane"></i></button></div>'+
+        '<p class="muted" style="margin-top:8px;font-size:0.8rem">Não envie dados sensíveis em canais externos. Prefira o chat do pedido.</p></div>'
+      :'<div class="box"><p class="muted">O chat libera após o pagamento ser aprovado.</p></div>');
+
+    var b;
+    if((b=document.getElementById('btnCancel'))) b.onclick=async function(){ if(confirm('Cancelar pedido?')){ await fsUpdateOrderStatus(orderId,'cancelado'); reload(); }};
+    if((b=document.getElementById('btnDeliver'))) b.onclick=async function(){ await fsUpdateOrderStatus(orderId,'em_entrega'); reload(); };
+    if((b=document.getElementById('btnDone'))) b.onclick=async function(){ await fsUpdateOrderStatus(orderId,'concluido'); reload(); };
+    if((b=document.getElementById('btnSend'))) b.onclick=async function(){
+      var t=(document.getElementById('msgIn').value||'').trim();
+      if(!t) return;
+      b.disabled=true;
+      try{ await fsAddOrderMessage(orderId,t); await reload(); }catch(e){ alert(e.message); b.disabled=false; }
+    };
+  }
+
+  firebase.auth().onAuthStateChanged(async function(user){
+    if(!user){ location.href='login.html'; return; }
+    currentUser=user;
+    orderId=new URLSearchParams(location.search).get('id')||'';
+    if(!orderId){ document.getElementById('page').innerHTML='<p class="muted">Pedido não encontrado.</p>'; return; }
+    try{
+      order=await fsGetOrder(orderId);
+      if(!order){ document.getElementById('page').innerHTML='<p class="muted">Pedido não encontrado.</p>'; return; }
+      if(order.buyerUid!==user.uid && order.sellerUid!==user.uid){
+        document.getElementById('page').innerHTML='<p class="muted">Sem acesso.</p>'; return;
       }
-      var b;
-      if ((b = document.getElementById('btnPaid'))) b.onclick = function(){ setStatus('pago'); };
-      if ((b = document.getElementById('btnCancel'))) b.onclick = function(){ if(confirm('Cancelar este pedido?')) setStatus('cancelado'); };
-      if ((b = document.getElementById('btnDeliver'))) b.onclick = function(){ setStatus('em_entrega'); };
-      if ((b = document.getElementById('btnDoneSeller'))) b.onclick = function(){ setStatus('concluido'); };
-      if ((b = document.getElementById('btnDoneBuyer'))) b.onclick = function(){ setStatus('concluido'); };
-    } catch (e) {
-      page.innerHTML = '<div class="empty">Erro: '+ esc(e.message) +'</div>';
+      draw();
+    }catch(e){
+      document.getElementById('page').innerHTML='<p class="muted">Erro: '+esc(e.message)+'</p>';
     }
   });
   </script>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento Pix | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root { --p:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+    .logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#fff;font-weight:800}
+    .logo-i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center}
+    .wrap{max-width:520px;margin:0 auto;padding:20px 14px 60px}
+    .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+    h1{font-size:1.25rem;margin-bottom:8px}
+    .muted{color:var(--muted);font-size:0.9rem}
+    .qr{width:200px;height:200px;margin:16px auto;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:10px}
+    .qr img{width:100%;height:100%;object-fit:contain}
+    .copy{display:flex;gap:8px;margin-top:12px}
+    .copy input{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:#0f0f14;color:var(--text);font-size:0.75rem}
+    .btn{padding:12px 14px;border:none;border-radius:10px;background:var(--p);color:#fff;font-weight:700;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .ok{background:rgba(34,197,94,.15);color:#4ade80;display:inline-block;padding:4px 10px;border-radius:8px;font-weight:700;font-size:0.85rem}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a href="compras.html" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Minhas compras</a>
+  </div>
+  <div class="wrap" id="app"><p class="muted">Carregando pagamento…</p></div>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script>
+  function money(n){ return 'R$ '+(Number(n)||0).toFixed(2).replace('.',','); }
+  function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function timerText(ms){
+    var left=Math.max(0,ms-Date.now());
+    var s=Math.floor(left/1000);
+    var m=Math.floor(s/60); s=s%60;
+    return m+' minutos '+s+' segundos';
+  }
+
+  firebase.auth().onAuthStateChanged(async function(user){
+    if(!user){ location.href='login.html'; return; }
+    var id=new URLSearchParams(location.search).get('id')||'';
+    var app=document.getElementById('app');
+    if(!id){ app.innerHTML='<p class="muted">Pagamento não encontrado.</p>'; return; }
+    try{
+      var o=await fsGetOrder(id);
+      if(!o||o.buyerUid!==user.uid){ app.innerHTML='<p class="muted">Sem acesso.</p>'; return; }
+      if(o.status!=='aguardando_pagamento'){
+        location.href='pedido.html?id='+encodeURIComponent(id);
+        return;
+      }
+      var pix=o.pixCopyPaste||('BLOXZUH-PIX-'+o.code);
+      var qrSrc='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(pix);
+      app.innerHTML=
+        '<div class="box">'+
+          '<h1>Pagamento pendente</h1>'+
+          '<p class="muted">Pedido: <strong>#'+esc(o.code)+'</strong></p>'+
+          '<p class="muted" id="exp">O pagamento irá expirar em '+timerText(o.paymentExpiresAtMs|| (Date.now()+1200000))+ '.</p>'+
+          '<div class="qr"><img src="'+qrSrc+'" alt="QR Pix"></div>'+
+          '<p style="text-align:center;font-weight:700">Pix · '+money(o.total||o.price)+'</p>'+
+          '<p class="muted" style="text-align:center;margin-top:8px">Use o QR Code ou o código copia e cola abaixo.</p>'+
+          '<div class="copy"><input id="pixIn" readonly value="'+esc(pix)+'"><button type="button" class="btn" id="btnCopy">Copiar</button></div>'+
+          '<p class="muted" style="margin-top:14px;font-size:0.82rem">⚠️ QR/código são <strong>estrutura de teste</strong>. Pix real (aprovação automática) precisa de gateway (Mercado Pago, Asaas, etc.).</p>'+
+          '<button type="button" class="btn" style="width:100%;margin-top:14px" id="btnSim">Simular pagamento aprovado (teste)</button>'+
+          '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="btnOrder">Ver pedido</button>'+
+        '</div>';
+
+      setInterval(function(){
+        var el=document.getElementById('exp');
+        if(el) el.textContent='O pagamento irá expirar em '+timerText(o.paymentExpiresAtMs||0)+'.';
+      },1000);
+
+      document.getElementById('btnCopy').onclick=function(){
+        var t=document.getElementById('pixIn');
+        t.select();
+        try{ navigator.clipboard.writeText(t.value); }catch(e){}
+        alert('Código copiado!');
+      };
+      document.getElementById('btnSim').onclick=async function(){
+        if(!confirm('Marcar este pagamento como aprovado (teste)?')) return;
+        await fsUpdateOrderStatus(id,'pago');
+        if(typeof fsAddNotification==='function'){
+          fsAddNotification(o.sellerUid,{
+            type:'venda',
+            title:'Pagamento aprovado #'+o.code,
+            body:'Pedido pago · prepare a entrega',
+            link:'pedido.html?id='+encodeURIComponent(id),
+            createdAtMs:Date.now()
+          });
+        }
+        location.href='pedido.html?id='+encodeURIComponent(id);
+      };
+      document.getElementById('btnOrder').onclick=function(){
+        location.href='pedido.html?id='+encodeURIComponent(id);
+      };
+    }catch(e){
+      app.innerHTML='<p class="muted">Erro: '+esc(e.message)+'</p>';
+    }
+  });
+  </script>
+</body>
+</html>
