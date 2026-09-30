@@ -1263,7 +1263,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
       <h2>Pronto para começar?</h2>
       <p>Junte-se a milhares de jogadores que já confiam na Bloxzuh.</p>
       <div class="cta-actions">
-        <button class="btn btn-primary btn-lg">Criar Conta Grátis</button>
+        <a href="cadastro.html" class="btn btn-primary btn-lg" id="ctaRegister">Criar Conta Grátis</a>
         <a href="anuncios.html" class="btn btn-outline btn-lg">Ver Anúncios</a>
       </div>
     </div>
@@ -1311,6 +1311,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <script src="js/firebase-auth.js"></script>
   <script src="js/firestore-db.js"></script>
   <script src="js/favs.js"></script>
+  <script src="js/experimental.js"></script>
   <script>
 const adsData = [];
 
@@ -1463,7 +1464,7 @@ const BG_PC = [
 ];
 
 function bgUserKey() {
-  // por conta (email/uid) — se não logado, chave guest local
+  if (typeof expStorageKey === 'function') return expStorageKey();
   const email = localStorage.getItem('xinzuh-email') || '';
   const name = localStorage.getItem('xinzuh-username') || 'guest';
   return 'xinzuh-exp-' + (email || name);
@@ -1506,19 +1507,16 @@ function applyExperimentalBackground() {
 }
 
 function setExperimental(on) {
-  if (!isLoggedIn) {
+  if (!isLoggedIn && localStorage.getItem('xinzuh-logged') !== 'true') {
     alert('Entre na sua conta para usar a versão experimental.');
     const t = document.getElementById('expToggle');
     if (t) t.checked = false;
     return;
   }
   localStorage.setItem(bgUserKey() + '-on', on ? '1' : '0');
-  if (!on) {
-    // desliga fundo visual, mas mantém a escolha salva
-  }
   applyExperimentalBackground();
   const t = document.getElementById('expToggle');
-  if (t) t.checked = on;
+  if (t) t.checked = !!on;
 }
 
 function openBgModal() {
@@ -1589,6 +1587,10 @@ window.doLogout = doLogout;
 window.toggleMode = toggleMode;
 
 renderUserMenu();
+(function syncExpToggle(){
+  var t = document.getElementById('expToggle');
+  if (t && typeof isExperimental === 'function') t.checked = isExperimental();
+})();
 
 // ===== User Menu toggle =====
 const userMenuBtn = document.getElementById('userMenuBtn');
@@ -1666,7 +1668,43 @@ const featuredScroll = document.getElementById('featuredScroll');
 if (featuredScroll) { featuredScroll.innerHTML = '<p style="padding:16px;color:var(--text-muted)">Carregando anúncios…</p>'; }
 
 // ===== Firestore: anúncios reais na home =====
-async function loadFirestoreAdsHome() {
+async function 
+function updateCtaForAuth() {
+  var logged = localStorage.getItem('xinzuh-logged') === 'true';
+  var btn = document.getElementById('ctaRegister');
+  if (!btn) {
+    document.querySelectorAll('a.btn, button.btn').forEach(function(a){
+      if ((a.textContent || '').indexOf('Criar Conta') >= 0) btn = a;
+    });
+  }
+  if (!btn) return;
+  if (logged) {
+    btn.textContent = 'Ir para o Painel';
+    if (btn.tagName === 'A') btn.setAttribute('href', 'painel.html');
+    else {
+      btn.onclick = function(){ location.href = 'painel.html'; };
+    }
+  } else {
+    btn.textContent = 'Criar Conta Grátis';
+    if (btn.tagName === 'A') btn.setAttribute('href', 'cadastro.html');
+    else {
+      btn.onclick = function(){ location.href = 'cadastro.html'; };
+    }
+  }
+}
+updateCtaForAuth();
+// also after menu render
+if (typeof renderUserMenu === 'function') {
+  var _rm = renderUserMenu;
+  renderUserMenu = function() {
+    _rm();
+    updateCtaForAuth();
+    var t = document.getElementById('expToggle');
+    if (t && typeof isExperimental === 'function') t.checked = isExperimental();
+  };
+}
+
+loadFirestoreAdsHome() {
   try {
     if (typeof fsGetPublicAds !== 'function') return;
     const live = await fsGetPublicAds(30);

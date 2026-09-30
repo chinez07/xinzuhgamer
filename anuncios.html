@@ -1058,6 +1058,7 @@ img { max-width: 100%; display: block; }
   <script src="js/firebase-auth.js"></script>
   <script src="js/firestore-db.js"></script>
   <script src="js/favs.js"></script>
+  <script src="js/experimental.js"></script>
   <script>
 const adsData = [];
 
@@ -1200,6 +1201,10 @@ window.doLogout = doLogout;
 window.toggleMode = toggleMode;
 
 renderUserMenu();
+(function syncExpToggle(){
+  var t = document.getElementById('expToggle');
+  if (t && typeof isExperimental === 'function') t.checked = isExperimental();
+})();
 
 // ===== User Menu toggle =====
 const userMenuBtn = document.getElementById('userMenuBtn');
