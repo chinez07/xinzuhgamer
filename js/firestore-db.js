@@ -236,29 +236,57 @@ async function prepareAdCover(file) {
 
 async function fsGetAdsBySeller(uid, limit) {
   if (!uid) return [];
+  // only sellerUid filter (no composite index needed); filter status client-side
   const snap = await db.collection('ads')
     .where('sellerUid', '==', uid)
-    .where('status', '==', 'ativo')
-    .limit(limit || 20)
+    .limit(limit || 40)
     .get();
   const list = [];
   snap.forEach(function (doc) {
-    list.push(normalizeAd(doc.id, doc.data()));
+    const d = doc.data();
+    if (d.status && d.status !== 'ativo') return;
+    list.push(normalizeAd(doc.id, d));
+  });
+  list.sort(function (a, b) {
+    return ((b.raw && b.raw.createdAtMs) || 0) - ((a.raw && a.raw.createdAtMs) || 0);
   });
   return list;
 }
 
 async function fsGetSellerPublic(uid) {
-  // ads already have sellerName; optional profile doc
   let profile = { uid: uid, name: 'Vendedor', photo: '', bio: '' };
   try {
-    const doc = await db.collection('profiles').doc(uid).get();
-    if (doc.exists) {
-      const d = doc.data();
-      profile.name = d.displayName || d.name || profile.name;
-      profile.photo = d.photoURL || d.photo || '';
-      profile.bio = d.bio || '';
+    const p = await fsGetProfile(uid);
+    if (p) {
+      profile.name = p.displayName || p.name || profile.name;
+      profile.photo = p.photo || p.photoURL || '';
+      profile.bio = p.bio || '';
     }
   } catch (e) {}
   return profile;
+}
+
+
+async function fsSaveProfile(data) {
+  const u = requireUser();
+  const payload = {
+    displayName: data.displayName || u.displayName || '',
+    photo: data.photo || '',
+    bio: data.bio || '',
+    email: u.email || '',
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  // Firestore doc limit ~1MB — keep photo small
+  if (payload.photo && payload.photo.length > 900000) {
+    throw new Error('Foto muito grande. Use uma imagem menor que 1 MB.');
+  }
+  await db.collection('profiles').doc(u.uid).set(payload, { merge: true });
+  return payload;
+}
+
+async function fsGetProfile(uid) {
+  if (!uid) return null;
+  const doc = await db.collection('profiles').doc(uid).get();
+  if (!doc.exists) return null;
+  return Object.assign({ uid: uid }, doc.data());
 }
