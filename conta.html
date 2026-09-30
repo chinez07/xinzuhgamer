@@ -1042,6 +1042,9 @@ img { max-width: 100%; display: block; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script src="js/experimental.js"></script>
   <script>
     function msg(text, type) {
       const el = document.getElementById('msg');
@@ -1082,28 +1085,50 @@ img { max-width: 100%; display: block; }
       renderAvatar(user);
     }
 
-    auth.onAuthStateChanged(function (user) {
+    auth.onAuthStateChanged(async function (user) {
       if (!user) {
         window.location.href = 'login.html';
         return;
       }
+      try {
+        if (typeof fsGetProfile === 'function') {
+          var p = await fsGetProfile(user.uid);
+          if (p && p.photo) {
+            localStorage.setItem('xinzuh-photo-' + user.uid, p.photo);
+            localStorage.setItem('xinzuh-photo', p.photo);
+          }
+          if (p && p.displayName) {
+            localStorage.setItem('xinzuh-username', p.displayName);
+          }
+        }
+      } catch (e) { console.warn(e); }
       fillForm(user);
     });
 
     document.getElementById('photoInput').addEventListener('change', async function (e) {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
+      if (file.size > 1024 * 1024) {
+        msg('A foto deve ter no máximo 1 MB.', 'err');
+        return;
+      }
       msg('Enviando foto...', 'ok');
       try {
         const url = await uploadProfilePhoto(file);
         renderAvatar(auth.currentUser);
-        // confirma que gravou
         var check = localStorage.getItem('xinzuh-photo-' + auth.currentUser.uid);
         if (!check) {
           msg('Não foi possível salvar a foto. Tente uma imagem menor.', 'err');
           return;
         }
-        msg('Foto atualizada! Ela ficará salva neste navegador.', 'ok');
+        // nuvem = outros celulares
+        if (typeof fsSaveProfile === 'function') {
+          await fsSaveProfile({
+            photo: check,
+            displayName: auth.currentUser.displayName || localStorage.getItem('xinzuh-username') || ''
+          });
+        }
+        msg('Foto atualizada e salva na sua conta (todos os dispositivos)!', 'ok');
       } catch (err) {
         msg(err.message || 'Erro ao enviar foto.', 'err');
         console.error(err);
@@ -1160,7 +1185,6 @@ img { max-width: 100%; display: block; }
         const user = auth.currentUser;
         await user.delete();
         saveUser(null);
-        alert('Conta excluída.');
         window.location.href = 'index.html';
       } catch (err) {
         if (err.code === 'auth/requires-recent-login') {
@@ -1170,6 +1194,33 @@ img { max-width: 100%; display: block; }
         }
       }
     });
-  </script>
+  
+// Sync profile photo to Firestore (all devices)
+async function savePhotoToCloud(dataUrl) {
+  try {
+    if (typeof fsSaveProfile !== 'function') return;
+    await fsSaveProfile({ photo: dataUrl, displayName: localStorage.getItem('xinzuh-username') || '' });
+  } catch (e) {
+    console.warn(e);
+    alert(e.message || 'Não foi possível salvar a foto na nuvem.');
+  }
+}
+async function loadPhotoFromCloud() {
+  try {
+    var u = firebase.auth().currentUser;
+    if (!u || typeof fsGetProfile !== 'function') return;
+    var p = await fsGetProfile(u.uid);
+    if (p && p.photo) {
+      try{savePhotoToCloud(arguments&&0);}catch(e){}
+      localStorage.setItem('xinzuh-photo-' + u.uid, p.photo);
+      localStorage.setItem('xinzuh-photo', p.photo);
+      var img = document.getElementById('profilePhoto') || document.querySelector('.profile-photo img, #avatarImg, img.avatar');
+      if (img) img.src = p.photo;
+    }
+  } catch (e) { console.warn(e); }
+}
+firebase.auth().onAuthStateChanged(function(u){ if (u) loadPhotoFromCloud(); });
+
+</script>
 </body>
 </html>

@@ -97,9 +97,9 @@
           photo = p.photo || '';
         }
       } catch (e) {}
-      // local photo if same user
+      // local fallback only if cloud empty
       try {
-        if (uid) {
+        if (!photo && uid) {
           const lp = localStorage.getItem('xinzuh-photo-' + uid);
           if (lp) photo = lp;
         }
@@ -108,9 +108,18 @@
       let ads = [];
       try {
         if (uid && typeof fsGetAdsBySeller === 'function') {
-          ads = await fsGetAdsBySeller(uid, 24);
+          ads = await fsGetAdsBySeller(uid, 40);
         }
-      } catch (e) { console.warn(e); }
+        // fallback: if uid missing, try match by seller name from public list
+        if (!ads.length && name && typeof fsGetPublicAds === 'function') {
+          const all = await fsGetPublicAds(50);
+          ads = all.filter(function (a) {
+            return (a.seller || '').toLowerCase() === String(name).toLowerCase();
+          });
+        }
+      } catch (e) {
+        console.warn('ads load', e);
+      }
 
       const initial = (name || 'V').charAt(0).toUpperCase();
       const av = photo

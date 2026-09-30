@@ -215,6 +215,8 @@
       const model = (ad.model || raw.model || 'normal');
       const sellerUid = raw.sellerUid || '';
       const sellerName = ad.seller || 'Vendedor';
+      const currentUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
+      const isOwner = !!(sellerUid && currentUid && sellerUid === currentUid);
       const initial = sellerName.charAt(0).toUpperCase();
       const favOn = typeof isFav === 'function' && isFav(ad.id);
       const cover = ad.cover
@@ -240,13 +242,19 @@
 
       function renderQuestions() {
         if (!questions.length) {
-          return '<p style="color:var(--muted);font-size:0.9rem">Nenhuma pergunta ainda. Seja o primeiro!</p>';
+          return '<p style="color:var(--muted);font-size:0.9rem">Nenhuma pergunta ainda.</p>';
         }
-        return questions.map(function (q) {
+        return questions.map(function (q, idx) {
+          var replyHtml = '';
+          if (q.reply) {
+            replyHtml = '<div class="q-reply"><div class="q-meta"><strong>' + esc(sellerName) + '</strong></div><div class="q-text">' + esc(q.reply) + '</div></div>';
+          } else if (isOwner) {
+            replyHtml = '<div class="q-reply"><textarea data-reply="' + idx + '" placeholder="Escreva sua resposta..." style="width:100%;min-height:60px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px"></textarea>' +
+              '<button type="button" class="btn-primary" style="margin-top:8px" data-send-reply="' + idx + '">Responder</button></div>';
+          }
           return '<div class="q-item"><div class="q-user"><div class="avatar">' + esc(q.user).charAt(0).toUpperCase() + '</div><div>' +
             '<div class="q-meta"><strong>' + esc(q.user) + '</strong> · ' + esc(q.time || '') + '</div>' +
-            '<div class="q-text">' + esc(q.text) + '</div>' +
-            (q.reply ? '<div class="q-reply"><div class="q-meta"><strong>' + esc(sellerName) + '</strong></div><div class="q-text">' + esc(q.reply) + '</div></div>' : '') +
+            '<div class="q-text">' + esc(q.text) + '</div>' + replyHtml +
             '</div></div></div>';
         }).join('');
       }
@@ -277,10 +285,13 @@
         '</table></div></div>' +
         '<div class="section"><h2>Descrição do anúncio</h2><div class="card"><div class="desc">' + esc(ad.description || 'Sem descrição.') + '</div></div></div>' +
         '<div class="section"><h2>Perguntas</h2><div class="card" id="qList">' + renderQuestions() + '</div>' +
-          '<div class="card" style="margin-top:12px"><h3 style="font-size:0.95rem;margin-bottom:4px">Faça uma pergunta</h3>' +
-          '<textarea id="qInput" placeholder="Digite sua pergunta aqui."></textarea>' +
-          '<div class="ask-row"><p class="hint-warn">ATENÇÃO: não envie WhatsApp, Discord ou contatos externos.</p>' +
-          '<button type="button" class="btn-primary" id="btnAsk">Perguntar</button></div></div></div>' +
+          (isOwner
+            ? '<div class="card" style="margin-top:12px"><p style="color:var(--muted);font-size:0.9rem">Você é o vendedor. Responda as perguntas abaixo (não pode perguntar no próprio anúncio).</p></div>'
+            : '<div class="card" style="margin-top:12px"><h3 style="font-size:0.95rem;margin-bottom:4px">Faça uma pergunta</h3>' +
+              '<textarea id="qInput" placeholder="Digite sua pergunta aqui."></textarea>' +
+              '<div class="ask-row"><p class="hint-warn">ATENÇÃO: não envie WhatsApp, Discord ou contatos externos.</p>' +
+              '<button type="button" class="btn-primary" id="btnAsk">Perguntar</button></div></div>') +
+        '</div>' +
         '<div class="section"><h2>Avaliações</h2><div class="card">' +
           '<div class="rating-big"><div class="n">5.0</div><div class="stars">★★★★★</div><div style="color:var(--muted);font-size:0.85rem">Ainda sem avaliações neste anúncio</div></div>' +
         '</div></div>' +
@@ -316,21 +327,50 @@
           alert('Compra simulada de "' + ad.title + '" por ' + money(ad.price) + '. Pagamento real em breve na Bloxzuh.');
         };
       }
-      document.getElementById('btnAsk').onclick = function () {
-        const logged = localStorage.getItem('xinzuh-logged') === 'true';
-        if (!logged) { alert('Entre na sua conta para perguntar.'); location.href = 'login.html'; return; }
-        const text = (document.getElementById('qInput').value || '').trim();
-        if (!text) { alert('Digite a pergunta.'); return; }
-        if (/whatsapp|discord|instagram|@gmail|http/i.test(text)) {
-          alert('Não é permitido enviar contatos externos.');
-          return;
+      function bindReplyButtons() {
+        document.querySelectorAll('[data-send-reply]').forEach(function (btn) {
+          btn.onclick = function () {
+            var idx = parseInt(btn.getAttribute('data-send-reply'), 10);
+            var ta = document.querySelector('textarea[data-reply="' + idx + '"]');
+            var text = (ta && ta.value || '').trim();
+            if (!text) { alert('Digite a resposta.'); return; }
+            questions[idx].reply = text;
+            saveQuestions(ad.id, questions);
+            document.getElementById('qList').innerHTML = renderQuestions();
+            bindReplyButtons();
+          };
+        });
+      }
+      bindReplyButtons();
+
+      var btnAsk = document.getElementById('btnAsk');
+      if (btnAsk) {
+        btnAsk.onclick = function () {
+          if (isOwner) { alert('O vendedor só pode responder perguntas.'); return; }
+          const logged = localStorage.getItem('xinzuh-logged') === 'true';
+          if (!logged) { alert('Entre na sua conta para perguntar.'); location.href = 'login.html'; return; }
+          const text = (document.getElementById('qInput').value || '').trim();
+          if (!text) { alert('Digite a pergunta.'); return; }
+          if (/whatsapp|discord|instagram|@gmail|http/i.test(text)) {
+            alert('Não é permitido enviar contatos externos.');
+            return;
+          }
+          const user = localStorage.getItem('xinzuh-username') || 'Usuário';
+          questions.unshift({ id: Date.now(), user: user, text: text, reply: '', time: 'agora' });
+          saveQuestions(ad.id, questions);
+          document.getElementById('qInput').value = '';
+          document.getElementById('qList').innerHTML = renderQuestions();
+          bindReplyButtons();
+        };
+      }
+
+      // Wait for auth to refine isOwner if page loaded before auth ready
+      firebase.auth().onAuthStateChanged(function (user) {
+        if (user && sellerUid && user.uid === sellerUid && !isOwner) {
+          // reload owner UI lightly
+          location.reload();
         }
-        const user = localStorage.getItem('xinzuh-username') || 'Usuário';
-        questions.unshift({ id: Date.now(), user: user, text: text, reply: '', time: 'agora' });
-        saveQuestions(ad.id, questions);
-        document.getElementById('qInput').value = '';
-        document.getElementById('qList').innerHTML = renderQuestions();
-      };
+      });
     }
     main();
   })();
