@@ -55,6 +55,7 @@ function renderUserMenu() {
       '<a href="painel.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>' +
       '<a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>' +
       '<a href="conta.html" class="user-menu-item"><i class="fas fa-user-cog"></i> Minha conta</a>' +
+      '<a href="notificacoes.html" class="user-menu-item"><i class="fas fa-bell"></i> Notificações</a>' +
       '<a href="favoritos.html" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>' +
