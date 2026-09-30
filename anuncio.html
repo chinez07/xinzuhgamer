@@ -165,6 +165,7 @@
   <script src="js/firestore-db.js"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
+  <script src="js/notificacoes.js"></script>
   <script>
   (function () {
     if (localStorage.getItem('xinzuh-mode') === 'dark' || document.documentElement.getAttribute('data-mode') === 'dark') {
@@ -335,7 +336,17 @@
             var text = (ta && ta.value || '').trim();
             if (!text) { alert('Digite a resposta.'); return; }
             questions[idx].reply = text;
+            questions[idx].repliedAtMs = Date.now();
             saveQuestions(ad.id, questions);
+            if (questions[idx].userId && typeof fsAddNotification === 'function') {
+              fsAddNotification(questions[idx].userId, {
+                type: 'resposta',
+                title: 'O vendedor te respondeu no anúncio',
+                body: ad.title + ': ' + text.slice(0, 120),
+                link: 'anuncio.html?id=' + encodeURIComponent(ad.id),
+                createdAtMs: Date.now()
+              });
+            }
             document.getElementById('qList').innerHTML = renderQuestions();
             bindReplyButtons();
           };
@@ -356,7 +367,17 @@
             return;
           }
           const user = localStorage.getItem('xinzuh-username') || 'Usuário';
-          questions.unshift({ id: Date.now(), user: user, text: text, reply: '', time: 'agora' });
+          var askerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
+          questions.unshift({ id: Date.now(), user: user, userId: askerUid, text: text, reply: '', createdAtMs: Date.now() });
+          if (sellerUid && typeof fsAddNotification === 'function') {
+            fsAddNotification(sellerUid, {
+              type: 'pergunta',
+              title: 'Nova pergunta no anúncio',
+              body: user + ': ' + text.slice(0, 120),
+              link: 'anuncio.html?id=' + encodeURIComponent(ad.id),
+              createdAtMs: Date.now()
+            });
+          }
           saveQuestions(ad.id, questions);
           document.getElementById('qInput').value = '';
           document.getElementById('qList').innerHTML = renderQuestions();
