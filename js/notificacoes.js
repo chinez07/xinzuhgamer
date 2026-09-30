@@ -54,25 +54,22 @@ function addLocalNotif(uid, n) {
 
 async function fsAddNotification(userId, data) {
   if (!userId) return;
-  if (typeof firebase === 'undefined' || !firebase.firestore) {
-    addLocalNotif(userId, data);
-    return;
-  }
   try {
-    await firebase.firestore().collection('notifications').add({
-      userId: userId,
-      type: data.type || 'sistema',
-      title: data.title || 'Notificação',
-      body: data.body || '',
-      link: data.link || 'notificacoes.html',
-      read: false,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAtMs: Date.now()
-    });
-  } catch (e) {
-    console.warn('notif cloud', e);
-    addLocalNotif(userId, data);
-  }
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+      await firebase.firestore().collection('notifications').add({
+        userId: userId,
+        type: data.type || 'sistema',
+        title: data.title || 'Notificação',
+        body: data.body || '',
+        link: data.link || 'notificacoes.html',
+        read: false,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtMs: Date.now()
+      });
+      return;
+    }
+  } catch (e) { console.warn(e); }
+  addLocalNotif(userId, data);
 }
 
 async function fsGetMyNotifications(limit) {
@@ -82,19 +79,12 @@ async function fsGetMyNotifications(limit) {
   var list = [];
   try {
     var snap = await firebase.firestore().collection('notifications')
-      .where('userId', '==', u.uid)
-      .limit(limit || 50)
-      .get();
+      .where('userId', '==', u.uid).limit(limit || 50).get();
     snap.forEach(function (doc) {
       var d = doc.data();
       list.push({
-        id: doc.id,
-        type: d.type,
-        title: d.title,
-        body: d.body,
-        link: d.link,
-        read: !!d.read,
-        createdAtMs: d.createdAtMs || 0
+        id: doc.id, type: d.type, title: d.title, body: d.body,
+        link: d.link, read: !!d.read, createdAtMs: d.createdAtMs || 0
       });
     });
   } catch (e) { console.warn(e); }
@@ -111,8 +101,7 @@ async function fsMarkNotifRead(id) {
   if (!u || !id) return;
   try { await firebase.firestore().collection('notifications').doc(id).update({ read: true }); } catch (e) {}
   setLocalNotifs(u.uid, getLocalNotifs(u.uid).map(function (n) {
-    if (n.id === id) n.read = true;
-    return n;
+    if (n.id === id) n.read = true; return n;
   }));
   updateNotifBadge();
 }
@@ -122,8 +111,6 @@ async function fsMarkAllNotifsRead() {
   for (var i = 0; i < list.length; i++) {
     if (!list[i].read) await fsMarkNotifRead(list[i].id);
   }
-  var u = firebase.auth().currentUser;
-  if (u) setLocalNotifs(u.uid, getLocalNotifs(u.uid).map(function (n) { n.read = true; return n; }));
   updateNotifBadge();
 }
 
@@ -140,12 +127,9 @@ function setBadgeCount(count) {
 }
 
 function updateNotifBadge() {
-  var badge = document.getElementById('notifBadge');
-  if (!badge) return;
   var u = null;
   try { u = firebase.auth && firebase.auth().currentUser; } catch (e) {}
-  var localCount = getLocalNotifs(u && u.uid).filter(function (n) { return !n.read; }).length;
-  setBadgeCount(localCount);
+  setBadgeCount(getLocalNotifs(u && u.uid).filter(function (n) { return !n.read; }).length);
   if (u) {
     fsGetMyNotifications(50).then(function (list) {
       setBadgeCount(list.filter(function (n) { return !n.read; }).length);
@@ -160,120 +144,127 @@ function notifIcon(type) {
   return 'fa-bell';
 }
 
-function renderNotifDropdown(list) {
+function ensurePanel() {
   var panel = document.getElementById('notifPanel');
-  if (!panel) return;
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'notifPanel';
+    document.body.appendChild(panel);
+  }
+  if (panel.parentElement !== document.body) {
+    document.body.appendChild(panel);
+  }
+  return panel;
+}
+
+function showPanelBox(panel) {
+  // largura boa no celular, bem abaixo do header
+  var header = document.querySelector('.header');
+  var top = 72;
+  if (header) {
+    var hr = header.getBoundingClientRect();
+    top = Math.round(hr.bottom + 12);
+  }
+  panel.style.cssText =
+    'display:block !important;' +
+    'position:fixed !important;' +
+    'z-index:2147483647 !important;' +
+    'top:' + top + 'px !important;' +
+    'left:12px !important;' +
+    'right:12px !important;' +
+    'width:auto !important;' +
+    'max-width:420px !important;' +
+    'margin-left:auto !important;' +
+    'max-height:60vh !important;' +
+    'overflow:auto !important;' +
+    'background:#1a1a24 !important;' +
+    'border:1px solid #4c1d95 !important;' +
+    'border-radius:16px !important;' +
+    'box-shadow:0 20px 50px rgba(0,0,0,.7) !important;' +
+    'color:#f3f4f6 !important;' +
+    'visibility:visible !important;' +
+    'opacity:1 !important;' +
+    'min-height:120px !important;';
+}
+
+function renderNotifDropdown(list) {
+  var panel = ensurePanel();
+  showPanelBox(panel);
   if (!list || !list.length) {
     panel.innerHTML =
-      '<div class="notif-empty" style="text-align:center;padding:28px 16px;color:#9ca3af">' +
-        '<i class="fas fa-bell" style="font-size:1.6rem;opacity:.5;display:block;margin-bottom:10px"></i>' +
-        '<strong style="display:block;color:#f3f4f6;margin-bottom:6px">Nenhuma notificação</strong>' +
-        '<p>Você não tem notificações pendentes no momento.</p>' +
+      '<div style="text-align:center;padding:28px 16px;color:#9ca3af">' +
+        '<div style="font-size:1.8rem;margin-bottom:8px;opacity:.5">🔔</div>' +
+        '<strong style="display:block;color:#fff;margin-bottom:6px">Nenhuma notificação</strong>' +
+        '<p style="font-size:0.85rem">Você não tem notificações pendentes.</p>' +
       '</div>' +
-      '<a class="notif-footer" href="notificacoes.html" style="display:block;text-align:center;padding:12px;font-weight:700;color:#a78bfa;text-decoration:none;border-top:1px solid #2d2d3a">Ver central de notificações</a>';
+      '<a href="notificacoes.html" style="display:block;text-align:center;padding:14px;font-weight:700;color:#c4b5fd;text-decoration:none;border-top:1px solid #2d2d3a">Ver central de notificações</a>';
     return;
   }
-  panel.innerHTML = list.slice(0, 8).map(function (n) {
-    return '<a class="notif-item' + (n.read ? '' : ' unread') + '" href="' + (n.link || 'notificacoes.html') + '" data-nid="' + n.id + '">' +
-      '<div class="notif-ico"><i class="fas ' + notifIcon(n.type) + '"></i></div>' +
-      '<div><div class="notif-title">' + (n.title || '') + '</div>' +
-      '<div class="notif-body">' + (n.body || '') + '</div>' +
-      '<div class="notif-time">' + timeAgo(n.createdAtMs) + '</div></div></a>';
-  }).join('') + '<a class="notif-footer" href="notificacoes.html" style="display:block;text-align:center;padding:12px;font-weight:700;color:#a78bfa;text-decoration:none;border-top:1px solid #2d2d3a">Ver central de notificações</a>';
+  var html = list.slice(0, 8).map(function (n) {
+    var bg = n.read ? 'transparent' : 'rgba(124,58,237,.15)';
+    return '<a href="' + (n.link || 'notificacoes.html') + '" data-nid="' + n.id + '" style="display:flex;gap:12px;padding:14px;text-decoration:none;color:#f3f4f6;border-bottom:1px solid #2d2d3a;background:' + bg + '">' +
+      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(124,58,237,.2);color:#c4b5fd;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas ' + notifIcon(n.type) + '"></i></div>' +
+      '<div style="min-width:0"><div style="font-weight:700;margin-bottom:4px">' + (n.title || '') + '</div>' +
+      '<div style="color:#9ca3af;font-size:0.85rem;line-height:1.35">' + (n.body || '') + '</div>' +
+      '<div style="font-size:0.75rem;color:#9ca3af;margin-top:6px">' + timeAgo(n.createdAtMs) + '</div></div></a>';
+  }).join('');
+  panel.innerHTML = html +
+    '<a href="notificacoes.html" style="display:block;text-align:center;padding:14px;font-weight:700;color:#c4b5fd;text-decoration:none;border-top:1px solid #2d2d3a;background:#1a1a24;position:sticky;bottom:0">Ver central de notificações</a>';
   panel.querySelectorAll('[data-nid]').forEach(function (el) {
     el.addEventListener('click', function () { fsMarkNotifRead(el.getAttribute('data-nid')); });
   });
 }
 
-function positionNotifPanel(btn, panel) {
-  // always attach to body so nothing clips it
-  if (panel.parentElement !== document.body) {
-    document.body.appendChild(panel);
-  }
-  var r = btn.getBoundingClientRect();
-  var width = Math.min(340, window.innerWidth - 24);
-  var top = r.bottom + 16; // um pouco mais pra baixo
-  // if near bottom of screen, open upward a bit but still below header
-  var maxH = Math.min(window.innerHeight * 0.55, 420);
-  if (top + 120 > window.innerHeight) {
-    top = Math.max(70, window.innerHeight - maxH - 16);
-  }
-  panel.style.cssText = [
-    'display:block',
-    'position:fixed',
-    'z-index:2147483647',
-    'top:' + top + 'px',
-    'right:12px',
-    'left:auto',
-    'width:' + width + 'px',
-    'max-height:' + maxH + 'px',
-    'overflow:auto',
-    'background:#1a1a24',
-    'border:1px solid #3b3b4f',
-    'border-radius:14px',
-    'box-shadow:0 20px 50px rgba(0,0,0,.65)',
-    'margin:0',
-    'padding:0',
-    'visibility:visible',
-    'opacity:1',
-    'pointer-events:auto'
-  ].join(';');
-}
-
 function setupNotifBell() {
   var btn = document.getElementById('notifBellBtn');
-  var panel = document.getElementById('notifPanel');
-  if (!btn) {
-    console.warn('notifBellBtn missing');
-    return;
-  }
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'notifPanel';
-    panel.className = 'notif-panel';
-    document.body.appendChild(panel);
-  }
+  if (!btn) return;
   if (btn.dataset.bound === '1') return;
   btn.dataset.bound = '1';
 
-  async function openPanel(e) {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-    var isOpen = panel.classList.contains('show') && panel.style.display !== 'none';
-    if (isOpen) {
-      panel.classList.remove('show');
+  var panel = ensurePanel();
+  panel.style.display = 'none';
+  var open = false;
+  var ignoreCloseUntil = 0;
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (open) {
+      open = false;
       panel.style.display = 'none';
       return;
     }
-    panel.classList.add('show');
-    panel.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af">Carregando…</div>';
-    positionNotifPanel(btn, panel);
-    try {
-      var list = await fsGetMyNotifications(20);
+    open = true;
+    ignoreCloseUntil = Date.now() + 400;
+    panel.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af">Carregando…</div>';
+    showPanelBox(panel);
+    fsGetMyNotifications(20).then(function (list) {
+      if (!open) return;
       renderNotifDropdown(list);
-    } catch (err) {
-      panel.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af">Erro ao carregar</div>' +
-        '<a class="notif-footer" href="notificacoes.html" style="display:block;text-align:center;padding:12px;color:#a78bfa;font-weight:700">Ver central de notificações</a>';
-    }
-    positionNotifPanel(btn, panel);
-    updateNotifBadge();
-  }
-
-  btn.addEventListener('click', openPanel, true);
-  btn.onclick = function (e) { openPanel(e); };
+      showPanelBox(panel);
+      updateNotifBadge();
+    }).catch(function () {
+      if (!open) return;
+      panel.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af">Não foi possível carregar.</div>' +
+        '<a href="notificacoes.html" style="display:block;text-align:center;padding:14px;color:#c4b5fd;font-weight:700;text-decoration:none">Ver central de notificações</a>';
+      showPanelBox(panel);
+    });
+  });
 
   document.addEventListener('click', function (e) {
-    if (!panel.classList.contains('show')) return;
-    if (panel.contains(e.target) || btn.contains(e.target) || e.target === btn) return;
-    panel.classList.remove('show');
+    if (!open) return;
+    if (Date.now() < ignoreCloseUntil) return;
+    if (panel.contains(e.target) || btn.contains(e.target)) return;
+    open = false;
     panel.style.display = 'none';
-  }, true);
+  });
 
   updateNotifBadge();
   try {
     firebase.auth().onAuthStateChanged(function () { updateNotifBadge(); });
   } catch (e) {}
-  setTimeout(updateNotifBadge, 1200);
-  setTimeout(updateNotifBadge, 3500);
+  setTimeout(updateNotifBadge, 1500);
+  setTimeout(updateNotifBadge, 4000);
 }
 
 window.timeAgo = timeAgo;
@@ -284,9 +275,8 @@ window.fsMarkAllNotifsRead = fsMarkAllNotifsRead;
 window.setupNotifBell = setupNotifBell;
 window.updateNotifBadge = updateNotifBadge;
 
-// auto-init when DOM ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function () { setupNotifBell(); });
+  document.addEventListener('DOMContentLoaded', setupNotifBell);
 } else {
   setupNotifBell();
 }
