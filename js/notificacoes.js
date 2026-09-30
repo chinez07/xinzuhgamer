@@ -165,12 +165,12 @@ function renderNotifDropdown(list) {
   if (!panel) return;
   if (!list || !list.length) {
     panel.innerHTML =
-      '<div class="notif-empty">' +
-        '<i class="fas fa-bell"></i>' +
-        '<strong>Nenhuma notificação</strong>' +
+      '<div class="notif-empty" style="text-align:center;padding:28px 16px;color:#9ca3af">' +
+        '<i class="fas fa-bell" style="font-size:1.6rem;opacity:.5;display:block;margin-bottom:10px"></i>' +
+        '<strong style="display:block;color:#f3f4f6;margin-bottom:6px">Nenhuma notificação</strong>' +
         '<p>Você não tem notificações pendentes no momento.</p>' +
       '</div>' +
-      '<a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
+      '<a class="notif-footer" href="notificacoes.html" style="display:block;text-align:center;padding:12px;font-weight:700;color:#a78bfa;text-decoration:none;border-top:1px solid #2d2d3a">Ver central de notificações</a>';
     return;
   }
   panel.innerHTML = list.slice(0, 8).map(function (n) {
@@ -179,74 +179,101 @@ function renderNotifDropdown(list) {
       '<div><div class="notif-title">' + (n.title || '') + '</div>' +
       '<div class="notif-body">' + (n.body || '') + '</div>' +
       '<div class="notif-time">' + timeAgo(n.createdAtMs) + '</div></div></a>';
-  }).join('') + '<a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
+  }).join('') + '<a class="notif-footer" href="notificacoes.html" style="display:block;text-align:center;padding:12px;font-weight:700;color:#a78bfa;text-decoration:none;border-top:1px solid #2d2d3a">Ver central de notificações</a>';
   panel.querySelectorAll('[data-nid]').forEach(function (el) {
     el.addEventListener('click', function () { fsMarkNotifRead(el.getAttribute('data-nid')); });
   });
 }
 
 function positionNotifPanel(btn, panel) {
+  // always attach to body so nothing clips it
+  if (panel.parentElement !== document.body) {
+    document.body.appendChild(panel);
+  }
   var r = btn.getBoundingClientRect();
-  panel.style.cssText =
-    'display:block;position:fixed;z-index:99999;' +
-    'top:' + Math.min(r.bottom + 8, window.innerHeight - 100) + 'px;' +
-    'right:' + Math.max(8, window.innerWidth - r.right) + 'px;' +
-    'left:auto;width:min(340px, calc(100vw - 24px));' +
-    'max-height:min(70vh,480px);overflow:auto;' +
-    'background:#1a1a24;border:1px solid #2d2d3a;border-radius:14px;' +
-    'box-shadow:0 16px 48px rgba(0,0,0,.55);';
+  var width = Math.min(340, window.innerWidth - 24);
+  var top = r.bottom + 16; // um pouco mais pra baixo
+  // if near bottom of screen, open upward a bit but still below header
+  var maxH = Math.min(window.innerHeight * 0.55, 420);
+  if (top + 120 > window.innerHeight) {
+    top = Math.max(70, window.innerHeight - maxH - 16);
+  }
+  panel.style.cssText = [
+    'display:block',
+    'position:fixed',
+    'z-index:2147483647',
+    'top:' + top + 'px',
+    'right:12px',
+    'left:auto',
+    'width:' + width + 'px',
+    'max-height:' + maxH + 'px',
+    'overflow:auto',
+    'background:#1a1a24',
+    'border:1px solid #3b3b4f',
+    'border-radius:14px',
+    'box-shadow:0 20px 50px rgba(0,0,0,.65)',
+    'margin:0',
+    'padding:0',
+    'visibility:visible',
+    'opacity:1',
+    'pointer-events:auto'
+  ].join(';');
 }
 
 function setupNotifBell() {
   var btn = document.getElementById('notifBellBtn');
   var panel = document.getElementById('notifPanel');
-  if (!btn || !panel) {
-    console.warn('notif bell elements missing');
+  if (!btn) {
+    console.warn('notifBellBtn missing');
     return;
   }
-  // avoid double bind
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'notifPanel';
+    panel.className = 'notif-panel';
+    document.body.appendChild(panel);
+  }
   if (btn.dataset.bound === '1') return;
   btn.dataset.bound = '1';
 
-  btn.addEventListener('click', async function (e) {
-    e.preventDefault();
-    e.stopPropagation();
-    var isOpen = panel.classList.contains('show');
+  async function openPanel(e) {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    var isOpen = panel.classList.contains('show') && panel.style.display !== 'none';
     if (isOpen) {
       panel.classList.remove('show');
       panel.style.display = 'none';
       return;
     }
-    positionNotifPanel(btn, panel);
     panel.classList.add('show');
-    panel.innerHTML = '<div class="notif-empty">Carregando…</div>';
+    panel.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af">Carregando…</div>';
+    positionNotifPanel(btn, panel);
     try {
       var list = await fsGetMyNotifications(20);
       renderNotifDropdown(list);
-      positionNotifPanel(btn, panel);
-      updateNotifBadge();
     } catch (err) {
-      panel.innerHTML = '<div class="notif-empty">Erro ao carregar</div><a class="notif-footer" href="notificacoes.html">Ver central de notificações</a>';
+      panel.innerHTML = '<div style="padding:20px;text-align:center;color:#9ca3af">Erro ao carregar</div>' +
+        '<a class="notif-footer" href="notificacoes.html" style="display:block;text-align:center;padding:12px;color:#a78bfa;font-weight:700">Ver central de notificações</a>';
     }
-  });
+    positionNotifPanel(btn, panel);
+    updateNotifBadge();
+  }
+
+  btn.addEventListener('click', openPanel, true);
+  btn.onclick = function (e) { openPanel(e); };
 
   document.addEventListener('click', function (e) {
-    if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-      panel.classList.remove('show');
-      panel.style.display = 'none';
-    }
-  });
-  panel.addEventListener('click', function (e) { e.stopPropagation(); });
+    if (!panel.classList.contains('show')) return;
+    if (panel.contains(e.target) || btn.contains(e.target) || e.target === btn) return;
+    panel.classList.remove('show');
+    panel.style.display = 'none';
+  }, true);
 
   updateNotifBadge();
   try {
-    firebase.auth().onAuthStateChanged(function () {
-      updateNotifBadge();
-    });
+    firebase.auth().onAuthStateChanged(function () { updateNotifBadge(); });
   } catch (e) {}
-  // retry badge after auth settles
-  setTimeout(updateNotifBadge, 1500);
-  setTimeout(updateNotifBadge, 4000);
+  setTimeout(updateNotifBadge, 1200);
+  setTimeout(updateNotifBadge, 3500);
 }
 
 window.timeAgo = timeAgo;
