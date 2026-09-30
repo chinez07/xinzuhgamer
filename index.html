@@ -1093,6 +1093,15 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   background: #1a1a24;
 }
 
+
+.notif-panel.show { display: block !important; }
+.header-icon-btn .badge-count {
+  position: absolute !important; top: 0 !important; right: 0 !important;
+  min-width: 18px; height: 18px; background: #ef4444 !important; color: #fff !important;
+  font-size: 0.65rem; font-weight: 800; border-radius: 999px;
+  display: none; align-items: center; justify-content: center;
+  z-index: 5 !important; border: 2px solid #12121a;
+}
 </style>
 </head>
 <body>
@@ -1116,7 +1125,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
         <div class="notif-wrap">
           <button class="header-icon-btn" title="Notificações" type="button" id="notifBellBtn">
             <i class="fas fa-bell"></i>
-            <span class="badge-count" id="notifBadge"></span>
+            <span class="badge-count" id="notifBadge" style="display:none"></span>
           </button>
           <div class="notif-panel" id="notifPanel"></div>
         </div>

@@ -234,10 +234,18 @@
       ];
 
       let questions = getQuestions(ad.id);
-      // seed FAQ from ad if empty
+      // normalize old questions without timestamp
+      questions = questions.map(function (q, i) {
+        if (!q.createdAtMs) {
+          if (typeof q.time === 'number') q.createdAtMs = q.time;
+          else if (q.id && String(q.id).match(/^\d+$/)) q.createdAtMs = parseInt(q.id, 10);
+          else q.createdAtMs = Date.now() - (i + 1) * 60000;
+        }
+        return q;
+      });
       if (!questions.length && raw.faq && raw.faq.length) {
         questions = raw.faq.map(function (f, i) {
-          return { id: 'faq' + i, user: 'FAQ', text: f.q, reply: f.a, time: 'fixo' };
+          return { id: 'faq' + i, user: 'FAQ', text: f.q, reply: f.a, createdAtMs: Date.now() - (i + 1) * 3600000 };
         });
       }
 
@@ -248,13 +256,13 @@
         return questions.map(function (q, idx) {
           var replyHtml = '';
           if (q.reply) {
-            replyHtml = '<div class="q-reply"><div class="q-meta"><strong>' + esc(sellerName) + '</strong></div><div class="q-text">' + esc(q.reply) + '</div></div>';
+            replyHtml = '<div class="q-reply"><div class="q-meta"><strong>' + esc(sellerName) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(q.reply) + '</div></div>';
           } else if (isOwner) {
             replyHtml = '<div class="q-reply"><textarea data-reply="' + idx + '" placeholder="Escreva sua resposta..." style="width:100%;min-height:60px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px"></textarea>' +
               '<button type="button" class="btn-primary" style="margin-top:8px" data-send-reply="' + idx + '">Responder</button></div>';
           }
           return '<div class="q-item"><div class="q-user"><div class="avatar">' + esc(q.user).charAt(0).toUpperCase() + '</div><div>' +
-            '<div class="q-meta"><strong>' + esc(q.user) + '</strong> · ' + esc(q.time || '') + '</div>' +
+            '<div class="q-meta"><strong>' + esc(q.user) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.createdAtMs || q.time) : (q.time||'')) + '</div>' +
             '<div class="q-text">' + esc(q.text) + '</div>' + replyHtml +
             '</div></div></div>';
         }).join('');
