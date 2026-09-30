@@ -290,3 +290,85 @@ async function fsGetProfile(uid) {
   if (!doc.exists) return null;
   return Object.assign({ uid: uid }, doc.data());
 }
+
+
+/** Pedidos (estrutura sem gateway) */
+function orderCode() {
+  var s = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return 'BZ' + s;
+}
+
+async function fsCreateOrder(ad, extra) {
+  const u = requireUser();
+  if (!ad || !ad.id) throw new Error('Anúncio inválido.');
+  const sellerUid = (ad.raw && ad.raw.sellerUid) || ad.sellerUid || '';
+  if (!sellerUid) throw new Error('Vendedor não encontrado.');
+  if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
+
+  const price = Number(ad.price) || 0;
+  const payload = {
+    code: orderCode(),
+    adId: ad.id,
+    adTitle: ad.title || '',
+    adCover: ad.cover || '',
+    price: price,
+    quantity: (extra && extra.quantity) || 1,
+    total: price * ((extra && extra.quantity) || 1),
+    status: 'aguardando_pagamento', // aguardando_pagamento | pago | em_entrega | concluido | cancelado
+    buyerUid: u.uid,
+    buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
+    buyerEmail: u.email || '',
+    sellerUid: sellerUid,
+    sellerName: ad.seller || 'Vendedor',
+    category: ad.category || '',
+    note: (extra && extra.note) || '',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAtMs: Date.now(),
+    updatedAtMs: Date.now()
+  };
+  const ref = await db.collection('orders').add(payload);
+  return Object.assign({ id: ref.id }, payload);
+}
+
+async function fsGetMyPurchases() {
+  const u = requireUser();
+  const snap = await db.collection('orders').where('buyerUid', '==', u.uid).limit(50).get();
+  const list = [];
+  snap.forEach(function (doc) {
+    list.push(Object.assign({ id: doc.id }, doc.data()));
+  });
+  list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+  return list;
+}
+
+async function fsGetMySales() {
+  const u = requireUser();
+  const snap = await db.collection('orders').where('sellerUid', '==', u.uid).limit(50).get();
+  const list = [];
+  snap.forEach(function (doc) {
+    list.push(Object.assign({ id: doc.id }, doc.data()));
+  });
+  list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+  return list;
+}
+
+async function fsGetOrder(id) {
+  if (!id) return null;
+  const doc = await db.collection('orders').doc(id).get();
+  if (!doc.exists) return null;
+  return Object.assign({ id: doc.id }, doc.data());
+}
+
+async function fsUpdateOrderStatus(id, status) {
+  const u = requireUser();
+  const order = await fsGetOrder(id);
+  if (!order) throw new Error('Pedido não encontrado.');
+  if (order.buyerUid !== u.uid && order.sellerUid !== u.uid) {
+    throw new Error('Sem permissão.');
+  }
+  await db.collection('orders').doc(id).update({
+    status: status,
+    updatedAtMs: Date.now()
+  });
+  return true;
+}
