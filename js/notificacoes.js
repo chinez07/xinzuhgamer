@@ -145,8 +145,8 @@ function updateNotifBadge() {
   // optimistic from local; full count async
   getLocalNotifs(uid).forEach(function (n) { if (!n.read) count++; });
   if (count > 0) {
-    badge.style.display = 'block';
-    badge.textContent = count > 9 ? '9+' : String(count);
+    badge.style.display = 'flex';
+    badge.textContent = count > 99 ? '99+' : String(count);
   } else {
     badge.style.display = 'none';
     badge.textContent = '';
@@ -156,8 +156,8 @@ function updateNotifBadge() {
     fsGetMyNotifications(30).then(function (list) {
       var c = list.filter(function (n) { return !n.read; }).length;
       if (c > 0) {
-        badge.style.display = 'block';
-        badge.textContent = c > 9 ? '9+' : String(c);
+        badge.style.display = 'flex';
+        badge.textContent = c > 99 ? '99+' : String(c);
       } else {
         badge.style.display = 'none';
       }
@@ -208,6 +208,15 @@ function setupNotifBell() {
     e.stopPropagation();
     var open = panel.classList.toggle('show');
     if (open) {
+      // fix panel in front of everything (mobile safe)
+      try {
+        var r = btn.getBoundingClientRect();
+        panel.style.position = 'fixed';
+        panel.style.top = Math.min(r.bottom + 8, window.innerHeight - 80) + 'px';
+        panel.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+        panel.style.left = 'auto';
+        panel.style.zIndex = '99999';
+      } catch (err) {}
       var list = await fsGetMyNotifications(20);
       renderNotifDropdown(list);
       updateNotifBadge();
