@@ -118,7 +118,7 @@ function setBadgeCount(count) {
   var badge = document.getElementById('notifBadge');
   if (!badge) return;
   if (count > 0) {
-    badge.style.display = 'flex';
+    badge.style.cssText = 'display:flex!important;position:absolute;top:0;right:0;min-width:18px;height:18px;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:800;border-radius:999px;align-items:center;justify-content:center;padding:0 4px;z-index:5;border:2px solid #12121a';
     badge.textContent = count > 99 ? '99+' : String(count);
   } else {
     badge.style.display = 'none';
@@ -144,74 +144,98 @@ function notifIcon(type) {
   return 'fa-bell';
 }
 
-function ensurePanel() {
-  var panel = document.getElementById('notifPanel');
-  if (!panel) {
-    panel = document.createElement('div');
-    panel.id = 'notifPanel';
-    document.body.appendChild(panel);
-  }
-  if (panel.parentElement !== document.body) {
-    document.body.appendChild(panel);
-  }
-  return panel;
-}
-
-function showPanelBox(panel) {
-  // largura boa no celular, bem abaixo do header
-  var header = document.querySelector('.header');
-  var top = 72;
-  if (header) {
-    var hr = header.getBoundingClientRect();
-    top = Math.round(hr.bottom + 12);
-  }
-  panel.style.cssText =
-    'display:block !important;' +
-    'position:fixed !important;' +
-    'z-index:2147483647 !important;' +
-    'top:' + top + 'px !important;' +
-    'left:12px !important;' +
-    'right:12px !important;' +
-    'width:auto !important;' +
-    'max-width:420px !important;' +
-    'margin-left:auto !important;' +
-    'max-height:60vh !important;' +
-    'overflow:auto !important;' +
-    'background:#1a1a24 !important;' +
-    'border:1px solid #4c1d95 !important;' +
-    'border-radius:16px !important;' +
-    'box-shadow:0 20px 50px rgba(0,0,0,.7) !important;' +
-    'color:#f3f4f6 !important;' +
-    'visibility:visible !important;' +
-    'opacity:1 !important;' +
-    'min-height:120px !important;';
-}
-
-function renderNotifDropdown(list) {
-  var panel = ensurePanel();
-  showPanelBox(panel);
-  if (!list || !list.length) {
-    panel.innerHTML =
-      '<div style="text-align:center;padding:28px 16px;color:#9ca3af">' +
-        '<div style="font-size:1.8rem;margin-bottom:8px;opacity:.5">🔔</div>' +
-        '<strong style="display:block;color:#fff;margin-bottom:6px">Nenhuma notificação</strong>' +
-        '<p style="font-size:0.85rem">Você não tem notificações pendentes.</p>' +
+function getOverlay() {
+  var ov = document.getElementById('notifOverlay');
+  if (ov) return ov;
+  ov = document.createElement('div');
+  ov.id = 'notifOverlay';
+  ov.innerHTML =
+    '<div id="notifModal" role="dialog" aria-label="Notificações">' +
+      '<div id="notifModalHead">' +
+        '<strong>Notificações</strong>' +
+        '<button type="button" id="notifModalClose" aria-label="Fechar">✕</button>' +
       '</div>' +
-      '<a href="notificacoes.html" style="display:block;text-align:center;padding:14px;font-weight:700;color:#c4b5fd;text-decoration:none;border-top:1px solid #2d2d3a">Ver central de notificações</a>';
+      '<div id="notifModalBody">Carregando…</div>' +
+      '<a id="notifModalFoot" href="notificacoes.html">Ver central de notificações</a>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  // styles once
+  var st = document.createElement('style');
+  st.id = 'notifOverlayStyles';
+  st.textContent =
+    '#notifOverlay{display:none;position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.55);' +
+      'align-items:center;justify-content:center;padding:16px;box-sizing:border-box}' +
+    '#notifOverlay.open{display:flex!important}' +
+    '#notifModal{width:100%;max-width:400px;max-height:75vh;background:#1a1a24;border:1px solid #6d28d9;' +
+      'border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden}' +
+    '#notifModalHead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;' +
+      'border-bottom:1px solid #2d2d3a;color:#fff;font-size:1.05rem}' +
+    '#notifModalClose{background:transparent;border:none;color:#9ca3af;font-size:1.2rem;cursor:pointer;padding:4px 8px}' +
+    '#notifModalBody{overflow:auto;flex:1;min-height:100px}' +
+    '#notifModalFoot{display:block;text-align:center;padding:14px;font-weight:700;color:#c4b5fd;' +
+      'text-decoration:none;border-top:1px solid #2d2d3a;background:#16161f}' +
+    '.ni{display:flex;gap:12px;padding:14px;text-decoration:none;color:#f3f4f6;border-bottom:1px solid #2d2d3a}' +
+    '.ni.un{background:rgba(124,58,237,.15)}' +
+    '.ni-ico{width:40px;height:40px;border-radius:12px;background:rgba(124,58,237,.2);color:#c4b5fd;' +
+      'display:flex;align-items:center;justify-content:center;flex-shrink:0}' +
+    '.ni-t{font-weight:700;margin-bottom:4px}' +
+    '.ni-b{color:#9ca3af;font-size:0.85rem;line-height:1.35}' +
+    '.ni-time{font-size:0.75rem;color:#9ca3af;margin-top:6px}' +
+    '.ni-empty{text-align:center;padding:36px 16px;color:#9ca3af}' +
+    '.ni-empty strong{display:block;color:#fff;margin:8px 0 6px}';
+  document.head.appendChild(st);
+
+  document.getElementById('notifModalClose').onclick = function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeNotifModal();
+  };
+  ov.addEventListener('click', function (e) {
+    if (e.target === ov) closeNotifModal();
+  });
+  return ov;
+}
+
+function closeNotifModal() {
+  var ov = document.getElementById('notifOverlay');
+  if (ov) ov.classList.remove('open');
+}
+
+function fillNotifModal(list) {
+  var body = document.getElementById('notifModalBody');
+  if (!body) return;
+  if (!list || !list.length) {
+    body.innerHTML =
+      '<div class="ni-empty">' +
+        '<div style="font-size:2rem;opacity:.5">🔔</div>' +
+        '<strong>Nenhuma notificação</strong>' +
+        '<p>Você não tem notificações pendentes no momento.</p>' +
+      '</div>';
     return;
   }
-  var html = list.slice(0, 8).map(function (n) {
-    var bg = n.read ? 'transparent' : 'rgba(124,58,237,.15)';
-    return '<a href="' + (n.link || 'notificacoes.html') + '" data-nid="' + n.id + '" style="display:flex;gap:12px;padding:14px;text-decoration:none;color:#f3f4f6;border-bottom:1px solid #2d2d3a;background:' + bg + '">' +
-      '<div style="width:40px;height:40px;border-radius:12px;background:rgba(124,58,237,.2);color:#c4b5fd;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas ' + notifIcon(n.type) + '"></i></div>' +
-      '<div style="min-width:0"><div style="font-weight:700;margin-bottom:4px">' + (n.title || '') + '</div>' +
-      '<div style="color:#9ca3af;font-size:0.85rem;line-height:1.35">' + (n.body || '') + '</div>' +
-      '<div style="font-size:0.75rem;color:#9ca3af;margin-top:6px">' + timeAgo(n.createdAtMs) + '</div></div></a>';
+  body.innerHTML = list.slice(0, 12).map(function (n) {
+    return '<a class="ni' + (n.read ? '' : ' un') + '" href="' + (n.link || 'notificacoes.html') + '" data-nid="' + n.id + '">' +
+      '<div class="ni-ico"><i class="fas ' + notifIcon(n.type) + '"></i></div>' +
+      '<div><div class="ni-t">' + (n.title || '') + '</div>' +
+      '<div class="ni-b">' + (n.body || '') + '</div>' +
+      '<div class="ni-time">' + timeAgo(n.createdAtMs) + '</div></div></a>';
   }).join('');
-  panel.innerHTML = html +
-    '<a href="notificacoes.html" style="display:block;text-align:center;padding:14px;font-weight:700;color:#c4b5fd;text-decoration:none;border-top:1px solid #2d2d3a;background:#1a1a24;position:sticky;bottom:0">Ver central de notificações</a>';
-  panel.querySelectorAll('[data-nid]').forEach(function (el) {
+  body.querySelectorAll('[data-nid]').forEach(function (el) {
     el.addEventListener('click', function () { fsMarkNotifRead(el.getAttribute('data-nid')); });
+  });
+}
+
+function openNotifModal() {
+  var ov = getOverlay();
+  var body = document.getElementById('notifModalBody');
+  body.innerHTML = '<div class="ni-empty">Carregando…</div>';
+  ov.classList.add('open');
+  fsGetMyNotifications(20).then(function (list) {
+    fillNotifModal(list);
+    updateNotifBadge();
+  }).catch(function () {
+    body.innerHTML = '<div class="ni-empty">Não foi possível carregar.<br><a href="notificacoes.html" style="color:#c4b5fd">Abrir central</a></div>';
   });
 }
 
@@ -221,42 +245,15 @@ function setupNotifBell() {
   if (btn.dataset.bound === '1') return;
   btn.dataset.bound = '1';
 
-  var panel = ensurePanel();
-  panel.style.display = 'none';
-  var open = false;
-  var ignoreCloseUntil = 0;
-
   btn.addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
-    if (open) {
-      open = false;
-      panel.style.display = 'none';
-      return;
+    var ov = document.getElementById('notifOverlay');
+    if (ov && ov.classList.contains('open')) {
+      closeNotifModal();
+    } else {
+      openNotifModal();
     }
-    open = true;
-    ignoreCloseUntil = Date.now() + 400;
-    panel.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af">Carregando…</div>';
-    showPanelBox(panel);
-    fsGetMyNotifications(20).then(function (list) {
-      if (!open) return;
-      renderNotifDropdown(list);
-      showPanelBox(panel);
-      updateNotifBadge();
-    }).catch(function () {
-      if (!open) return;
-      panel.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af">Não foi possível carregar.</div>' +
-        '<a href="notificacoes.html" style="display:block;text-align:center;padding:14px;color:#c4b5fd;font-weight:700;text-decoration:none">Ver central de notificações</a>';
-      showPanelBox(panel);
-    });
-  });
-
-  document.addEventListener('click', function (e) {
-    if (!open) return;
-    if (Date.now() < ignoreCloseUntil) return;
-    if (panel.contains(e.target) || btn.contains(e.target)) return;
-    open = false;
-    panel.style.display = 'none';
   });
 
   updateNotifBadge();
@@ -274,9 +271,13 @@ window.fsMarkNotifRead = fsMarkNotifRead;
 window.fsMarkAllNotifsRead = fsMarkAllNotifsRead;
 window.setupNotifBell = setupNotifBell;
 window.updateNotifBadge = updateNotifBadge;
+window.openNotifModal = openNotifModal;
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', setupNotifBell);
 } else {
   setupNotifBell();
 }
+// retry bind (header may load late)
+setTimeout(setupNotifBell, 800);
+setTimeout(setupNotifBell, 2000);
