@@ -331,9 +331,35 @@
         itemSel.onchange = function () { btnBuy.disabled = !itemSel.value; };
       }
       if (btnBuy) {
-        btnBuy.onclick = function () {
+        btnBuy.onclick = async function () {
           if (btnBuy.disabled) return;
-          alert('Compra simulada de "' + ad.title + '" por ' + money(ad.price) + '. Pagamento real em breve na Bloxzuh.');
+          var logged = localStorage.getItem('xinzuh-logged') === 'true' || (firebase.auth().currentUser);
+          if (!firebase.auth().currentUser) {
+            alert('Entre na sua conta para comprar.');
+            location.href = 'login.html?redirect=' + encodeURIComponent(location.href);
+            return;
+          }
+          if (!confirm('Confirmar pedido de "' + ad.title + '" por ' + money(ad.price) + '?\n\n(Ainda sem pagamento online — só estrutura do pedido.)')) return;
+          btnBuy.disabled = true;
+          btnBuy.textContent = 'Criando pedido…';
+          try {
+            var order = await fsCreateOrder(ad);
+            if (typeof fsAddNotification === 'function' && order.sellerUid) {
+              fsAddNotification(order.sellerUid, {
+                type: 'venda',
+                title: 'Novo pedido #' + order.code,
+                body: (order.buyerName || 'Comprador') + ' pediu: ' + (order.adTitle || '').slice(0, 80),
+                link: 'pedido.html?id=' + encodeURIComponent(order.id),
+                createdAtMs: Date.now()
+              });
+            }
+            alert('Pedido criado! Código: ' + order.code + '\nVocê pode acompanhar em Minhas Compras.');
+            location.href = 'pedido.html?id=' + encodeURIComponent(order.id);
+          } catch (err) {
+            alert(err.message || 'Erro ao criar pedido.');
+            btnBuy.disabled = false;
+            btnBuy.textContent = 'COMPRAR · ' + money(ad.price);
+          }
         };
       }
       function bindReplyButtons() {

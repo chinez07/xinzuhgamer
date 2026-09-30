@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedido | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root { --primary:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; --ok:#22c55e; --warn:#f59e0b; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    .top { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--card); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+    .logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:#fff; font-weight:800; }
+    .logo-i { width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center; }
+    a.link { color:#c4b5fd; text-decoration:none; font-weight:600; font-size:0.9rem; }
+    .wrap { max-width:720px; margin:0 auto; padding:20px 16px 48px; }
+    h1 { font-size:1.35rem; margin-bottom:4px; }
+    .sub { color:var(--muted); font-size:0.9rem; margin-bottom:18px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:12px; text-decoration:none; color:inherit; display:block; }
+    .card:hover { border-color: rgba(124,58,237,.5); }
+    .row { display:flex; gap:12px; }
+    .thumb { width:72px; height:72px; border-radius:10px; object-fit:cover; background:#1e1b4b; flex-shrink:0; }
+    .title { font-weight:700; margin-bottom:4px; }
+    .meta { font-size:0.82rem; color:var(--muted); line-height:1.45; }
+    .price { font-weight:800; color:#c4b5fd; margin-top:6px; }
+    .badge { display:inline-block; font-size:0.72rem; font-weight:700; padding:3px 8px; border-radius:999px; margin-top:6px; }
+    .st-aguardando_pagamento { background:rgba(245,158,11,.2); color:#fbbf24; }
+    .st-pago, .st-em_entrega { background:rgba(59,130,246,.2); color:#93c5fd; }
+    .st-concluido { background:rgba(34,197,94,.2); color:#4ade80; }
+    .st-cancelado { background:rgba(239,68,68,.15); color:#f87171; }
+    .empty { text-align:center; padding:40px 16px; color:var(--muted); }
+    .btn { display:inline-block; background:var(--primary); color:#fff; border:none; border-radius:10px; padding:10px 16px; font-weight:700; cursor:pointer; text-decoration:none; font-size:0.9rem; }
+    .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+
+    .box { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:14px; }
+    .k { color:var(--muted); font-size:0.8rem; }
+    .v { font-weight:600; margin-top:2px; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a class="link" href="javascript:history.back()">Voltar</a>
+  </div>
+  <div class="wrap" id="page"><div class="empty">Carregando pedido…</div></div>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script src="js/notificacoes.js"></script>
+  <script>
+  function money(n) { return 'R$ ' + (Number(n)||0).toFixed(2).replace('.', ','); }
+  function label(s) {
+    return ({
+      aguardando_pagamento: 'Aguardando pagamento',
+      pago: 'Pago',
+      em_entrega: 'Em entrega',
+      concluido: 'Concluído',
+      cancelado: 'Cancelado'
+    })[s] || s;
+  }
+  function esc(s) { return String(s||'').replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
+
+  firebase.auth().onAuthStateChanged(async function (user) {
+    if (!user) { location.href = 'login.html'; return; }
+    var id = new URLSearchParams(location.search).get('id') || '';
+    var page = document.getElementById('page');
+    if (!id) { page.innerHTML = '<div class="empty">Pedido não encontrado.</div>'; return; }
+    try {
+      var o = await fsGetOrder(id);
+      if (!o) { page.innerHTML = '<div class="empty">Pedido não encontrado.</div>'; return; }
+      if (o.buyerUid !== user.uid && o.sellerUid !== user.uid) {
+        page.innerHTML = '<div class="empty">Você não tem acesso a este pedido.</div>';
+        return;
+      }
+      var isBuyer = o.buyerUid === user.uid;
+      var isSeller = o.sellerUid === user.uid;
+      var img = o.adCover ? '<img class="thumb" src="'+o.adCover+'" alt="">' : '<div class="thumb"></div>';
+
+      var actions = '';
+      if (isBuyer && o.status === 'aguardando_pagamento') {
+        actions += '<button type="button" class="btn" id="btnPaid">Marcar como pago (teste)</button>';
+        actions += '<button type="button" class="btn btn-ghost" id="btnCancel">Cancelar pedido</button>';
+      }
+      if (isSeller && (o.status === 'pago' || o.status === 'aguardando_pagamento')) {
+        actions += '<button type="button" class="btn" id="btnDeliver">Marcar em entrega</button>';
+      }
+      if (isSeller && o.status === 'em_entrega') {
+        actions += '<button type="button" class="btn" id="btnDoneSeller">Marcar concluído</button>';
+      }
+      if (isBuyer && o.status === 'em_entrega') {
+        actions += '<button type="button" class="btn" id="btnDoneBuyer">Confirmar recebimento</button>';
+      }
+
+      page.innerHTML =
+        '<h1>Pedido #'+ esc(o.code) +'</h1>' +
+        '<p class="sub"><span class="badge st-'+ esc(o.status) +'">'+ label(o.status) +'</span></p>' +
+        '<div class="box"><div class="row">'+ img +'<div>' +
+          '<div class="title">'+ esc(o.adTitle) +'</div>' +
+          '<div class="price">'+ money(o.total||o.price) +'</div>' +
+          (o.adId ? '<a class="link" href="anuncio.html?id='+encodeURIComponent(o.adId)+'">Ver anúncio</a>' : '') +
+        '</div></div></div>' +
+        '<div class="box">' +
+          '<div class="k">Comprador</div><div class="v">'+ esc(o.buyerName) +'</div>' +
+          '<div class="k">Vendedor</div><div class="v">'+ esc(o.sellerName) +'</div>' +
+          '<div class="k">Valor</div><div class="v">'+ money(o.total||o.price) +'</div>' +
+          '<div class="k">Status</div><div class="v">'+ label(o.status) +'</div>' +
+          '<div class="k">Obs.</div><div class="v" style="color:var(--muted);font-weight:400">Pagamento online ainda não está ativo. Use os botões abaixo só para testar o fluxo.</div>' +
+        '</div>' +
+        '<div class="actions">'+ actions +
+          '<a class="btn btn-ghost" href="'+(isBuyer?'compras.html':'vendas.html')+'">Voltar à lista</a>' +
+        '</div>';
+
+      async function setStatus(st) {
+        try {
+          await fsUpdateOrderStatus(id, st);
+          location.reload();
+        } catch (e) { alert(e.message || 'Erro'); }
+      }
+      var b;
+      if ((b = document.getElementById('btnPaid'))) b.onclick = function(){ setStatus('pago'); };
+      if ((b = document.getElementById('btnCancel'))) b.onclick = function(){ if(confirm('Cancelar este pedido?')) setStatus('cancelado'); };
+      if ((b = document.getElementById('btnDeliver'))) b.onclick = function(){ setStatus('em_entrega'); };
+      if ((b = document.getElementById('btnDoneSeller'))) b.onclick = function(){ setStatus('concluido'); };
+      if ((b = document.getElementById('btnDoneBuyer'))) b.onclick = function(){ setStatus('concluido'); };
+    } catch (e) {
+      page.innerHTML = '<div class="empty">Erro: '+ esc(e.message) +'</div>';
+    }
+  });
+  </script>
+</body>
+</html>
