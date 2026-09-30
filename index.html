@@ -1668,7 +1668,6 @@ const featuredScroll = document.getElementById('featuredScroll');
 if (featuredScroll) { featuredScroll.innerHTML = '<p style="padding:16px;color:var(--text-muted)">Carregando anúncios…</p>'; }
 
 // ===== Firestore: anúncios reais na home =====
-async function 
 function updateCtaForAuth() {
   var logged = localStorage.getItem('xinzuh-logged') === 'true';
   var btn = document.getElementById('ctaRegister');
@@ -1693,7 +1692,6 @@ function updateCtaForAuth() {
   }
 }
 updateCtaForAuth();
-// also after menu render
 if (typeof renderUserMenu === 'function') {
   var _rm = renderUserMenu;
   renderUserMenu = function() {
@@ -1704,7 +1702,7 @@ if (typeof renderUserMenu === 'function') {
   };
 }
 
-loadFirestoreAdsHome() {
+async function loadFirestoreAdsHome() {
   try {
     if (typeof fsGetPublicAds !== 'function') return;
     const live = await fsGetPublicAds(30);
