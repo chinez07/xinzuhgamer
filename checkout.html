@@ -57,6 +57,60 @@
 
   var ad=null, order=null, vip='none', payMethod='pix';
 
+  // Fallback se firestore-db não exportar
+  async function createOrderLocal(ad, extra) {
+    if (typeof fsCreateOrder === 'function') return fsCreateOrder(ad, extra);
+    if (typeof window.fsCreateOrder === 'function') return window.fsCreateOrder(ad, extra);
+    var u = firebase.auth().currentUser;
+    if (!u) throw new Error('Faça login primeiro.');
+    var sellerUid = (ad.raw && ad.raw.sellerUid) || ad.sellerUid || '';
+    if (!sellerUid) throw new Error('Vendedor não encontrado neste anúncio. Peça ao vendedor republicar o anúncio.');
+    if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
+    var price = Number(ad.price) || 0;
+    var code = 'BZ' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    var payload = {
+      code: code,
+      adId: ad.id,
+      adTitle: ad.title || '',
+      adCover: ad.cover || '',
+      price: price,
+      quantity: 1,
+      total: price,
+      status: 'aguardando_pagamento',
+      buyerUid: u.uid,
+      buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
+      buyerEmail: u.email || '',
+      sellerUid: sellerUid,
+      sellerName: ad.seller || 'Vendedor',
+      category: ad.category || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAtMs: Date.now(),
+      updatedAtMs: Date.now()
+    };
+    var ref = await firebase.firestore().collection('orders').add(payload);
+    return Object.assign({ id: ref.id }, payload);
+  }
+  async function setPaymentLocal(orderId, data) {
+    if (typeof fsSetOrderPayment === 'function') return fsSetOrderPayment(orderId, data);
+    if (typeof window.fsSetOrderPayment === 'function') return window.fsSetOrderPayment(orderId, data);
+    var u = firebase.auth().currentUser;
+    var patch = {
+      paymentMethod: data.method || 'pix',
+      payerName: data.payerName || '',
+      payerCpf: data.payerCpf || '',
+      vipPlan: data.vipPlan || 'none',
+      total: data.total != null ? Number(data.total) : undefined,
+      status: 'aguardando_pagamento',
+      paymentId: 'PAY' + Date.now().toString().slice(-8),
+      paymentExpiresAtMs: Date.now() + 20 * 60 * 1000,
+      pixCopyPaste: data.pixCopyPaste || ('00020126BLOXZUH' + orderId + 'PIX'),
+      updatedAtMs: Date.now()
+    };
+    await firebase.firestore().collection('orders').doc(orderId).update(patch);
+    return patch;
+  }
+
+
   function vipFee(total){
     if(vip==='basico') return total*0.0299;
     if(vip==='premium') return total*0.0499;
@@ -135,9 +189,8 @@
       var btn=document.getElementById('btnPix');
       btn.disabled=true; btn.textContent='Criando pedido…';
       try{
-        if(typeof fsCreateOrder!=='function') throw new Error('Sistema de pedidos não carregou. Atualize a página.');
-        order = await fsCreateOrder(ad, { quantity:1 });
-        await fsSetOrderPayment(order.id, {
+        order = await createOrderLocal(ad, { quantity:1 });
+        await setPaymentLocal(order.id, {
           method:'pix',
           payerName:name,
           payerCpf:cpf,
@@ -166,7 +219,13 @@
     var adId=new URLSearchParams(location.search).get('adId')||'';
     if(!adId){ document.getElementById('app').innerHTML='<p class="muted">Anúncio inválido.</p>'; return; }
     try{
-      ad=await fsGetAdById(adId);
+      ad=await (typeof fsGetAdById==='function'?fsGetAdById(adId):(async function(){
+        var doc=await firebase.firestore().collection('ads').doc(adId).get();
+        if(!doc.exists) return null;
+        var d=doc.data();
+        return {id:doc.id,title:d.title,price:d.price,cover:d.cover,seller:d.sellerName,sellerUid:d.sellerUid,category:d.category,categoryLabel:d.category,raw:d};
+      })());
+      if(ad && !ad.sellerUid && ad.raw) ad.sellerUid = ad.raw.sellerUid;
       if(!ad){ document.getElementById('app').innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
       render();
     }catch(e){
