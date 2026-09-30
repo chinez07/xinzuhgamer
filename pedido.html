@@ -50,6 +50,47 @@
   <script src="js/notificacoes.js"></script>
   <script>
   function money(n){ return 'R$ '+(Number(n)||0).toFixed(2).replace('.',','); }
+
+  // Acesso direto ao Firestore (não depende de fsGetOrder global)
+  function ordersCol() { return firebase.firestore().collection('orders'); }
+  async function getOrder(id) {
+    if (typeof window.fsGetOrder === 'function') return window.fsGetOrder(id);
+    if (typeof fsGetOrder === 'function') return fsGetOrder(id);
+    var doc = await ordersCol().doc(id).get();
+    if (!doc.exists) return null;
+    return Object.assign({ id: doc.id }, doc.data());
+  }
+  async function updateOrderStatus(id, status) {
+    if (typeof window.fsUpdateOrderStatus === 'function') return window.fsUpdateOrderStatus(id, status);
+    if (typeof fsUpdateOrderStatus === 'function') return fsUpdateOrderStatus(id, status);
+    var u = firebase.auth().currentUser;
+    if (!u) throw new Error('Faça login.');
+    var o = await getOrder(id);
+    if (!o) throw new Error('Pedido não encontrado.');
+    if (o.buyerUid !== u.uid && o.sellerUid !== u.uid) throw new Error('Sem permissão.');
+    await ordersCol().doc(id).update({ status: status, updatedAtMs: Date.now() });
+  }
+  async function addOrderMessage(orderId, text) {
+    if (typeof window.fsAddOrderMessage === 'function') return window.fsAddOrderMessage(orderId, text);
+    if (typeof fsAddOrderMessage === 'function') return fsAddOrderMessage(orderId, text);
+    var u = firebase.auth().currentUser;
+    if (!u) throw new Error('Faça login.');
+    var o = await getOrder(orderId);
+    if (!o) throw new Error('Pedido não encontrado.');
+    if (o.buyerUid !== u.uid && o.sellerUid !== u.uid) throw new Error('Sem permissão.');
+    var msg = {
+      id: 'm' + Date.now(),
+      text: String(text || '').slice(0, 2000),
+      senderUid: u.uid,
+      senderName: u.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
+      createdAtMs: Date.now()
+    };
+    var messages = Array.isArray(o.messages) ? o.messages.slice() : [];
+    messages.push(msg);
+    await ordersCol().doc(orderId).update({ messages: messages, updatedAtMs: Date.now() });
+    return msg;
+  }
+
   function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function label(s){
     return ({aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_entrega:'Em entrega',concluido:'Concluído / Entregue',cancelado:'Cancelado'})[s]||s;
@@ -71,7 +112,7 @@
   }
 
   async function reload(){
-    order=await fsGetOrder(orderId);
+    order=await getOrder(orderId);
     draw();
   }
 
@@ -117,14 +158,14 @@
       :'<div class="box"><p class="muted">O chat libera após o pagamento ser aprovado.</p></div>');
 
     var b;
-    if((b=document.getElementById('btnCancel'))) b.onclick=async function(){ if(confirm('Cancelar pedido?')){ await fsUpdateOrderStatus(orderId,'cancelado'); reload(); }};
-    if((b=document.getElementById('btnDeliver'))) b.onclick=async function(){ await fsUpdateOrderStatus(orderId,'em_entrega'); reload(); };
-    if((b=document.getElementById('btnDone'))) b.onclick=async function(){ await fsUpdateOrderStatus(orderId,'concluido'); reload(); };
+    if((b=document.getElementById('btnCancel'))) b.onclick=async function(){ if(confirm('Cancelar pedido?')){ await updateOrderStatus(orderId,'cancelado'); reload(); }};
+    if((b=document.getElementById('btnDeliver'))) b.onclick=async function(){ await updateOrderStatus(orderId,'em_entrega'); reload(); };
+    if((b=document.getElementById('btnDone'))) b.onclick=async function(){ await updateOrderStatus(orderId,'concluido'); reload(); };
     if((b=document.getElementById('btnSend'))) b.onclick=async function(){
       var t=(document.getElementById('msgIn').value||'').trim();
       if(!t) return;
       b.disabled=true;
-      try{ await fsAddOrderMessage(orderId,t); await reload(); }catch(e){ alert(e.message); b.disabled=false; }
+      try{ await addOrderMessage(orderId,t); await reload(); }catch(e){ alert(e.message); b.disabled=false; }
     };
   }
 
@@ -134,7 +175,7 @@
     orderId=new URLSearchParams(location.search).get('id')||'';
     if(!orderId){ document.getElementById('page').innerHTML='<p class="muted">Pedido não encontrado.</p>'; return; }
     try{
-      order=await fsGetOrder(orderId);
+      order=await getOrder(orderId);
       if(!order){ document.getElementById('page').innerHTML='<p class="muted">Pedido não encontrado.</p>'; return; }
       if(order.buyerUid!==user.uid && order.sellerUid!==user.uid){
         document.getElementById('page').innerHTML='<p class="muted">Sem acesso.</p>'; return;

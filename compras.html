@@ -51,6 +51,15 @@
   <script src="js/firestore-db.js"></script>
   <script src="js/notificacoes.js"></script>
   <script>
+  async function getMyPurchases() {
+    if (typeof fsGetMyPurchases === 'function') return fsGetMyPurchases();
+    var u = firebase.auth().currentUser;
+    var snap = await firebase.firestore().collection('orders').where('buyerUid','==',u.uid).limit(50).get();
+    var list = [];
+    snap.forEach(function(doc){ list.push(Object.assign({id:doc.id}, doc.data())); });
+    list.sort(function(a,b){ return (b.createdAtMs||0)-(a.createdAtMs||0); });
+    return list;
+  }
   function money(n) { return 'R$ ' + (Number(n)||0).toFixed(2).replace('.', ','); }
   function label(s) {
     return ({
@@ -65,7 +74,7 @@
   firebase.auth().onAuthStateChanged(async function (user) {
     if (!user) { location.href = 'login.html'; return; }
     try {
-      var list = await fsGetMyPurchases();
+      var list = await getMyPurchases();
       var el = document.getElementById('list');
       if (!list.length) {
         el.innerHTML = '<div class="empty"><i class="fas fa-shopping-bag" style="font-size:2rem;opacity:.4"></i><p style="margin-top:10px">Você ainda não fez nenhum pedido.</p><a class="btn" style="margin-top:14px" href="anuncios.html">Ver anúncios</a></div>';
