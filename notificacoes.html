@@ -59,7 +59,6 @@
     <div class="tabs" id="tabs">
       <button type="button" class="active" data-tab="todos">Todos</button>
       <button type="button" data-tab="anuncio">Anúncios</button>
-      <button type="button" data-tab="pergunta">Tickets</button>
       <button type="button" data-tab="venda">Vendas</button>
     </div>
     <div class="toolbar">
@@ -87,7 +86,6 @@
     function render() {
       var list = cache;
       if (filter === 'anuncio') list = cache.filter(function (n) { return n.type === 'anuncio' || n.type === 'resposta' || n.type === 'pergunta'; });
-      if (filter === 'pergunta') list = cache.filter(function (n) { return n.type === 'pergunta' || n.type === 'resposta'; });
       if (filter === 'venda') list = cache.filter(function (n) { return n.type === 'venda' || n.type === 'compra'; });
       document.getElementById('countLabel').textContent = list.length + ' notificação(ões)';
       var el = document.getElementById('list');
