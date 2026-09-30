@@ -6,7 +6,7 @@
   <title>Pedido | Bloxzuh</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    :root { --p:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; --ok:#22c55e; }
+    :root { --p:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; }
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
     .top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
@@ -27,7 +27,7 @@
     .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
     .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
     .chat{display:flex;flex-direction:column;gap:10px;max-height:360px;overflow:auto;padding:8px 0}
-    .bubble{max-width:85%;padding:10px 12px;border-radius:12px;font-size:0.9rem;line-height:1.4}
+    .bubble{max-width:85%;padding:10px 12px;border-radius:12px;font-size:0.9rem;line-height:1.4;word-break:break-word}
     .bubble.me{align-self:flex-end;background:var(--p);color:#fff;border-bottom-right-radius:4px}
     .bubble.them{align-self:flex-start;background:#2a2a36;border-bottom-left-radius:4px}
     .bubble .t{font-size:0.7rem;opacity:.75;margin-top:4px}
@@ -42,147 +42,156 @@
     <a href="compras.html" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Compras</a>
   </div>
   <div class="wrap" id="page"><p class="muted">Carregando…</p></div>
+
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
-  <script src="js/firestore-db.js"></script>
-  <script src="js/notificacoes.js"></script>
   <script>
-  function money(n){ return 'R$ '+(Number(n)||0).toFixed(2).replace('.',','); }
+  function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
+  function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function label(s){
+    return ({
+      aguardando_pagamento:'Aguardando pagamento',
+      pago:'Pago',
+      em_entrega:'Em entrega',
+      concluido:'Concluído / Entregue',
+      cancelado:'Cancelado'
+    })[s] || s;
+  }
+  function timeAgo(ts){
+    if (!ts) return '';
+    var diff = Math.max(0, Date.now() - Number(ts));
+    var sec = Math.floor(diff/1000);
+    if (sec < 10) return 'agora';
+    if (sec < 60) return 'há ' + sec + ' segundos';
+    var min = Math.floor(sec/60);
+    if (min < 60) return 'há ' + min + ' min';
+    var hr = Math.floor(min/60);
+    if (hr < 24) return 'há ' + hr + ' h';
+    var day = Math.floor(hr/24);
+    return 'há ' + day + ' d';
+  }
 
-  // Acesso direto ao Firestore (não depende de fsGetOrder global)
-  function ordersCol() { return firebase.firestore().collection('orders'); }
-  async function getOrder(id) {
-    if (typeof window.fsGetOrder === 'function') return window.fsGetOrder(id);
-    if (typeof fsGetOrder === 'function') return fsGetOrder(id);
-    var doc = await ordersCol().doc(id).get();
+  var orderId = '', currentUser = null, order = null;
+
+  async function loadOrder(id){
+    var doc = await firebase.firestore().collection('orders').doc(id).get();
     if (!doc.exists) return null;
     return Object.assign({ id: doc.id }, doc.data());
   }
-  async function updateOrderStatus(id, status) {
-    if (typeof window.fsUpdateOrderStatus === 'function') return window.fsUpdateOrderStatus(id, status);
-    if (typeof fsUpdateOrderStatus === 'function') return fsUpdateOrderStatus(id, status);
-    var u = firebase.auth().currentUser;
-    if (!u) throw new Error('Faça login.');
-    var o = await getOrder(id);
-    if (!o) throw new Error('Pedido não encontrado.');
-    if (o.buyerUid !== u.uid && o.sellerUid !== u.uid) throw new Error('Sem permissão.');
-    await ordersCol().doc(id).update({ status: status, updatedAtMs: Date.now() });
+  async function setStatus(status){
+    await firebase.firestore().collection('orders').doc(orderId).update({
+      status: status,
+      updatedAtMs: Date.now()
+    });
   }
-  async function addOrderMessage(orderId, text) {
-    if (typeof window.fsAddOrderMessage === 'function') return window.fsAddOrderMessage(orderId, text);
-    if (typeof fsAddOrderMessage === 'function') return fsAddOrderMessage(orderId, text);
-    var u = firebase.auth().currentUser;
-    if (!u) throw new Error('Faça login.');
-    var o = await getOrder(orderId);
-    if (!o) throw new Error('Pedido não encontrado.');
-    if (o.buyerUid !== u.uid && o.sellerUid !== u.uid) throw new Error('Sem permissão.');
-    var msg = {
+  async function sendMsg(text){
+    var messages = Array.isArray(order.messages) ? order.messages.slice() : [];
+    messages.push({
       id: 'm' + Date.now(),
-      text: String(text || '').slice(0, 2000),
-      senderUid: u.uid,
-      senderName: u.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
+      text: String(text).slice(0, 2000),
+      senderUid: currentUser.uid,
+      senderName: currentUser.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
       createdAtMs: Date.now()
-    };
-    var messages = Array.isArray(o.messages) ? o.messages.slice() : [];
-    messages.push(msg);
-    await ordersCol().doc(orderId).update({ messages: messages, updatedAtMs: Date.now() });
-    return msg;
+    });
+    await firebase.firestore().collection('orders').doc(orderId).update({
+      messages: messages,
+      updatedAtMs: Date.now()
+    });
   }
-
-  function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-  function label(s){
-    return ({aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_entrega:'Em entrega',concluido:'Concluído / Entregue',cancelado:'Cancelado'})[s]||s;
-  }
-  function timeAgo(ts){
-    if(typeof window.timeAgo==='function') return window.timeAgo(ts);
-    return '';
-  }
-
-  var orderId='', currentUser=null, order=null;
 
   function renderChat(){
-    var msgs=Array.isArray(order.messages)?order.messages:[];
-    if(!msgs.length) return '<p class="muted">Nenhuma mensagem ainda. Use o chat para combinar a entrega.</p>';
-    return '<div class="chat">'+msgs.map(function(m){
-      var me=m.senderUid===currentUser.uid;
-      return '<div class="bubble '+(me?'me':'them')+'">'+esc(m.text)+'<div class="t">'+esc(m.senderName)+' · '+timeAgo(m.createdAtMs)+'</div></div>';
-    }).join('')+'</div>';
+    var msgs = Array.isArray(order.messages) ? order.messages : [];
+    if (!msgs.length) return '<p class="muted">Nenhuma mensagem ainda. Combine a entrega por aqui.</p>';
+    return '<div class="chat">' + msgs.map(function(m){
+      var me = m.senderUid === currentUser.uid;
+      return '<div class="bubble ' + (me ? 'me' : 'them') + '">' + esc(m.text) +
+        '<div class="t">' + esc(m.senderName) + ' · ' + timeAgo(m.createdAtMs) + '</div></div>';
+    }).join('') + '</div>';
   }
 
   async function reload(){
-    order=await getOrder(orderId);
+    order = await loadOrder(orderId);
     draw();
   }
 
   function draw(){
-    var o=order;
-    var isBuyer=o.buyerUid===currentUser.uid;
-    var isSeller=o.sellerUid===currentUser.uid;
-    var canChat=o.status==='pago'||o.status==='em_entrega'||o.status==='concluido';
-    var img=o.adCover?'<img class="thumb" src="'+o.adCover+'" alt="">':'';
-    var actions='';
-    if(isBuyer && o.status==='aguardando_pagamento'){
-      actions+='<a class="btn" href="pagamento.html?id='+encodeURIComponent(o.id)+'">Pagar com Pix</a>';
-      actions+='<button type="button" class="btn btn-ghost" id="btnCancel">Cancelar</button>';
+    var o = order;
+    var isBuyer = o.buyerUid === currentUser.uid;
+    var isSeller = o.sellerUid === currentUser.uid;
+    var canChat = o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido';
+    var img = o.adCover ? '<img class="thumb" src="' + o.adCover + '" alt="">' : '';
+    var actions = '';
+    if (isBuyer && o.status === 'aguardando_pagamento') {
+      actions += '<a class="btn" href="pagamento.html?id=' + encodeURIComponent(o.id) + '">Pagar com Pix</a>';
+      actions += '<button type="button" class="btn btn-ghost" id="btnCancel">Cancelar</button>';
     }
-    if(isSeller && o.status==='pago'){
-      actions+='<button type="button" class="btn" id="btnDeliver">Marcar em entrega</button>';
+    if (isSeller && o.status === 'pago') {
+      actions += '<button type="button" class="btn" id="btnDeliver">Marcar em entrega</button>';
     }
-    if((isBuyer||isSeller) && o.status==='em_entrega'){
-      actions+='<button type="button" class="btn" id="btnDone">Confirmar entrega / concluir</button>';
+    if ((isBuyer || isSeller) && o.status === 'em_entrega') {
+      actions += '<button type="button" class="btn" id="btnDone">Confirmar entrega</button>';
     }
 
-    document.getElementById('page').innerHTML=
-      '<div class="box">'+
-        '<h1>Pedido #'+esc(o.code)+'</h1>'+
-        '<p class="muted" style="margin:8px 0"><span class="badge st-'+esc(o.status)+'">'+label(o.status)+'</span></p>'+
-        '<div class="row"><span>Data</span><span>'+timeAgo(o.createdAtMs)+'</span></div>'+
-        '<div class="row"><span>Subtotal</span><span>'+money(o.price)+'</span></div>'+
-        '<div class="row"><span>Total</span><span style="font-weight:800;color:#c4b5fd">'+money(o.total||o.price)+'</span></div>'+
-        '<div class="row"><span>Vendedor</span><span>'+esc(o.sellerName)+'</span></div>'+
-        '<div class="row"><span>Comprador</span><span>'+esc(o.buyerName)+'</span></div>'+
-        '<div class="row"><span>Categoria</span><span>'+esc(o.category)+'</span></div>'+
-        img+
-        '<div style="font-weight:700">'+esc(o.adTitle)+'</div>'+
-        (o.adId?'<div class="actions"><a class="btn btn-ghost" href="anuncio.html?id='+encodeURIComponent(o.adId)+'">Ver anúncio</a></div>':'')+
-        '<div class="actions">'+actions+'</div>'+
-      '</div>'+
-      (o.paymentMethod?'<div class="box"><h1>Pagamento</h1><div class="row"><span>Método</span><span>Pix</span></div><div class="row"><span>Status</span><span>'+(o.status==='aguardando_pagamento'?'Pendente':'Aprovado')+'</span></div></div>':'')+
-      (canChat?
-        '<div class="box"><h1><span style="color:#4ade80">●</span> Chat com o '+(isBuyer?'vendedor':'comprador')+'</h1>'+
-        renderChat()+
-        '<div class="send"><input id="msgIn" placeholder="Digite sua mensagem..."><button type="button" class="btn" id="btnSend"><i class="fas fa-paper-plane"></i></button></div>'+
-        '<p class="muted" style="margin-top:8px;font-size:0.8rem">Não envie dados sensíveis em canais externos. Prefira o chat do pedido.</p></div>'
-      :'<div class="box"><p class="muted">O chat libera após o pagamento ser aprovado.</p></div>');
+    document.getElementById('page').innerHTML =
+      '<div class="box">' +
+        '<h1>Pedido #' + esc(o.code) + '</h1>' +
+        '<p class="muted" style="margin:8px 0"><span class="badge st-' + esc(o.status) + '">' + label(o.status) + '</span></p>' +
+        '<div class="row"><span>Total</span><span style="font-weight:800;color:#c4b5fd">' + money(o.total || o.price) + '</span></div>' +
+        '<div class="row"><span>Vendedor</span><span>' + esc(o.sellerName) + '</span></div>' +
+        '<div class="row"><span>Comprador</span><span>' + esc(o.buyerName) + '</span></div>' +
+        img +
+        '<div style="font-weight:700">' + esc(o.adTitle) + '</div>' +
+        (o.adId ? '<div class="actions"><a class="btn btn-ghost" href="anuncio.html?id=' + encodeURIComponent(o.adId) + '">Ver anúncio</a></div>' : '') +
+        '<div class="actions">' + actions + '</div>' +
+      '</div>' +
+      (o.paymentMethod ? '<div class="box"><h1>Pagamento</h1><div class="row"><span>Método</span><span>Pix</span></div><div class="row"><span>Status</span><span>' + (o.status === 'aguardando_pagamento' ? 'Pendente' : 'Aprovado') + '</span></div></div>' : '') +
+      (canChat
+        ? ('<div class="box"><h1><span style="color:#4ade80">●</span> Chat com o ' + (isBuyer ? 'vendedor' : 'comprador') + '</h1>' +
+           renderChat() +
+           '<div class="send"><input id="msgIn" placeholder="Digite sua mensagem..."><button type="button" class="btn" id="btnSend"><i class="fas fa-paper-plane"></i></button></div></div>')
+        : '<div class="box"><p class="muted">O chat libera após o pagamento ser aprovado. ' +
+          (isBuyer && o.status === 'aguardando_pagamento' ? '<a href="pagamento.html?id=' + encodeURIComponent(o.id) + '" style="color:#c4b5fd">Ir ao pagamento</a>' : '') +
+          '</p></div>');
 
     var b;
-    if((b=document.getElementById('btnCancel'))) b.onclick=async function(){ if(confirm('Cancelar pedido?')){ await updateOrderStatus(orderId,'cancelado'); reload(); }};
-    if((b=document.getElementById('btnDeliver'))) b.onclick=async function(){ await updateOrderStatus(orderId,'em_entrega'); reload(); };
-    if((b=document.getElementById('btnDone'))) b.onclick=async function(){ await updateOrderStatus(orderId,'concluido'); reload(); };
-    if((b=document.getElementById('btnSend'))) b.onclick=async function(){
-      var t=(document.getElementById('msgIn').value||'').trim();
-      if(!t) return;
-      b.disabled=true;
-      try{ await addOrderMessage(orderId,t); await reload(); }catch(e){ alert(e.message); b.disabled=false; }
+    if ((b = document.getElementById('btnCancel'))) b.onclick = async function(){
+      if (!confirm('Cancelar pedido?')) return;
+      await setStatus('cancelado'); await reload();
+    };
+    if ((b = document.getElementById('btnDeliver'))) b.onclick = async function(){
+      await setStatus('em_entrega'); await reload();
+    };
+    if ((b = document.getElementById('btnDone'))) b.onclick = async function(){
+      await setStatus('concluido'); await reload();
+    };
+    if ((b = document.getElementById('btnSend'))) b.onclick = async function(){
+      var t = (document.getElementById('msgIn').value || '').trim();
+      if (!t) return;
+      b.disabled = true;
+      try { await sendMsg(t); await reload(); }
+      catch (e) { alert(e.message || 'Erro ao enviar'); b.disabled = false; }
     };
   }
 
   firebase.auth().onAuthStateChanged(async function(user){
-    if(!user){ location.href='login.html'; return; }
-    currentUser=user;
-    orderId=new URLSearchParams(location.search).get('id')||'';
-    if(!orderId){ document.getElementById('page').innerHTML='<p class="muted">Pedido não encontrado.</p>'; return; }
-    try{
-      order=await getOrder(orderId);
-      if(!order){ document.getElementById('page').innerHTML='<p class="muted">Pedido não encontrado.</p>'; return; }
-      if(order.buyerUid!==user.uid && order.sellerUid!==user.uid){
-        document.getElementById('page').innerHTML='<p class="muted">Sem acesso.</p>'; return;
+    if (!user) { location.href = 'login.html'; return; }
+    currentUser = user;
+    orderId = new URLSearchParams(location.search).get('id') || '';
+    var page = document.getElementById('page');
+    if (!orderId) { page.innerHTML = '<p class="muted">Pedido não encontrado.</p>'; return; }
+    try {
+      order = await loadOrder(orderId);
+      if (!order) { page.innerHTML = '<p class="muted">Pedido não encontrado.</p>'; return; }
+      if (order.buyerUid !== user.uid && order.sellerUid !== user.uid) {
+        page.innerHTML = '<p class="muted">Você não tem acesso a este pedido.</p>';
+        return;
       }
       draw();
-    }catch(e){
-      document.getElementById('page').innerHTML='<p class="muted">Erro: '+esc(e.message)+'</p>';
+    } catch (e) {
+      page.innerHTML = '<p class="muted">Erro: ' + esc(e.message) + '</p>';
+      console.error(e);
     }
   });
   </script>
