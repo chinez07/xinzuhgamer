@@ -83,8 +83,8 @@
       aspect-ratio: 1 / 1; background: #1e1b4b; overflow: hidden;
       display: flex; align-items: center; justify-content: center;
     }
-    .card-img img { width: 100%; height: 100%; object-fit: cover; }
-    .card-img .placeholder {
+    .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .placeholder {
       width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
       font-weight: 800; font-size: 1.5rem; color: #fff;
       background: linear-gradient(135deg, #4c1d95, #7c3aed);
@@ -103,7 +103,7 @@
       Bloxzuh
     </a>
     <div class="top-actions">
-      <a class="btn-anunciar" href="anunciar.html"><i class="fas fa-plus"></i> Anunciar</a>
+      <a class="btn-anunciar" href="anunciar.html">+ Anunciar</a>
       <a class="icon-btn" href="compras.html" title="Minhas compras"><i class="fas fa-shopping-cart"></i></a>
       <a class="icon-btn" href="index.html" title="Início"><i class="fas fa-home"></i></a>
     </div>
@@ -124,7 +124,6 @@
   </div>
 
   <script>
-  // Categorias Bloxzuh (imagens locais quando existirem)
   var CATEGORIES = [
     { id: 'freefire', name: 'Free Fire', img: 'assets/categorias/freefire.jpg' },
     { id: 'roblox', name: 'Roblox', img: 'assets/categorias/roblox.jpg' },
@@ -155,29 +154,49 @@
     { id: 'other', name: 'Outros', img: '' }
   ];
 
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
   function render(list) {
     var grid = document.getElementById('catGrid');
+    if (!grid) return;
     if (!list.length) {
       grid.innerHTML = '<div class="empty">Nenhuma categoria encontrada.</div>';
       return;
     }
-    grid.innerHTML = list.map(function (c) {
-      var img = c.img
-        ? '<div class="card-img"><img src="' + c.img + '" alt="' + c.name + '" onerror="this.parentNode.innerHTML=\\'<div class=placeholder>' + c.name.charAt(0) + '</div>\\'"></div>'
-        : '<div class="card-img"><div class="placeholder">' + c.name.charAt(0).toUpperCase() + '</div></div>';
-      return '<a class="card" href="anuncios.html?cat=' + encodeURIComponent(c.id) + '">' +
-        img + '<div class="card-name">' + c.name + '</div></a>';
-    }).join('');
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      var letter = (c.name || '?').charAt(0).toUpperCase();
+      var media;
+      if (c.img) {
+        media = '<div class="card-img"><img src="' + esc(c.img) + '" alt="' + esc(c.name) + '"></div>';
+      } else {
+        media = '<div class="card-img"><div class="placeholder">' + esc(letter) + '</div></div>';
+      }
+      html += '<a class="card" href="anuncios.html?cat=' + encodeURIComponent(c.id) + '">' +
+        media + '<div class="card-name">' + esc(c.name) + '</div></a>';
+    }
+    grid.innerHTML = html;
   }
 
   render(CATEGORIES);
 
   document.getElementById('catFilter').addEventListener('input', function () {
     var q = (this.value || '').trim().toLowerCase();
-    if (!q) { render(CATEGORIES); return; }
-    render(CATEGORIES.filter(function (c) {
-      return c.name.toLowerCase().indexOf(q) !== -1 || c.id.indexOf(q) !== -1;
-    }));
+    if (!q) {
+      render(CATEGORIES);
+      return;
+    }
+    var filtered = [];
+    for (var i = 0; i < CATEGORIES.length; i++) {
+      var c = CATEGORIES[i];
+      if (c.name.toLowerCase().indexOf(q) !== -1 || c.id.indexOf(q) !== -1) {
+        filtered.push(c);
+      }
+    }
+    render(filtered);
   });
   </script>
 </body>
