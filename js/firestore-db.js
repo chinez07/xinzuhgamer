@@ -85,8 +85,8 @@ async function fsDeleteAd(adId) {
   await ref.delete();
 }
 
-/** Tempo até liberar saldo: 1 min (teste). Produção: 10 dias = 10*24*60*60*1000 */
-window.BLOXZUH_RELEASE_MS = window.BLOXZUH_RELEASE_MS || (1 * 60 * 1000);
+/** Tempo até liberar saldo: 10 dias */
+window.BLOXZUH_RELEASE_MS = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -162,7 +162,7 @@ async function fsSetWallet(saldo, pending) {
 /** Aplica estoque/vendas dos pedidos pagos ainda não processados + sincroniza carteira */
 async function fsSyncSellerSalesAndWallet() {
   const u = requireUser();
-  const releaseMs = window.BLOXZUH_RELEASE_MS || 60000;
+  const releaseMs = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
   let snap;
   try {
     snap = await getDb().collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
@@ -211,7 +211,7 @@ async function fsSyncSellerSalesAndWallet() {
 
 async function fsSyncSellerWallet() {
   const u = requireUser();
-  const releaseMs = window.BLOXZUH_RELEASE_MS || 60000;
+  const releaseMs = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
   const snap = await getDb().collection('orders')
     .where('sellerUid', '==', u.uid)
     .limit(50)
