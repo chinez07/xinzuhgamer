@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento Pix | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root { --p:#7c3aed; --bg:#0f0f14; --card:#16161f; --text:#f3f4f6; --muted:#9ca3af; --border:#2a2a36; }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+    .top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+    .logo{display:flex;align-items:center;gap:8px;text-decoration:none;color:#fff;font-weight:800}
+    .logo-i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center}
+    .wrap{max-width:520px;margin:0 auto;padding:20px 14px 60px}
+    .box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+    h1{font-size:1.25rem;margin-bottom:8px}
+    .muted{color:var(--muted);font-size:0.9rem}
+    .qr{width:220px;height:220px;margin:16px auto;background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:12px}
+    .qr img{width:100%;height:100%;object-fit:contain}
+    .copy{display:flex;gap:8px;margin-top:12px}
+    .copy input{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:#0f0f14;color:var(--text);font-size:0.7rem}
+    .btn{padding:12px 14px;border:none;border-radius:10px;background:var(--p);color:#fff;font-weight:700;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .ok{color:#4ade80;font-weight:700;text-align:center;margin-top:12px}
+    .warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fbbf24;padding:10px 12px;border-radius:10px;font-size:0.85rem;margin-top:12px}
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a href="compras.html" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Minhas compras</a>
+  </div>
+  <div class="wrap" id="app"><p class="muted">Carregando pagamento…</p></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/mp-config.js"></script>
+  <script>
+  function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
+  function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function workerBase(){
+    var u = (window.MP_WORKER_URL || '').trim().replace(/\/$/, '');
+    return u;
+  }
+  async function loadOrder(id){
+    var doc = await firebase.firestore().collection('orders').doc(id).get();
+    if (!doc.exists) return null;
+    return Object.assign({ id: doc.id }, doc.data());
+  }
+  async function markPaid(id){
+    await firebase.firestore().collection('orders').doc(id).update({
+      status: 'pago',
+      paidAtMs: Date.now(),
+      updatedAtMs: Date.now()
+    });
+  }
+
+  var pollTimer = null;
+
+  firebase.auth().onAuthStateChanged(async function(user){
+    var app = document.getElementById('app');
+    if (!user) { location.href = 'login.html'; return; }
+    var id = new URLSearchParams(location.search).get('id') || '';
+    if (!id) { app.innerHTML = '<p class="muted">Pagamento não encontrado.</p>'; return; }
+
+    try {
+      var o = await loadOrder(id);
+      if (!o) { app.innerHTML = '<p class="muted">Pedido não encontrado.</p>'; return; }
+      if (o.buyerUid !== user.uid) { app.innerHTML = '<p class="muted">Sem acesso.</p>'; return; }
+      if (o.status !== 'aguardando_pagamento') {
+        location.href = 'pedido.html?id=' + encodeURIComponent(id);
+        return;
+      }
+
+      var base = workerBase();
+      var hasWorker = !!base;
+
+      // Se já tem paymentId e qr salvos, só mostra
+      if (o.mpPaymentId && o.pixCopyPaste) {
+        showPixUI(app, o, user, id, hasWorker);
+        return;
+      }
+
+      if (!hasWorker) {
+        // Modo teste sem Worker
+        var pix = o.pixCopyPaste || ('TESTE-BLOXZUH-' + (o.code||id));
+        var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(pix);
+        app.innerHTML =
+          '<div class="box">' +
+            '<h1>Pagamento pendente (modo teste)</h1>' +
+            '<p class="muted">Pedido <strong>#' + esc(o.code) + '</strong> · ' + money(o.total||o.price) + '</p>' +
+            '<div class="warn">Worker do Mercado Pago ainda não configurado. Configure <code>js/mp-config.js</code> com a URL do Worker para Pix real.</div>' +
+            '<div class="qr"><img src="' + qrSrc + '" alt="QR"></div>' +
+            '<div class="copy"><input id="pixIn" readonly value="' + esc(pix) + '"><button type="button" class="btn" id="btnCopy">Copiar</button></div>' +
+            '<button type="button" class="btn" style="width:100%;margin-top:14px" id="btnSim">Simular pagamento aprovado</button>' +
+            '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="btnOrder">Ver pedido</button>' +
+          '</div>';
+        document.getElementById('btnCopy').onclick = function(){
+          try { navigator.clipboard.writeText(document.getElementById('pixIn').value); alert('Copiado!'); } catch(e) {}
+        };
+        document.getElementById('btnSim').onclick = async function(){
+          await markPaid(id);
+          location.href = 'pedido.html?id=' + encodeURIComponent(id);
+        };
+        document.getElementById('btnOrder').onclick = function(){
+          location.href = 'pedido.html?id=' + encodeURIComponent(id);
+        };
+        return;
+      }
+
+      // Criar Pix real no MP
+      app.innerHTML = '<div class="box"><p class="muted">Gerando Pix no Mercado Pago…</p></div>';
+      var name = o.payerName || user.displayName || 'Comprador';
+      var cpf = (o.payerCpf || '').replace(/\D/g, '');
+      var email = o.buyerEmail || user.email || '';
+      if (cpf.length !== 11) {
+        app.innerHTML = '<div class="box"><p class="muted">CPF do pedido inválido. Volte ao checkout e informe o CPF.</p><a class="btn" href="compras.html">Minhas compras</a></div>';
+        return;
+      }
+
+      var res = await fetch(base + '/create-pix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: id,
+          amount: Number(o.total || o.price) || 0,
+          email: email,
+          name: name,
+          cpf: cpf,
+          description: 'Bloxzuh #' + (o.code || id) + ' - ' + (o.adTitle || 'Pedido').slice(0, 80),
+          notificationUrl: base + '/webhook'
+        })
+      });
+      var data = await res.json();
+      if (!res.ok || data.error) {
+        app.innerHTML = '<div class="box"><p class="muted">Erro ao gerar Pix: ' + esc(data.error || res.status) + '</p>' +
+          '<button type="button" class="btn" onclick="location.reload()">Tentar de novo</button></div>';
+        return;
+      }
+
+      await firebase.firestore().collection('orders').doc(id).update({
+        mpPaymentId: String(data.paymentId),
+        pixCopyPaste: data.qr_code || '',
+        pixQrBase64: data.qr_code_base64 || '',
+        paymentMethod: 'pix',
+        paymentExpiresAtMs: data.date_of_expiration ? Date.parse(data.date_of_expiration) : (Date.now() + 30*60*1000),
+        updatedAtMs: Date.now()
+      });
+
+      o.mpPaymentId = String(data.paymentId);
+      o.pixCopyPaste = data.qr_code || '';
+      o.pixQrBase64 = data.qr_code_base64 || '';
+      showPixUI(app, o, user, id, true);
+
+    } catch (e) {
+      app.innerHTML = '<p class="muted">Erro: ' + esc(e.message) + '</p>';
+      console.error(e);
+    }
+  });
+
+  function showPixUI(app, o, user, id, hasWorker){
+    var pix = o.pixCopyPaste || '';
+    var qrImg = o.pixQrBase64
+      ? ('data:image/png;base64,' + o.pixQrBase64)
+      : ('https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(pix || 'pix'));
+
+    app.innerHTML =
+      '<div class="box">' +
+        '<h1>Pagamento Pix</h1>' +
+        '<p class="muted">Pedido <strong>#' + esc(o.code) + '</strong></p>' +
+        '<p style="text-align:center;font-weight:800;font-size:1.2rem;margin:10px 0">' + money(o.total||o.price) + '</p>' +
+        '<div class="qr"><img src="' + qrImg + '" alt="QR Pix"></div>' +
+        '<p class="muted" style="text-align:center">Escaneie o QR no app do banco ou copie o código:</p>' +
+        '<div class="copy"><input id="pixIn" readonly value="' + esc(pix) + '"><button type="button" class="btn" id="btnCopy">Copiar</button></div>' +
+        '<p class="muted" id="statusLine" style="text-align:center;margin-top:14px">Aguardando pagamento…</p>' +
+        '<div id="approvedMsg"></div>' +
+        (hasWorker ? '' : '<button type="button" class="btn" style="width:100%;margin-top:12px" id="btnSim">Simular aprovado</button>') +
+        '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="btnOrder">Ver pedido</button>' +
+      '</div>';
+
+    document.getElementById('btnCopy').onclick = function(){
+      try { navigator.clipboard.writeText(document.getElementById('pixIn').value); alert('Código Pix copiado!'); } catch(e) {}
+    };
+    document.getElementById('btnOrder').onclick = function(){
+      location.href = 'pedido.html?id=' + encodeURIComponent(id);
+    };
+    var sim = document.getElementById('btnSim');
+    if (sim) sim.onclick = async function(){ await markPaid(id); location.href = 'pedido.html?id=' + encodeURIComponent(id); };
+
+    if (hasWorker && o.mpPaymentId) {
+      startPolling(o.mpPaymentId, id);
+    }
+  }
+
+  function startPolling(paymentId, orderId){
+    var base = workerBase();
+    if (!base) return;
+    if (pollTimer) clearInterval(pollTimer);
+    async function tick(){
+      try {
+        var res = await fetch(base + '/status?paymentId=' + encodeURIComponent(paymentId));
+        var data = await res.json();
+        var line = document.getElementById('statusLine');
+        if (line) line.textContent = 'Status: ' + (data.status || '…') + (data.status_detail ? ' (' + data.status_detail + ')' : '');
+        if (data.approved) {
+          clearInterval(pollTimer);
+          if (line) line.textContent = 'Pagamento aprovado!';
+          var m = document.getElementById('approvedMsg');
+          if (m) m.innerHTML = '<p class="ok">✓ Pix confirmado. Abrindo pedido…</p>';
+          await markPaid(orderId);
+          setTimeout(function(){ location.href = 'pedido.html?id=' + encodeURIComponent(orderId); }, 800);
+        }
+      } catch (e) { console.warn(e); }
+    }
+    tick();
+    pollTimer = setInterval(tick, 3000);
+  }
+  </script>
+</body>
+</html>
