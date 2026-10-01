@@ -22,6 +22,7 @@
     .st-pago,.st-em_entrega{background:rgba(59,130,246,.2);color:#93c5fd}
     .st-concluido{background:rgba(34,197,94,.2);color:#4ade80}
     .st-aguardando_pagamento{background:rgba(245,158,11,.2);color:#fbbf24}
+    .st-expirado{background:rgba(239,68,68,.2);color:#f87171}
     .st-cancelado{background:rgba(239,68,68,.15);color:#f87171}
     .btn{padding:10px 14px;border:none;border-radius:10px;background:var(--p);color:#fff;font-weight:700;cursor:pointer;font-size:0.9rem;text-decoration:none;display:inline-block}
     .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
@@ -55,6 +56,18 @@
   <script src="js/firestore-db.js"></script>
   <script src="js/photos.js"></script>
   <script>
+    function bloxzuhStatusLabel(st) {
+      var m = {
+        aguardando_pagamento: 'Aguardando pagamento',
+        pago: 'Pago',
+        em_entrega: 'Em entrega',
+        concluido: 'Concluído',
+        cancelado: 'Cancelado',
+        expirado: 'Pix expirado'
+      };
+      return m[st] || st || '—';
+    }
+
   function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
   function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function label(s){
@@ -128,7 +141,13 @@
 
   async function reload(){
     order = await loadOrder(orderId);
-    draw();
+    if (order.status === 'aguardando_pagamento' && order.paymentExpiresAtMs && Date.now() >= Number(order.paymentExpiresAtMs)) {
+        try {
+          await firebase.firestore().collection('orders').doc(order.id).update({ status: 'expirado', expiredAtMs: Date.now(), updatedAtMs: Date.now() });
+          order.status = 'expirado';
+        } catch (ex) {}
+      }
+      draw();
   }
 
   function draw(){
@@ -138,9 +157,13 @@
     var canChat = o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido';
     var img = o.adCover ? '<img class="thumb" src="' + o.adCover + '" alt="">' : '';
     var actions = '';
-    if (isBuyer && o.status === 'aguardando_pagamento') {
+    var waitingPay = o.status === 'aguardando_pagamento' && !(o.paymentExpiresAtMs && Date.now() >= Number(o.paymentExpiresAtMs));
+    if (isBuyer && waitingPay) {
       actions += '<a class="btn" href="pagamento.html?id=' + encodeURIComponent(o.id) + '">Pagar com Pix</a>';
       actions += '<button type="button" class="btn btn-ghost" id="btnCancel">Cancelar</button>';
+    }
+    if (isBuyer && o.status === 'expirado') {
+      actions += '<span class="badge" style="background:rgba(239,68,68,.2);color:#f87171">Pix expirado — faça um novo pedido</span>';
     }
     if (isSeller && o.status === 'pago') {
       actions += '<button type="button" class="btn" id="btnDeliver">Marcar em entrega</button>';
@@ -161,13 +184,13 @@
         (o.adId ? '<div class="actions"><a class="btn btn-ghost" href="anuncio.html?id=' + encodeURIComponent(o.adId) + '">Ver anúncio</a></div>' : '') +
         '<div class="actions">' + actions + '</div>' +
       '</div>' +
-      (o.paymentMethod ? '<div class="box"><h1>Pagamento</h1><div class="row"><span>Método</span><span>Pix</span></div><div class="row"><span>Status</span><span>' + (o.status === 'aguardando_pagamento' ? 'Pendente' : 'Aprovado') + '</span></div></div>' : '') +
+      (o.paymentMethod ? '<div class="box"><h1>Pagamento</h1><div class="row"><span>Método</span><span>Pix</span></div><div class="row"><span>Status</span><span>' + (o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido' ? 'Aprovado' : (o.status === 'expirado' ? 'Expirado' : 'Pendente')) + '</span></div></div>' : '') +
       (canChat
         ? ('<div class="box"><h1><span style="color:#4ade80">●</span> Chat com o ' + (isBuyer ? 'vendedor' : 'comprador') + '</h1>' +
            renderChat() +
            '<div class="send"><input id="msgIn" placeholder="Digite sua mensagem..."><button type="button" class="btn" id="btnSend"><i class="fas fa-paper-plane"></i></button></div></div>')
         : '<div class="box"><p class="muted">O chat libera após o pagamento ser aprovado. ' +
-          (isBuyer && o.status === 'aguardando_pagamento' ? '<a href="pagamento.html?id=' + encodeURIComponent(o.id) + '" style="color:#c4b5fd">Ir ao pagamento</a>' : '') +
+          (isBuyer && waitingPay ? '<a href="pagamento.html?id=' + encodeURIComponent(o.id) + '" style="color:#c4b5fd">Ir ao pagamento</a>' : (o.status === 'expirado' ? '<span style="color:#f87171">Pagamento expirado</span>' : '')) +
           '</p></div>');
 
     var b;

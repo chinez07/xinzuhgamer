@@ -23,7 +23,15 @@
     .btn{padding:12px 14px;border:none;border-radius:10px;background:var(--p);color:#fff;font-weight:700;cursor:pointer}
     .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
     .ok{color:#4ade80;font-weight:700;text-align:center;margin-top:12px}
-    .warn{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fbbf24;padding:10px 12px;border-radius:10px;font-size:0.85rem;margin-top:12px}
+    .exp{color:#f87171;font-weight:800;text-align:center;font-size:1.1rem;margin:12px 0}
+    .timer{
+      text-align:center;margin:12px 0 4px;padding:12px;border-radius:12px;
+      background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.35);
+      font-weight:800;font-size:1.35rem;letter-spacing:0.04em;color:#c4b5fd;
+    }
+    .timer.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.4);color:#fbbf24}
+    .timer.danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.4);color:#f87171}
+    .timer-label{font-size:0.75rem;font-weight:600;color:var(--muted);margin-bottom:4px;letter-spacing:0}
   </style>
 </head>
 <body>
@@ -39,174 +47,169 @@
   <script src="js/firebase-auth.js"></script>
   <script src="js/mp-config.js"></script>
   <script>
+(function(){
+  /** Tempo para pagar o Pix (15 minutos) */
+  var PIX_TTL_MS = 15 * 60 * 1000;
+
+  var app = document.getElementById('app');
+  var params = new URLSearchParams(location.search);
+  var id = params.get('id') || '';
+  var pollTimer = null;
+  var countdownTimer = null;
+  var expiredHandled = false;
+
   function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
-  function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function workerBase(){
-    var u = (window.MP_WORKER_URL || '').trim().replace(/\/$/, '');
-    return u;
+    var u = (window.MP_WORKER_URL || '').replace(/\/$/,'');
+    return u || '';
   }
-  async function loadOrder(id){
-    var doc = await firebase.firestore().collection('orders').doc(id).get();
-    if (!doc.exists) return null;
+
+  async function getOrder(orderId){
+    var doc = await firebase.firestore().collection('orders').doc(orderId).get();
+    if (!doc.exists) throw new Error('Pedido não encontrado.');
     return Object.assign({ id: doc.id }, doc.data());
   }
-  async function markPaid(id){
-    await firebase.firestore().collection('orders').doc(id).update({
+
+  async function markPaid(orderId){
+    await firebase.firestore().collection('orders').doc(orderId).update({
       status: 'pago',
       paidAtMs: Date.now(),
       updatedAtMs: Date.now()
     });
   }
 
-  var pollTimer = null;
-
-  firebase.auth().onAuthStateChanged(async function(user){
-    var app = document.getElementById('app');
-    if (!user) { location.href = 'login.html'; return; }
-    var id = new URLSearchParams(location.search).get('id') || '';
-    if (!id) { app.innerHTML = '<p class="muted">Pagamento não encontrado.</p>'; return; }
-
+  async function markExpired(orderId){
     try {
-      var o = await loadOrder(id);
-      if (!o) { app.innerHTML = '<p class="muted">Pedido não encontrado.</p>'; return; }
-      if (o.buyerUid !== user.uid) { app.innerHTML = '<p class="muted">Sem acesso.</p>'; return; }
-      if (o.status !== 'aguardando_pagamento') {
-        location.href = 'pedido.html?id=' + encodeURIComponent(id);
-        return;
-      }
-
-      var base = workerBase();
-      var hasWorker = !!base;
-
-      // Se já tem paymentId e qr salvos, só mostra
-      if (o.mpPaymentId && o.pixCopyPaste) {
-        showPixUI(app, o, user, id, hasWorker);
-        return;
-      }
-
-      if (!hasWorker) {
-        // Modo teste sem Worker
-        var pix = o.pixCopyPaste || ('TESTE-BLOXZUH-' + (o.code||id));
-        var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(pix);
-        app.innerHTML =
-          '<div class="box">' +
-            '<h1>Pagamento pendente (modo teste)</h1>' +
-            '<p class="muted">Pedido <strong>#' + esc(o.code) + '</strong> · ' + money(o.total||o.price) + '</p>' +
-            '<div class="warn">Worker do Mercado Pago ainda não configurado. Configure <code>js/mp-config.js</code> com a URL do Worker para Pix real.</div>' +
-            '<div class="qr"><img src="' + qrSrc + '" alt="QR"></div>' +
-            '<div class="copy"><input id="pixIn" readonly value="' + esc(pix) + '"><button type="button" class="btn" id="btnCopy">Copiar</button></div>' +
-            '<button type="button" class="btn" style="width:100%;margin-top:14px" id="btnSim">Simular pagamento aprovado</button>' +
-            '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="btnOrder">Ver pedido</button>' +
-          '</div>';
-        document.getElementById('btnCopy').onclick = function(){
-          try { navigator.clipboard.writeText(document.getElementById('pixIn').value); alert('Copiado!'); } catch(e) {}
-        };
-        document.getElementById('btnSim').onclick = async function(){
-          await markPaid(id);
-          location.href = 'pedido.html?id=' + encodeURIComponent(id);
-        };
-        document.getElementById('btnOrder').onclick = function(){
-          location.href = 'pedido.html?id=' + encodeURIComponent(id);
-        };
-        return;
-      }
-
-      // Criar Pix real no MP
-      app.innerHTML = '<div class="box"><p class="muted">Gerando Pix no Mercado Pago…</p></div>';
-      var name = o.payerName || user.displayName || 'Comprador';
-      var cpf = (o.payerCpf || '').replace(/\D/g, '');
-      var email = o.buyerEmail || user.email || '';
-      if (cpf.length !== 11) {
-        app.innerHTML = '<div class="box"><p class="muted">CPF do pedido inválido. Volte ao checkout e informe o CPF.</p><a class="btn" href="compras.html">Minhas compras</a></div>';
-        return;
-      }
-
-      var res = await fetch(base + '/create-pix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: id,
-          amount: Number(o.total || o.price) || 0,
-          email: email,
-          name: name,
-          cpf: cpf,
-          description: 'Bloxzuh #' + (o.code || id) + ' - ' + (o.adTitle || 'Pedido').slice(0, 80),
-          notificationUrl: base + '/webhook'
-        })
-      });
-      var data = await res.json();
-      if (!res.ok || data.error) {
-        app.innerHTML = '<div class="box"><p class="muted">Erro ao gerar Pix: ' + esc(data.error || res.status) + '</p>' +
-          '<button type="button" class="btn" onclick="location.reload()">Tentar de novo</button></div>';
-        return;
-      }
-
-      await firebase.firestore().collection('orders').doc(id).update({
-        mpPaymentId: String(data.paymentId),
-        pixCopyPaste: data.qr_code || '',
-        pixQrBase64: data.qr_code_base64 || '',
-        paymentMethod: 'pix',
-        paymentExpiresAtMs: data.date_of_expiration ? Date.parse(data.date_of_expiration) : (Date.now() + 30*60*1000),
+      await firebase.firestore().collection('orders').doc(orderId).update({
+        status: 'expirado',
+        expiredAtMs: Date.now(),
         updatedAtMs: Date.now()
       });
+    } catch (e) { console.warn(e); }
+  }
 
-      o.mpPaymentId = String(data.paymentId);
-      o.pixCopyPaste = data.qr_code || '';
-      o.pixQrBase64 = data.qr_code_base64 || '';
-      showPixUI(app, o, user, id, true);
+  function formatRemain(ms){
+    if (ms <= 0) return '00:00';
+    var totalSec = Math.ceil(ms / 1000);
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
 
-    } catch (e) {
-      app.innerHTML = '<p class="muted">Erro: ' + esc(e.message) + '</p>';
-      console.error(e);
+  function stopTimers(){
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  }
+
+  function showExpiredUI(orderId){
+    stopTimers();
+    var box = document.getElementById('pixLive');
+    if (box) {
+      box.innerHTML =
+        '<p class="exp"><i class="fas fa-clock"></i> Pix expirado</p>' +
+        '<p class="muted" style="text-align:center">O tempo para pagar acabou. O QR Code e o código Pix foram desativados.</p>' +
+        '<p class="muted" style="text-align:center;margin-top:8px">Crie um novo pedido pelo anúncio se ainda quiser comprar.</p>';
     }
-  });
+    var t = document.getElementById('timerBox');
+    if (t) {
+      t.className = 'timer danger';
+      t.innerHTML = '<div class="timer-label">Tempo esgotado</div>00:00';
+    }
+    var line = document.getElementById('statusLine');
+    if (line) line.textContent = 'Status: expirado';
+  }
 
-  function showPixUI(app, o, user, id, hasWorker){
-    var pix = o.pixCopyPaste || '';
-    var qrImg = o.pixQrBase64
-      ? ('data:image/png;base64,' + o.pixQrBase64)
-      : ('https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(pix || 'pix'));
+  async function handleExpire(orderId){
+    if (expiredHandled) return;
+    expiredHandled = true;
+    await markExpired(orderId);
+    showExpiredUI(orderId);
+  }
 
+  function startCountdown(expiresAt, orderId){
+    if (countdownTimer) clearInterval(countdownTimer);
+    function tick(){
+      var left = expiresAt - Date.now();
+      var el = document.getElementById('timerBox');
+      if (!el) return;
+      if (left <= 0) {
+        el.className = 'timer danger';
+        el.innerHTML = '<div class="timer-label">Tempo esgotado</div>00:00';
+        handleExpire(orderId);
+        return;
+      }
+      var cls = 'timer';
+      if (left <= 2 * 60 * 1000) cls = 'timer danger';
+      else if (left <= 5 * 60 * 1000) cls = 'timer warn';
+      el.className = cls;
+      el.innerHTML = '<div class="timer-label">Pague em até</div>' + formatRemain(left);
+    }
+    tick();
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  function renderPixUI(o, pix, qrImg, expiresAt){
+    var hasWorker = !!workerBase();
     app.innerHTML =
       '<div class="box">' +
         '<h1>Pagamento Pix</h1>' +
-        '<p class="muted">Pedido <strong>#' + esc(o.code) + '</strong></p>' +
+        '<p class="muted">Pedido #' + esc(o.code || o.id) + '</p>' +
         '<p style="text-align:center;font-weight:800;font-size:1.2rem;margin:10px 0">' + money(o.total||o.price) + '</p>' +
-        '<div class="qr"><img src="' + qrImg + '" alt="QR Pix"></div>' +
-        '<p class="muted" style="text-align:center">Escaneie o QR no app do banco ou copie o código:</p>' +
-        '<div class="copy"><input id="pixIn" readonly value="' + esc(pix) + '"><button type="button" class="btn" id="btnCopy">Copiar</button></div>' +
+        '<div class="timer" id="timerBox"><div class="timer-label">Pague em até</div>--</div>' +
+        '<div id="pixLive">' +
+          '<div class="qr"><img src="' + qrImg + '" alt="QR Pix"></div>' +
+          '<p class="muted" style="text-align:center">Escaneie o QR no app do banco ou copie o código:</p>' +
+          '<div class="copy"><input id="pixIn" readonly value="' + esc(pix) + '"><button type="button" class="btn" id="btnCopy">Copiar</button></div>' +
+        '</div>' +
         '<p class="muted" id="statusLine" style="text-align:center;margin-top:14px">Aguardando pagamento…</p>' +
         '<div id="approvedMsg"></div>' +
         (hasWorker ? '' : '<button type="button" class="btn" style="width:100%;margin-top:12px" id="btnSim">Simular aprovado</button>') +
         '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="btnOrder">Ver pedido</button>' +
       '</div>';
 
-    document.getElementById('btnCopy').onclick = function(){
+    var btnCopy = document.getElementById('btnCopy');
+    if (btnCopy) btnCopy.onclick = function(){
       try { navigator.clipboard.writeText(document.getElementById('pixIn').value); alert('Código Pix copiado!'); } catch(e) {}
     };
     document.getElementById('btnOrder').onclick = function(){
       location.href = 'pedido.html?id=' + encodeURIComponent(id);
     };
     var sim = document.getElementById('btnSim');
-    if (sim) sim.onclick = async function(){ await markPaid(id); location.href = 'pedido.html?id=' + encodeURIComponent(id); };
+    if (sim) sim.onclick = async function(){
+      stopTimers();
+      await markPaid(id);
+      location.href = 'pedido.html?id=' + encodeURIComponent(id);
+    };
+
+    startCountdown(expiresAt, id);
+
+    if (Date.now() >= expiresAt) {
+      handleExpire(id);
+      return;
+    }
 
     if (hasWorker && o.mpPaymentId) {
-      startPolling(o.mpPaymentId, id);
+      startPolling(o.mpPaymentId, id, expiresAt);
     }
   }
 
-  function startPolling(paymentId, orderId){
+  function startPolling(paymentId, orderId, expiresAt){
     var base = workerBase();
     if (!base) return;
     if (pollTimer) clearInterval(pollTimer);
     async function tick(){
+      if (Date.now() >= expiresAt) {
+        await handleExpire(orderId);
+        return;
+      }
       try {
         var res = await fetch(base + '/status?paymentId=' + encodeURIComponent(paymentId));
         var data = await res.json();
         var line = document.getElementById('statusLine');
         if (line) line.textContent = 'Status: ' + (data.status || '…') + (data.status_detail ? ' (' + data.status_detail + ')' : '');
         if (data.approved) {
-          clearInterval(pollTimer);
+          stopTimers();
           if (line) line.textContent = 'Pagamento aprovado!';
           var m = document.getElementById('approvedMsg');
           if (m) m.innerHTML = '<p class="ok">✓ Pix confirmado. Abrindo pedido…</p>';
@@ -218,6 +221,129 @@
     tick();
     pollTimer = setInterval(tick, 3000);
   }
+
+  async function ensurePix(o){
+    var expiresAt = Number(o.paymentExpiresAtMs) || 0;
+    if (o.mpPaymentId && o.pixCopyPaste && expiresAt > Date.now()) {
+      var qr = o.pixQrBase64
+        ? (String(o.pixQrBase64).indexOf('data:') === 0 ? o.pixQrBase64 : ('data:image/png;base64,' + o.pixQrBase64))
+        : ('https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(o.pixCopyPaste));
+      renderPixUI(o, o.pixCopyPaste, qr, expiresAt);
+      return;
+    }
+    // já expirou no banco
+    if (o.status === 'expirado' || (expiresAt && expiresAt <= Date.now() && o.mpPaymentId)) {
+      if (o.status !== 'expirado') await markExpired(o.id);
+      app.innerHTML =
+        '<div class="box">' +
+          '<h1>Pagamento Pix</h1>' +
+          '<p class="muted">Pedido #' + esc(o.code || o.id) + '</p>' +
+          '<p class="exp"><i class="fas fa-clock"></i> Pix expirado</p>' +
+          '<p class="muted" style="text-align:center">O tempo para pagar acabou. Gere um novo pedido pelo anúncio.</p>' +
+          '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:12px" onclick="location.href=\'pedido.html?id=' + encodeURIComponent(o.id) + '\'">Ver pedido</button>' +
+        '</div>';
+      return;
+    }
+
+    var base = workerBase();
+    if (!base) {
+      // modo simulação local
+      expiresAt = Date.now() + PIX_TTL_MS;
+      var fakePix = '00020126BLOXZUH-TEST-' + (o.code || o.id);
+      await firebase.firestore().collection('orders').doc(o.id).update({
+        pixCopyPaste: fakePix,
+        paymentExpiresAtMs: expiresAt,
+        updatedAtMs: Date.now()
+      });
+      o.pixCopyPaste = fakePix;
+      o.paymentExpiresAtMs = expiresAt;
+      var qr2 = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(fakePix);
+      renderPixUI(o, fakePix, qr2, expiresAt);
+      return;
+    }
+
+    app.innerHTML = '<div class="box"><p class="muted">Gerando QR Code Pix…</p></div>';
+    var res = await fetch(base + '/create-pix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: o.id,
+        amount: Number(o.total != null ? o.total : o.price) || 0,
+        description: 'Bloxzuh ' + (o.code || o.id),
+        payerEmail: (firebase.auth().currentUser && firebase.auth().currentUser.email) || '',
+        payerName: o.buyerName || ''
+      })
+    });
+    var data = await res.json().catch(function(){ return {}; });
+    if (!res.ok || data.error) {
+      app.innerHTML = '<div class="box"><p class="muted">Erro ao gerar Pix: ' + esc(data.error || res.status) + '</p>' +
+        '<button class="btn" style="margin-top:12px" onclick="location.reload()">Tentar de novo</button></div>';
+      return;
+    }
+    expiresAt = data.date_of_expiration ? Date.parse(data.date_of_expiration) : (Date.now() + PIX_TTL_MS);
+    // garante no máximo o TTL do site
+    var maxExp = Date.now() + PIX_TTL_MS;
+    if (!expiresAt || expiresAt > maxExp) expiresAt = maxExp;
+
+    var pix = data.qr_code || data.pixCopyPaste || '';
+    var qrB64 = data.qr_code_base64 || data.pixQrBase64 || '';
+    var qrImg = qrB64
+      ? (String(qrB64).indexOf('data:') === 0 ? qrB64 : ('data:image/png;base64,' + qrB64))
+      : ('https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(pix));
+
+    await firebase.firestore().collection('orders').doc(o.id).update({
+      mpPaymentId: String(data.paymentId || data.id || ''),
+      pixCopyPaste: pix,
+      pixQrBase64: qrB64 || '',
+      paymentExpiresAtMs: expiresAt,
+      updatedAtMs: Date.now()
+    });
+    o.mpPaymentId = String(data.paymentId || data.id || '');
+    o.pixCopyPaste = pix;
+    o.paymentExpiresAtMs = expiresAt;
+    renderPixUI(o, pix, qrImg, expiresAt);
+  }
+
+  firebase.auth().onAuthStateChanged(async function(user){
+    if (!user) {
+      location.href = 'login.html?redirect=' + encodeURIComponent(location.href);
+      return;
+    }
+    if (!id) {
+      app.innerHTML = '<div class="box"><p class="muted">Pedido inválido.</p></div>';
+      return;
+    }
+    try {
+      var o = await getOrder(id);
+      if (o.buyerUid && o.buyerUid !== user.uid && o.sellerUid !== user.uid) {
+        app.innerHTML = '<div class="box"><p class="muted">Sem permissão para este pedido.</p></div>';
+        return;
+      }
+      if (o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido') {
+        location.href = 'pedido.html?id=' + encodeURIComponent(id);
+        return;
+      }
+      if (o.status === 'cancelado') {
+        app.innerHTML = '<div class="box"><p class="exp">Pedido cancelado</p></div>';
+        return;
+      }
+      if (o.status === 'expirado') {
+        app.innerHTML =
+          '<div class="box">' +
+            '<h1>Pagamento Pix</h1>' +
+            '<p class="exp"><i class="fas fa-clock"></i> Pix expirado</p>' +
+            '<p class="muted" style="text-align:center">O tempo para pagar este pedido acabou.</p>' +
+            '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:12px" onclick="location.href=\'compras.html\'">Minhas compras</button>' +
+          '</div>';
+        return;
+      }
+      await ensurePix(o);
+    } catch (e) {
+      console.error(e);
+      app.innerHTML = '<div class="box"><p class="muted">' + esc(e.message || 'Erro') + '</p></div>';
+    }
+  });
+})();
   </script>
 </body>
 </html>
