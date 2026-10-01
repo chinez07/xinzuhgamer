@@ -1306,7 +1306,7 @@ img { max-width: 100%; display: block; }
         <h2 style="font-size:1.1rem;margin-bottom:14px">Anúncios recentes</h2>
         <div style="overflow-x:auto" id="dashTableWrap"></div>
         <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
-          <button type="button" class="btn btn-primary" href="anunciar.html"><i class="fas fa-plus"></i> Criar novo anúncio</button>
+          <a class="btn btn-primary" href="anunciar.html" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none"><i class="fas fa-plus"></i> Criar novo anúncio</a>
           <button type="button" class="btn btn-outline" data-goto="wallet"><i class="fas fa-wallet"></i> Solicitar saque</button>
         </div>
       </section>
@@ -1584,7 +1584,7 @@ img { max-width: 100%; display: block; }
           const badge = a.status === 'ativo' ? 'badge-ativo' : (a.status === 'pausado' ? 'badge-pausado' : 'badge-vendido');
           const label = a.status === 'ativo' ? 'Ativo' : (a.status === 'pausado' ? 'Pausado' : 'Esgotado');
           const toggleLabel = a.status === 'ativo' ? 'Pausar' : 'Ativar';
-          return '<tr><td><strong>' + escapeHtml(a.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(a.category) + '</small></td><td>' + money(a.price) + '</td><td><strong>' + String(Number(a.sales) || 0) + '</strong></td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td class="actions-row"><button type="button" class="btn-xs" data-act="toggle" data-id="' + a.id + '" data-status="' + a.status + '">' + toggleLabel + '</button><button type="button" class="btn-xs danger" data-act="del" data-id="' + a.id + '">Excluir</button></td></tr>';
+          return '<tr><td><strong>' + escapeHtml(a.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(a.category) + '</small></td><td>' + money(a.price) + '</td><td><strong>' + String(Number(a.sales) || 0) + '</strong></td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td class="actions-row"><a class="btn-xs" href="anunciar.html?edit=' + encodeURIComponent(a.id) + '" style="text-decoration:none;display:inline-block">Editar</a><button type="button" class="btn-xs" data-act="toggle" data-id="' + a.id + '" data-status="' + a.status + '">' + toggleLabel + '</button><button type="button" class="btn-xs danger" data-act="del" data-id="' + a.id + '">Excluir</button></td></tr>';
         }).join('') + '</tbody></table></div>';
 
       list.querySelectorAll('[data-act]').forEach(function (btn) {

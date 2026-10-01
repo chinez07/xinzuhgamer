@@ -568,6 +568,27 @@
         if (!cover) {
           console.warn('Publicando sem capa (imagem grande ou falha).');
         }
+        if (editAdId) {
+          var stockVal = parseInt(document.getElementById('stock').value, 10) || 1;
+          var patch = {
+            title: document.getElementById('title').value.trim(),
+            category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Outros',
+            subcategory: document.getElementById('subcategory').value || '',
+            section: document.getElementById('section') ? document.getElementById('section').value : '',
+            price: parseFloat(document.getElementById('price').value),
+            stock: stockVal,
+            desc: document.getElementById('desc') ? document.getElementById('desc').value.trim() : '',
+            status: stockVal > 0 ? 'ativo' : 'pausado'
+          };
+          if (typeof fsUpdateAd === 'function') {
+            await fsUpdateAd(editAdId, patch);
+          } else {
+            await firebase.firestore().collection('ads').doc(editAdId).update(patch);
+          }
+          showMsg('Anúncio atualizado!', 'ok');
+          setTimeout(function(){ location.href = 'painel.html'; }, 800);
+          return;
+        }
         await fsCreateAd({
           title: document.getElementById('title').value.trim(),
           category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Outros',
@@ -602,7 +623,55 @@
       else { localStorage.clear(); location.href = 'login.html'; }
     });
 
+    
+    // Modo edição: ?edit=AD_ID
+    var editAdId = (new URLSearchParams(location.search).get('edit') || '').trim();
+
+    async function loadAdForEdit(id) {
+      var doc = await firebase.firestore().collection('ads').doc(id).get();
+      if (!doc.exists) throw new Error('Anúncio não encontrado.');
+      var d = doc.data();
+      var u = firebase.auth().currentUser;
+      if (!u || d.sellerUid !== u.uid) throw new Error('Sem permissão para editar.');
+      document.getElementById('title').value = d.title || '';
+      document.getElementById('price').value = d.price != null ? d.price : '';
+      document.getElementById('stock').value = d.stock != null ? d.stock : 1;
+      if (d.desc && document.getElementById('desc')) document.getElementById('desc').value = d.desc;
+      if (d.category && document.getElementById('category')) {
+        var cat = document.getElementById('category');
+        for (var i = 0; i < cat.options.length; i++) {
+          if (cat.options[i].value === d.category || cat.options[i].text === d.category) {
+            cat.selectedIndex = i; break;
+          }
+        }
+      }
+      if (d.subcategory && document.getElementById('subcategory')) {
+        try { document.getElementById('subcategory').value = d.subcategory; } catch (e) {}
+      }
+      // status: se estava pausado por estoque 0 e agora stock > 0, usuário
+      var h = document.querySelector('h1, .page-title, .hero-title');
+      if (!h) {
+        var t = document.querySelector('title');
+      }
+      document.title = 'Editar anúncio | Bloxzuh';
+      var pub = document.getElementById('btnPublish') || document.querySelector('[data-publish], #btnSubmit, button.btn-primary.btn-block');
+      // find publish button - usually last continue/publish
+      document.querySelectorAll('button').forEach(function(btn) {
+        if (/publicar|anunciar|finalizar/i.test(btn.textContent || '')) {
+          btn.innerHTML = '<i class="fas fa-save"></i> Salvar alterações';
+          btn.setAttribute('data-edit-mode', '1');
+        }
+      });
+      showMsg('Editando anúncio. Altere os campos e salve.', 'ok');
+      return d;
+    }
+
     firebase.auth().onAuthStateChanged(user => {
+      if (user && editAdId) {
+        loadAdForEdit(editAdId).catch(function(e) {
+          showMsg(e.message || 'Erro ao carregar anúncio', 'err');
+        });
+      }
       if (!user) { location.href = 'login.html'; return; }
       const name = user.displayName || (user.email && user.email.split('@')[0]) || 'Vendedor';
       document.getElementById('helloName').textContent = 'Olá, ' + name + '!';
