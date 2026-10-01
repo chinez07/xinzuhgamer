@@ -489,15 +489,25 @@ async function fsCreateOrder(ad, extra) {
   if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
 
   const price = Number(ad.price) || 0;
+  // ID do documento = código do pedido (ex: BZD3GNDR)
+  let code = orderCode();
+  let ref = getDb().collection('orders').doc(code);
+  // evita colisão rara
+  for (let i = 0; i < 5; i++) {
+    const exists = await ref.get();
+    if (!exists.exists) break;
+    code = orderCode();
+    ref = getDb().collection('orders').doc(code);
+  }
   const payload = {
-    code: orderCode(),
+    code: code,
     adId: ad.id,
     adTitle: ad.title || '',
     adCover: ad.cover || '',
     price: price,
     quantity: (extra && extra.quantity) || 1,
     total: price * ((extra && extra.quantity) || 1),
-    status: 'aguardando_pagamento', // aguardando_pagamento | pago | em_entrega | concluido | cancelado
+    status: 'aguardando_pagamento', // aguardando_pagamento | pago | em_entrega | concluido | cancelado | expirado
     buyerUid: u.uid,
     buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
     buyerEmail: u.email || '',
@@ -509,8 +519,8 @@ async function fsCreateOrder(ad, extra) {
     createdAtMs: Date.now(),
     updatedAtMs: Date.now()
   };
-  const ref = await getDb().collection('orders').add(payload);
-  return Object.assign({ id: ref.id }, payload);
+  await ref.set(payload);
+  return Object.assign({ id: code }, payload);
 }
 
 async function fsGetMyPurchases() {
