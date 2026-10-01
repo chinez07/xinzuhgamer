@@ -1048,6 +1048,11 @@ img { max-width: 100%; display: block; }
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
   <script>
+try {
+  var _c = new URLSearchParams(location.search).get('cat');
+  if (_c) localStorage.setItem('bloxzuh-focus-cat', _c);
+} catch (e) {}
+
 const adsData = [];
 
 // ===== Theme & Mode =====
