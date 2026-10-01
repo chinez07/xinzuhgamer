@@ -25,10 +25,14 @@ function saveUser(user, method) {
   localStorage.setItem('xinzuh-username', user.displayName || (user.email ? user.email.split('@')[0] : 'Jogador'));
   localStorage.setItem('xinzuh-email', user.email || '');
   var custom = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
-  // Nunca troca foto custom pela do Google
-  if (custom) {
+  var isCustom = localStorage.getItem('xinzuh-photo-custom-' + user.uid) === '1';
+  // Nunca sobrescreve foto que o usuário escolheu
+  if (custom && (isCustom || custom.indexOf('data:') === 0)) {
+    localStorage.setItem('xinzuh-photo', custom);
+  } else if (custom) {
     localStorage.setItem('xinzuh-photo', custom);
   } else if (user.photoURL) {
+    // só Google se ainda não tem custom
     localStorage.setItem('xinzuh-photo-' + user.uid, user.photoURL);
     localStorage.setItem('xinzuh-photo', user.photoURL);
   } else {
@@ -218,7 +222,7 @@ async function uploadProfilePhoto(file) {
     reader.onload = function () {
       const img = new Image();
       img.onload = function () {
-        const max = 400;
+        const max = 280;
         let w = img.width, h = img.height;
         if (w > max || h > max) {
           if (w > h) { h = Math.round(h * max / w); w = max; }
@@ -228,7 +232,7 @@ async function uploadProfilePhoto(file) {
         canvas.width = w; canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
       };
       img.onerror = function () { reject(new Error('Não foi possível ler a imagem.')); };
       img.src = reader.result;
@@ -240,6 +244,7 @@ async function uploadProfilePhoto(file) {
   try {
     localStorage.setItem('xinzuh-photo-' + user.uid, dataUrl);
     localStorage.setItem('xinzuh-photo', dataUrl);
+    localStorage.setItem('xinzuh-photo-custom-' + user.uid, '1');
   } catch (e) {
     throw new Error('Espaço insuficiente no navegador. Use uma imagem menor.');
   }

@@ -14,6 +14,9 @@ window.BloxzuhPhotos = (function () {
       localStorage.setItem('xinzuh-photo-' + uid, url);
       var me = firebase.auth().currentUser;
       if (me && me.uid === uid) localStorage.setItem('xinzuh-photo', url);
+      if (url && String(url).indexOf('data:') === 0) {
+        try { localStorage.setItem('xinzuh-photo-custom-' + uid, '1'); } catch (e2) {}
+      }
     } catch (e) {}
   }
 
