@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categorias | Bloxzuh</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --p: #7c3aed;
+      --bg: #0f0f14;
+      --card: #16161f;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --border: #2a2a36;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .top {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--card); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px; text-decoration: none; color: #fff; font-weight: 800;
+    }
+    .logo-i {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .top-actions { display: flex; gap: 8px; align-items: center; }
+    .icon-btn {
+      width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border);
+      background: transparent; color: var(--text); display: flex; align-items: center; justify-content: center;
+      text-decoration: none; font-size: 1rem;
+    }
+    .btn-anunciar {
+      background: var(--p); color: #fff; border: none; border-radius: 10px;
+      padding: 10px 14px; font-weight: 700; text-decoration: none; font-size: 0.9rem;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+    .crumb { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+    .crumb a { color: #c4b5fd; text-decoration: none; }
+    .hero { text-align: center; margin-bottom: 28px; }
+    .hero-icon {
+      width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 14px;
+      background: rgba(124,58,237,.2); color: #c4b5fd;
+      display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+    }
+    .hero h1 { font-size: 1.75rem; margin-bottom: 8px; }
+    .hero p { color: var(--muted); font-size: 0.95rem; max-width: 420px; margin: 0 auto; line-height: 1.45; }
+    .search-wrap { max-width: 420px; margin: 20px auto 28px; position: relative; }
+    .search-wrap i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .search-wrap input {
+      width: 100%; padding: 12px 14px 12px 40px; border-radius: 12px;
+      border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.95rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    @media (min-width: 600px) {
+      .grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    }
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: repeat(4, 1fr); }
+    }
+    .card {
+      background: var(--card); border-radius: 14px; overflow: hidden;
+      text-decoration: none; color: inherit; border: 1px solid var(--border);
+      transition: transform .15s, border-color .15s;
+      display: flex; flex-direction: column;
+    }
+    .card:hover { transform: translateY(-2px); border-color: #7c3aed; }
+    .card-img {
+      aspect-ratio: 1 / 1; background: #1e1b4b; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-img img { width: 100%; height: 100%; object-fit: cover; }
+    .card-img .placeholder {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.5rem; color: #fff;
+      background: linear-gradient(135deg, #4c1d95, #7c3aed);
+    }
+    .card-name {
+      padding: 10px 12px; font-size: 0.88rem; font-weight: 600; text-align: center;
+      line-height: 1.3;
+    }
+    .empty { text-align: center; color: var(--muted); padding: 40px 16px; grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <a class="logo" href="index.html">
+      <div class="logo-i"><i class="fas fa-bolt"></i></div>
+      Bloxzuh
+    </a>
+    <div class="top-actions">
+      <a class="btn-anunciar" href="anunciar.html"><i class="fas fa-plus"></i> Anunciar</a>
+      <a class="icon-btn" href="compras.html" title="Minhas compras"><i class="fas fa-shopping-cart"></i></a>
+      <a class="icon-btn" href="index.html" title="Início"><i class="fas fa-home"></i></a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="crumb"><a href="index.html">Início</a> › Categorias</div>
+    <div class="hero">
+      <div class="hero-icon"><i class="fas fa-th-large"></i></div>
+      <h1>Categorias</h1>
+      <p>Explore diversas categorias e encontre tudo o que precisa para comprar ou vender de forma rápida e segura.</p>
+    </div>
+    <div class="search-wrap">
+      <i class="fas fa-filter"></i>
+      <input type="search" id="catFilter" placeholder="Digite aqui para filtrar" autocomplete="off">
+    </div>
+    <div class="grid" id="catGrid"></div>
+  </div>
+
+  <script>
+  // Categorias Bloxzuh (imagens locais quando existirem)
+  var CATEGORIES = [
+    { id: 'freefire', name: 'Free Fire', img: 'assets/categorias/freefire.jpg' },
+    { id: 'roblox', name: 'Roblox', img: 'assets/categorias/roblox.jpg' },
+    { id: 'valorant', name: 'Valorant', img: 'assets/categorias/valorant.jpg' },
+    { id: 'lol', name: 'League of Legends', img: 'assets/categorias/lol.jpg' },
+    { id: 'fortnite', name: 'Fortnite', img: 'assets/categorias/fortnite.jpg' },
+    { id: 'genshin', name: 'Genshin Impact', img: 'assets/categorias/genshin.jpg' },
+    { id: 'cs2', name: 'CS2', img: 'assets/categorias/cs2.jpg' },
+    { id: 'premium', name: 'Assinaturas', img: 'assets/categorias/assinaturas.jpg' },
+    { id: '8ballpool', name: '8 Ball Pool', img: '' },
+    { id: 'a3stillalive', name: 'A3: Still Alive', img: '' },
+    { id: 'apex', name: 'Apex Legends', img: '' },
+    { id: 'brawlstars', name: 'Brawl Stars', img: '' },
+    { id: 'clashofclans', name: 'Clash of Clans', img: '' },
+    { id: 'clashroyale', name: 'Clash Royale', img: '' },
+    { id: 'codmobile', name: 'Call of Duty Mobile', img: '' },
+    { id: 'deltaforce', name: 'Delta Force', img: '' },
+    { id: 'fifa', name: 'EA FC / FIFA', img: '' },
+    { id: 'growtopia', name: 'Growtopia', img: '' },
+    { id: 'hayday', name: 'Hay Day', img: '' },
+    { id: 'minecraft', name: 'Minecraft', img: '' },
+    { id: 'mobilelegends', name: 'Mobile Legends', img: '' },
+    { id: 'newworld', name: 'New World', img: '' },
+    { id: 'osu', name: 'osu!', img: '' },
+    { id: 'pubg', name: 'PUBG Mobile', img: '' },
+    { id: 'steam', name: 'Steam', img: '' },
+    { id: 'wildrift', name: 'Wild Rift', img: '' },
+    { id: 'other', name: 'Outros', img: '' }
+  ];
+
+  function render(list) {
+    var grid = document.getElementById('catGrid');
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty">Nenhuma categoria encontrada.</div>';
+      return;
+    }
+    grid.innerHTML = list.map(function (c) {
+      var img = c.img
+        ? '<div class="card-img"><img src="' + c.img + '" alt="' + c.name + '" onerror="this.parentNode.innerHTML=\\'<div class=placeholder>' + c.name.charAt(0) + '</div>\\'"></div>'
+        : '<div class="card-img"><div class="placeholder">' + c.name.charAt(0).toUpperCase() + '</div></div>';
+      return '<a class="card" href="anuncios.html?cat=' + encodeURIComponent(c.id) + '">' +
+        img + '<div class="card-name">' + c.name + '</div></a>';
+    }).join('');
+  }
+
+  render(CATEGORIES);
+
+  document.getElementById('catFilter').addEventListener('input', function () {
+    var q = (this.value || '').trim().toLowerCase();
+    if (!q) { render(CATEGORIES); return; }
+    render(CATEGORIES.filter(function (c) {
+      return c.name.toLowerCase().indexOf(q) !== -1 || c.id.indexOf(q) !== -1;
+    }));
+  });
+  </script>
+</body>
+</html>
