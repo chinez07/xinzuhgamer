@@ -85,12 +85,64 @@ async function fsDeleteAd(adId) {
   await ref.delete();
 }
 
+/** Tempo até liberar saldo: 1 min (teste). Produção: 10 dias = 10*24*60*60*1000 */
+window.BLOXZUH_RELEASE_MS = window.BLOXZUH_RELEASE_MS || (1 * 60 * 1000);
+
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+async function fsGetWalletRaw(uid) {
+  const doc = await getDb().collection('wallets').doc(uid).get();
+  if (!doc.exists) {
+    return { saldo: 0, pending: 0, pendingItems: [], withdrawn: 0 };
+  }
+  const d = doc.data();
+  return {
+    saldo: Number(d.saldo) || 0,
+    pending: Number(d.pending) || 0,
+    pendingItems: Array.isArray(d.pendingItems) ? d.pendingItems : [],
+    withdrawn: Number(d.withdrawn) || 0
+  };
+}
+
+/** Move itens vencidos de "a liberar" → "disponível" */
+async function fsProcessWalletReleases(uid) {
+  const w = await fsGetWalletRaw(uid);
+  const now = Date.now();
+  let moved = 0;
+  const items = (w.pendingItems || []).map(function (it) {
+    if (!it.released && it.releaseAtMs && it.releaseAtMs <= now) {
+      moved = round2(moved + (Number(it.amount) || 0));
+      return Object.assign({}, it, { released: true, releasedAtMs: now });
+    }
+    return it;
+  });
+  if (moved > 0) {
+    const saldo = round2(w.saldo + moved);
+    const pending = round2(items.filter(function (it) { return !it.released; })
+      .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
+    await getDb().collection('wallets').doc(uid).set({
+      saldo: saldo,
+      pending: pending,
+      pendingItems: items,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    return { saldo: saldo, pending: pending, pendingItems: items, withdrawn: w.withdrawn, moved: moved };
+  }
+  const pending = round2(items.filter(function (it) { return !it.released; })
+    .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
+  // keep pending in sync
+  if (pending !== w.pending) {
+    await getDb().collection('wallets').doc(uid).set({ pending: pending, pendingItems: items }, { merge: true });
+  }
+  return { saldo: w.saldo, pending: pending, pendingItems: items, withdrawn: w.withdrawn, moved: 0 };
+}
+
 async function fsGetWallet() {
   const u = requireUser();
-  const doc = await getDb().collection('wallets').doc(u.uid).get();
-  if (!doc.exists) return { saldo: 0, pending: 0 };
-  const d = doc.data();
-  return { saldo: Number(d.saldo) || 0, pending: Number(d.pending) || 0 };
+  // processa liberações vencidas
+  return await fsProcessWalletReleases(u.uid);
 }
 
 async function fsSetWallet(saldo, pending) {
@@ -101,6 +153,77 @@ async function fsSetWallet(saldo, pending) {
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
 }
+
+/**
+ * Sincroniza vendas pagas → saldo a liberar do vendedor logado.
+ * Chamado no painel (tempo real ao abrir / a cada X segundos).
+ */
+async function fsSyncSellerWallet() {
+  const u = requireUser();
+  const releaseMs = window.BLOXZUH_RELEASE_MS || 60000;
+  const snap = await getDb().collection('orders')
+    .where('sellerUid', '==', u.uid)
+    .limit(50)
+    .get();
+
+  let w = await fsGetWalletRaw(u.uid);
+  let items = (w.pendingItems || []).slice();
+  let changed = false;
+  const existingIds = {};
+  items.forEach(function (it) { if (it.orderId) existingIds[it.orderId] = true; });
+
+  const batchMarks = [];
+  snap.forEach(function (doc) {
+    const o = doc.data();
+    const st = o.status || '';
+    if (st !== 'pago' && st !== 'em_entrega' && st !== 'concluido') return;
+    if (o.sellerWalletApplied) return;
+    if (existingIds[doc.id]) return;
+
+    const gross = Number(o.total != null ? o.total : o.price) || 0;
+    const feePct = Number(o.feePercent) || 9.99;
+    const net = round2(gross * (1 - feePct / 100));
+    if (net <= 0) return;
+
+    const paidAt = Number(o.paidAtMs) || Number(o.updatedAtMs) || Date.now();
+    items.push({
+      orderId: doc.id,
+      code: o.code || '',
+      amount: net,
+      gross: gross,
+      feePercent: feePct,
+      releaseAtMs: paidAt + releaseMs,
+      released: false,
+      createdAtMs: Date.now()
+    });
+    existingIds[doc.id] = true;
+    batchMarks.push(doc.id);
+    changed = true;
+  });
+
+  if (changed) {
+    const pending = round2(items.filter(function (it) { return !it.released; })
+      .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
+    await getDb().collection('wallets').doc(u.uid).set({
+      saldo: w.saldo,
+      pending: pending,
+      pendingItems: items,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    // marca pedidos para não creditar 2x
+    for (var i = 0; i < batchMarks.length; i++) {
+      try {
+        await getDb().collection('orders').doc(batchMarks[i]).update({
+          sellerWalletApplied: true,
+          sellerNet: items.filter(function (it) { return it.orderId === batchMarks[i]; })[0].amount
+        });
+      } catch (e) { console.warn('mark order wallet', e); }
+    }
+  }
+
+  return await fsProcessWalletReleases(u.uid);
+}
+
 
 async function fsGetLegacySales() {
   const u = requireUser();
@@ -462,3 +585,6 @@ window.fsSaveProfile = fsSaveProfile;
 window.fsGetProfile = fsGetProfile;
 window.fsGetWallet = fsGetWallet;
 console.log('[Bloxzuh] firestore-db carregado, fsCreateOrder=', typeof fsCreateOrder);
+
+window.fsSyncSellerWallet = fsSyncSellerWallet;
+window.fsProcessWalletReleases = fsProcessWalletReleases;
