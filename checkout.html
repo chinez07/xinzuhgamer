@@ -68,6 +68,13 @@
     if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
     var price = Number(ad.price) || 0;
     var code = 'BZ' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    var ref = firebase.firestore().collection('orders').doc(code);
+    for (var i = 0; i < 5; i++) {
+      var exists = await ref.get();
+      if (!exists.exists) break;
+      code = 'BZ' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      ref = firebase.firestore().collection('orders').doc(code);
+    }
     var payload = {
       code: code,
       adId: ad.id,
@@ -87,8 +94,8 @@
       createdAtMs: Date.now(),
       updatedAtMs: Date.now()
     };
-    var ref = await firebase.firestore().collection('orders').add(payload);
-    return Object.assign({ id: ref.id }, payload);
+    await ref.set(payload);
+    return Object.assign({ id: code }, payload);
   }
   async function setPaymentLocal(orderId, data) {
     if (typeof fsSetOrderPayment === 'function') return fsSetOrderPayment(orderId, data);
