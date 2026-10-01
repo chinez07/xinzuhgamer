@@ -158,6 +158,57 @@ async function fsSetWallet(saldo, pending) {
  * Sincroniza vendas pagas → saldo a liberar do vendedor logado.
  * Chamado no painel (tempo real ao abrir / a cada X segundos).
  */
+
+/** Aplica estoque/vendas dos pedidos pagos ainda não processados + sincroniza carteira */
+async function fsSyncSellerSalesAndWallet() {
+  const u = requireUser();
+  const releaseMs = window.BLOXZUH_RELEASE_MS || 60000;
+  let snap;
+  try {
+    snap = await getDb().collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
+  } catch (e) {
+    console.warn('orders query', e);
+    // fallback: get all and filter (if rules allow)
+    snap = await getDb().collection('orders').limit(80).get();
+  }
+
+  const orders = [];
+  snap.forEach(function (doc) {
+    const o = Object.assign({ id: doc.id }, doc.data());
+    if (o.sellerUid === u.uid) orders.push(o);
+  });
+
+  // 1) Estoque + vendas por anúncio
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    var st = o.status || '';
+    if (st !== 'pago' && st !== 'em_entrega' && st !== 'concluido') continue;
+    if (o.stockApplied) continue;
+    if (!o.adId) {
+      try { await getDb().collection('orders').doc(o.id).update({ stockApplied: true }); } catch (e) {}
+      continue;
+    }
+    try {
+      var aref = getDb().collection('ads').doc(o.adId);
+      var adoc = await aref.get();
+      if (adoc.exists && adoc.data().sellerUid === u.uid) {
+        var ad = adoc.data();
+        var stock = Math.max(0, (Number(ad.stock) || 0) - (Number(o.quantity) || 1));
+        var sales = (Number(ad.sales) || 0) + (Number(o.quantity) || 1);
+        var patch = { stock: stock, sales: sales };
+        if (stock <= 0) patch.status = 'pausado';
+        await aref.update(patch);
+      }
+      await getDb().collection('orders').doc(o.id).update({ stockApplied: true });
+    } catch (e) {
+      console.warn('stock apply', o.id, e);
+    }
+  }
+
+  // 2) Carteira
+  return await fsSyncSellerWallet();
+}
+
 async function fsSyncSellerWallet() {
   const u = requireUser();
   const releaseMs = window.BLOXZUH_RELEASE_MS || 60000;
@@ -588,3 +639,4 @@ console.log('[Bloxzuh] firestore-db carregado, fsCreateOrder=', typeof fsCreateO
 
 window.fsSyncSellerWallet = fsSyncSellerWallet;
 window.fsProcessWalletReleases = fsProcessWalletReleases;
+window.fsSyncSellerSalesAndWallet = fsSyncSellerSalesAndWallet;
