@@ -24,8 +24,16 @@ function saveUser(user, method) {
   localStorage.setItem('xinzuh-logged', 'true');
   localStorage.setItem('xinzuh-username', user.displayName || (user.email ? user.email.split('@')[0] : 'Jogador'));
   localStorage.setItem('xinzuh-email', user.email || '');
-  var custom = localStorage.getItem('xinzuh-photo-' + user.uid);
-  localStorage.setItem('xinzuh-photo', custom || user.photoURL || '');
+  var custom = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
+  // Nunca troca foto custom pela do Google
+  if (custom) {
+    localStorage.setItem('xinzuh-photo', custom);
+  } else if (user.photoURL) {
+    localStorage.setItem('xinzuh-photo-' + user.uid, user.photoURL);
+    localStorage.setItem('xinzuh-photo', user.photoURL);
+  } else {
+    localStorage.setItem('xinzuh-photo', '');
+  }
   localStorage.setItem('xinzuh-login-method', method || 'email');
 }
 
