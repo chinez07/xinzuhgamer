@@ -1419,7 +1419,122 @@ img { max-width: 100%; display: block; }
 
     let cacheAds = [];
     let cacheSales = [];
-    let cacheWallet = { saldo: 0, pending: 0 };
+    let cacheWallet = { saldo: 0, pending: 0, pendingItems: [] };
+
+    async function syncSellerEverything() {
+      var u = firebase.auth().currentUser;
+      if (!u) return { saldo: 0, pending: 0, pendingItems: [] };
+      var db = firebase.firestore();
+      var releaseMs = (window.BLOXZUH_RELEASE_MS != null) ? window.BLOXZUH_RELEASE_MS : 60000;
+      function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+      var snap;
+      try {
+        snap = await db.collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
+      } catch (e) {
+        console.warn(e);
+        snap = { forEach: function () {} };
+      }
+      var orders = [];
+      snap.forEach(function (doc) {
+        orders.push(Object.assign({ id: doc.id }, doc.data()));
+      });
+
+      // estoque + vendas
+      for (var i = 0; i < orders.length; i++) {
+        var o = orders[i];
+        var st = o.status || '';
+        if (st !== 'pago' && st !== 'em_entrega' && st !== 'concluido') continue;
+        if (o.stockApplied) continue;
+        if (!o.adId) {
+          try { await db.collection('orders').doc(o.id).update({ stockApplied: true }); } catch (e) {}
+          continue;
+        }
+        try {
+          var aref = db.collection('ads').doc(o.adId);
+          var adoc = await aref.get();
+          if (adoc.exists && adoc.data().sellerUid === u.uid) {
+            var ad = adoc.data();
+            var stock = Math.max(0, (Number(ad.stock) || 0) - (Number(o.quantity) || 1));
+            var sales = (Number(ad.sales) || 0) + (Number(o.quantity) || 1);
+            var patch = { stock: stock, sales: sales };
+            if (stock <= 0) patch.status = 'pausado';
+            await aref.update(patch);
+          }
+          await db.collection('orders').doc(o.id).update({ stockApplied: true });
+        } catch (e) { console.warn('stock', e); }
+      }
+
+      // carteira
+      var wref = db.collection('wallets').doc(u.uid);
+      var wdoc = await wref.get();
+      var w = wdoc.exists ? wdoc.data() : {};
+      var saldo = Number(w.saldo) || 0;
+      var items = Array.isArray(w.pendingItems) ? w.pendingItems.slice() : [];
+      var existing = {};
+      items.forEach(function (it) { if (it.orderId) existing[it.orderId] = true; });
+      var now = Date.now();
+      var marked = [];
+
+      for (var j = 0; j < orders.length; j++) {
+        var ord = orders[j];
+        var ost = ord.status || '';
+        if (ost !== 'pago' && ost !== 'em_entrega' && ost !== 'concluido') continue;
+        if (existing[ord.id]) continue;
+        // credita mesmo se sellerWalletApplied (pode ter falhado antes)
+        var gross = Number(ord.total != null ? ord.total : ord.price) || 0;
+        var feePct = Number(ord.feePercent) || 9.99;
+        var net = r2(gross * (1 - feePct / 100));
+        if (net <= 0) net = r2(gross); // se taxa zerar, usa bruto mínimo
+        if (net <= 0) continue;
+        var paidAt = Number(ord.paidAtMs) || Number(ord.updatedAtMs) || now;
+        var relAt = paidAt + releaseMs;
+        var already = relAt <= now;
+        items.push({
+          orderId: ord.id,
+          code: ord.code || '',
+          amount: net,
+          gross: gross,
+          feePercent: feePct,
+          releaseAtMs: relAt,
+          released: already,
+          releasedAtMs: already ? now : null,
+          createdAtMs: now
+        });
+        if (already) saldo = r2(saldo + net);
+        existing[ord.id] = true;
+        marked.push(ord.id);
+      }
+
+      // liberar vencidos
+      var moved = 0;
+      items = items.map(function (it) {
+        if (!it.released && it.releaseAtMs && it.releaseAtMs <= now) {
+          moved = r2(moved + (Number(it.amount) || 0));
+          return Object.assign({}, it, { released: true, releasedAtMs: now });
+        }
+        return it;
+      });
+      saldo = r2(saldo + moved);
+      var pending = r2(items.filter(function (it) { return !it.released; })
+        .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
+
+      await wref.set({
+        saldo: saldo,
+        pending: pending,
+        pendingItems: items,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      for (var k = 0; k < marked.length; k++) {
+        try {
+          await db.collection('orders').doc(marked[k]).update({ sellerWalletApplied: true });
+        } catch (e) {}
+      }
+
+      return { saldo: saldo, pending: pending, pendingItems: items };
+    }
+
 
     function showPanel(id) {
       document.querySelectorAll('.painel-panel').forEach(function (p) { p.classList.remove('active'); });
@@ -1464,12 +1579,12 @@ img { max-width: 100%; display: block; }
         list.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>Você ainda não publicou anúncios.</p></div>';
         return;
       }
-      list.innerHTML = '<div style="overflow-x:auto"><table class="painel-table"><thead><tr><th>Anúncio</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead><tbody>' +
+      list.innerHTML = '<div style="overflow-x:auto"><table class="painel-table"><thead><tr><th>Anúncio</th><th>Preço</th><th>Vendas</th><th>Status</th><th>Ações</th></tr></thead><tbody>' +
         cacheAds.map(function (a) {
           const badge = a.status === 'ativo' ? 'badge-ativo' : (a.status === 'pausado' ? 'badge-pausado' : 'badge-vendido');
           const label = a.status === 'ativo' ? 'Ativo' : (a.status === 'pausado' ? 'Pausado' : 'Esgotado');
           const toggleLabel = a.status === 'ativo' ? 'Pausar' : 'Ativar';
-          return '<tr><td><strong>' + escapeHtml(a.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(a.category) + '</small></td><td>' + money(a.price) + '</td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td class="actions-row"><button type="button" class="btn-xs" data-act="toggle" data-id="' + a.id + '" data-status="' + a.status + '">' + toggleLabel + '</button><button type="button" class="btn-xs danger" data-act="del" data-id="' + a.id + '">Excluir</button></td></tr>';
+          return '<tr><td><strong>' + escapeHtml(a.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(a.category) + '</small></td><td>' + money(a.price) + '</td><td><strong>' + String(Number(a.sales) || 0) + '</strong></td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td class="actions-row"><button type="button" class="btn-xs" data-act="toggle" data-id="' + a.id + '" data-status="' + a.status + '">' + toggleLabel + '</button><button type="button" class="btn-xs danger" data-act="del" data-id="' + a.id + '">Excluir</button></td></tr>';
         }).join('') + '</tbody></table></div>';
 
       list.querySelectorAll('[data-act]').forEach(function (btn) {
@@ -1556,15 +1671,57 @@ img { max-width: 100%; display: block; }
       renderReviews();
     }
 
+    async function loadAdsOnly() {
+      try {
+        if (typeof fsGetMyAds === 'function') {
+          cacheAds = await fsGetMyAds();
+        } else {
+          var u = firebase.auth().currentUser;
+          var snap = await firebase.firestore().collection('ads').where('sellerUid','==',u.uid).get();
+          cacheAds = [];
+          snap.forEach(function(doc){ cacheAds.push(Object.assign({id:doc.id}, doc.data())); });
+        }
+        renderAds();
+        renderDash();
+      } catch (e) { console.warn(e); }
+    }
+
     async function loadAll() {
       try {
-        cacheAds = await fsGetMyAds();
-        cacheSales = await fsGetMySales();
-        if (typeof fsSyncSellerWallet === 'function') {
-          cacheWallet = await fsSyncSellerWallet();
-        } else {
-          cacheWallet = await fsGetWallet();
+        var u = firebase.auth().currentUser;
+        var db = firebase.firestore();
+        // 1) sincroniza carteira + estoque/vendas nos anúncios
+        cacheWallet = await syncSellerEverything();
+        // 2) anúncios atualizados
+        try {
+          cacheAds = typeof fsGetMyAds === 'function' ? await fsGetMyAds() : [];
+        } catch (e1) { cacheAds = []; }
+        if (!cacheAds.length) {
+          var asnap = await db.collection('ads').where('sellerUid', '==', u.uid).get();
+          cacheAds = [];
+          asnap.forEach(function (doc) {
+            cacheAds.push(Object.assign({ id: doc.id }, doc.data()));
+          });
         }
+        // 3) vendas = pedidos pagos/entregues
+        var osnap = await db.collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
+        cacheSales = [];
+        osnap.forEach(function (doc) {
+          var o = Object.assign({ id: doc.id }, doc.data());
+          var st = o.status || '';
+          if (st === 'pago' || st === 'em_entrega' || st === 'concluido') {
+            cacheSales.push({
+              id: o.id,
+              title: o.adTitle || 'Pedido',
+              price: o.total != null ? o.total : o.price,
+              buyer: o.buyerName || 'Comprador',
+              date: o.paidAtMs ? new Date(o.paidAtMs).toLocaleString('pt-BR') : '',
+              status: st,
+              code: o.code || ''
+            });
+          }
+        });
+        cacheSales.sort(function (a, b) { return (b.id > a.id ? 1 : -1); });
         renderAll();
       } catch (err) {
         console.error(err);
@@ -1626,14 +1783,13 @@ img { max-width: 100%; display: block; }
       loadAll();
       if (window.__walletPoll) clearInterval(window.__walletPoll);
       window.__walletPoll = setInterval(function () {
-        if (typeof fsSyncSellerWallet === 'function') {
-          fsSyncSellerWallet().then(function (w) {
-            cacheWallet = w;
-            renderDash();
-            renderWallet();
-          }).catch(function () {});
-        }
-      }, 10000);
+        syncSellerEverything().then(function (w) {
+          cacheWallet = w;
+          loadAdsOnly();
+          renderDash();
+          renderWallet();
+        }).catch(function () {});
+      }, 8000);
     });
   })();
   </script>
