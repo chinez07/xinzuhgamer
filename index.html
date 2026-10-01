@@ -1337,6 +1337,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/firestore-db.js"></script>
+  <script src="js/photos.js"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
   <script src="js/notificacoes.js"></script>
@@ -1778,7 +1779,11 @@ if (typeof renderUserMenu === 'function') {
 async function loadFirestoreAdsHome() {
   try {
     if (typeof fsGetPublicAds !== 'function') return;
-    const live = await fsGetPublicAds(30);
+    var live = await fsGetPublicAds(40);
+    live = live.filter(function(a){
+      var st = (a.raw && a.raw.status) || a.status || 'ativo';
+      return st === 'ativo';
+    });
     /* photos */;
     const premiumScroll = document.getElementById('premiumScroll');
     const featuredScroll = document.getElementById('featuredScroll');
@@ -1789,7 +1794,7 @@ async function loadFirestoreAdsHome() {
       return;
     }
     window.adsDataLive = live;
-    await attachSellerPhotos(live);
+    if (window.BloxzuhPhotos) await BloxzuhPhotos.attachToAds(live); else await attachSellerPhotos(live);
     const CAT_LABELS = {
       freefire: 'Free Fire',
       roblox: 'Roblox',

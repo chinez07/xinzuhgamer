@@ -83,10 +83,30 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/firestore-db.js"></script>
+  <script src="js/photos.js"></script>
+  <script src="js/firestore-db.js"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
   <script>
 
+function favCard(ad) {
+  var st = (ad.raw && ad.raw.status) || ad.status || 'ativo';
+  var stock = Number((ad.raw && ad.raw.stock) != null ? ad.raw.stock : ad.stock);
+  var blocked = st === 'pausado' || st === 'vendido' || stock <= 0;
+  var photo = ad.sellerPhoto || '';
+  var initial = (ad.seller || 'V').charAt(0).toUpperCase();
+  var av = photo
+    ? '<span class="avatar" style="padding:0;overflow:hidden;width:22px;height:22px;border-radius:50%;display:inline-block"><img src="'+photo+'" style="width:100%;height:100%;object-fit:cover"></span>'
+    : '<span class="avatar">' + initial + '</span>';
+  var badge = blocked ? '<div style="position:absolute;top:8px;left:8px;background:#991b1b;color:#fff;font-size:0.7rem;font-weight:700;padding:4px 8px;border-radius:8px;z-index:2">DESATIVADO</div>' : '';
+  var price = (Number(ad.price)||0).toFixed(2).replace('.',',');
+  var img = ad.cover ? '<img src="'+ad.cover+'" alt="" style="width:100%;height:100%;object-fit:cover">' : '';
+  return '<a href="anuncio.html?id='+encodeURIComponent(ad.id)+'" class="product-card" style="position:relative;opacity:'+(blocked?'0.75':'1')+'">' +
+    '<div class="product-img" style="position:relative;overflow:hidden">'+badge+img+'</div>' +
+    '<div class="product-body"><h3>'+(ad.title||'')+'</h3>' +
+    '<div class="product-price">R$ '+price+'</div>' +
+    '<div class="product-seller">'+av+' '+(ad.seller||'')+'</div></div></a>';
+}
 function createProductCard(ad) {
   const initial = (ad.seller || 'V').charAt(0).toUpperCase();
   const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');
@@ -153,7 +173,7 @@ function escapeHtmlHome(s) {
       return;
     }
     countEl.textContent = ads.length + (ads.length === 1 ? ' anúncio salvo' : ' anúncios salvos');
-    grid.innerHTML = ads.map(createProductCard).join('');
+    grid.innerHTML = ads.map(function(a){ return (typeof favCard==='function'?favCard(a):createProductCard(a)); }).join('');
     syncFavButtonsIn(grid);
   })();
   </script>

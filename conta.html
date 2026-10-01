@@ -1044,6 +1044,7 @@ img { max-width: 100%; display: block; }
   <script src="js/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firestore-db.js"></script>
+  <script src="js/photos.js"></script>
   <script src="js/experimental.js"></script>
   <script>
     function msg(text, type) {
@@ -1123,7 +1124,8 @@ img { max-width: 100%; display: block; }
         }
         // nuvem = outros celulares
         if (typeof fsSaveProfile === 'function') {
-          await fsSaveProfile({
+          if (window.BloxzuhPhotos) BloxzuhPhotos.setLocal(auth.currentUser.uid, check);
+        await fsSaveProfile({
             photo: check,
             displayName: auth.currentUser.displayName || localStorage.getItem('xinzuh-username') || ''
           });

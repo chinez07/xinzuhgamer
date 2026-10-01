@@ -30,6 +30,11 @@
     .bubble{max-width:85%;padding:10px 12px;border-radius:12px;font-size:0.9rem;line-height:1.4;word-break:break-word}
     .bubble.me{align-self:flex-end;background:var(--p);color:#fff;border-bottom-right-radius:4px}
     .bubble.them{align-self:flex-start;background:#2a2a36;border-bottom-left-radius:4px}
+    .bubble-row{display:flex;align-items:flex-end;gap:8px;max-width:100%}
+    .bubble-row.me{align-self:flex-end;flex-direction:row-reverse}
+    .bubble-row.them{align-self:flex-start}
+    .chat-av{width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;background:#7c3aed}
+    .chat-av.letter{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700}
     .bubble .t{font-size:0.7rem;opacity:.75;margin-top:4px}
     .send{display:flex;gap:8px;margin-top:10px}
     .send input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:#0f0f14;color:var(--text)}
@@ -47,6 +52,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
+  <script src="js/photos.js"></script>
   <script>
   function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
   function esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -88,11 +95,13 @@
   }
   async function sendMsg(text){
     var messages = Array.isArray(order.messages) ? order.messages.slice() : [];
+    var myPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(currentUser.uid)) || localStorage.getItem('xinzuh-photo') || '';
     messages.push({
       id: 'm' + Date.now(),
       text: String(text).slice(0, 2000),
       senderUid: currentUser.uid,
       senderName: currentUser.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
+      senderPhoto: myPhoto || '',
       createdAtMs: Date.now()
     });
     await firebase.firestore().collection('orders').doc(orderId).update({
@@ -106,8 +115,14 @@
     if (!msgs.length) return '<p class="muted">Nenhuma mensagem ainda. Combine a entrega por aqui.</p>';
     return '<div class="chat">' + msgs.map(function(m){
       var me = m.senderUid === currentUser.uid;
-      return '<div class="bubble ' + (me ? 'me' : 'them') + '">' + esc(m.text) +
-        '<div class="t">' + esc(m.senderName) + ' · ' + timeAgo(m.createdAtMs) + '</div></div>';
+      var photo = m.senderPhoto || '';
+      var letter = (m.senderName || '?').charAt(0).toUpperCase();
+      var av = photo
+        ? '<img class="chat-av" src="' + esc(photo) + '" alt="">'
+        : '<span class="chat-av letter">' + letter + '</span>';
+      return '<div class="bubble-row ' + (me ? 'me' : 'them') + '">' + av +
+        '<div class="bubble ' + (me ? 'me' : 'them') + '">' + esc(m.text) +
+        '<div class="t">' + esc(m.senderName) + ' · ' + timeAgo(m.createdAtMs) + '</div></div></div>';
     }).join('') + '</div>';
   }
 
@@ -187,6 +202,15 @@
       if (order.buyerUid !== user.uid && order.sellerUid !== user.uid) {
         page.innerHTML = '<p class="muted">Você não tem acesso a este pedido.</p>';
         return;
+      }
+      // preenche fotos faltantes nas mensagens
+      if (window.BloxzuhPhotos && order.messages) {
+        for (var mi = 0; mi < order.messages.length; mi++) {
+          var mm = order.messages[mi];
+          if (!mm.senderPhoto && mm.senderUid) {
+            mm.senderPhoto = await BloxzuhPhotos.fetch(mm.senderUid) || '';
+          }
+        }
       }
       draw();
     } catch (e) {
