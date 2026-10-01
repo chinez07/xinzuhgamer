@@ -317,6 +317,19 @@
         '</div></div>' +
         '<div class="section"><div class="card guarantee"><i class="fas fa-shield-alt"></i><h3>Entrega garantida</h3><p style="color:var(--muted);font-size:0.9rem;margin-top:6px">Ou o seu dinheiro de volta (quando o pagamento protegido estiver ativo).</p></div></div>';
 
+      // Foto do vendedor no anúncio
+      (async function () {
+        var av = document.getElementById('sellerAv');
+        if (!av || !sellerUid) return;
+        try {
+          var p = typeof fsGetProfile === 'function'
+            ? await fsGetProfile(sellerUid)
+            : (await firebase.firestore().collection('profiles').doc(sellerUid).get()).data();
+          if (p && p.photo) {
+            av.innerHTML = '<img src="' + p.photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+          }
+        } catch (e) {}
+      })();
       const favBtn = document.getElementById('favBtn');
       if (favBtn) {
         favBtn.onclick = function () {

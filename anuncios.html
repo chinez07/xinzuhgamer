@@ -1229,6 +1229,21 @@ window.scrollCats = scrollCats;
 window.scrollProds = scrollProds;
 
 // ===== Product card =====
+async function attachSellerPhotos(list) {
+  if (!list || !list.length) return list;
+  var photos = {};
+  var uids = {};
+  list.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(u) uids[u]=1; });
+  await Promise.all(Object.keys(uids).map(async function(uid){
+    try {
+      var p = typeof fsGetProfile==='function' ? await fsGetProfile(uid) : null;
+      if (!p) { var d=await firebase.firestore().collection('profiles').doc(uid).get(); if(d.exists) p=d.data(); }
+      if (p && p.photo) photos[uid]=p.photo;
+    } catch(e){}
+  }));
+  list.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(photos[u]) a.sellerPhoto=photos[u]; });
+  return list;
+}
 function createProductCard(ad) {
   const initial = (ad.seller || 'V').charAt(0).toUpperCase();
   const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');

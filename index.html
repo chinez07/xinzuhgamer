@@ -1662,6 +1662,34 @@ window.scrollCats = scrollCats;
 window.scrollProds = scrollProds;
 
 // ===== Product card =====
+
+async function attachSellerPhotos(list) {
+  if (!list || !list.length) return list;
+  var uids = {};
+  list.forEach(function (a) {
+    var uid = (a.raw && a.raw.sellerUid) || a.sellerUid || '';
+    if (uid) uids[uid] = true;
+  });
+  var ids = Object.keys(uids);
+  var photos = {};
+  await Promise.all(ids.map(async function (uid) {
+    try {
+      var p = null;
+      if (typeof fsGetProfile === 'function') p = await fsGetProfile(uid);
+      else {
+        var doc = await firebase.firestore().collection('profiles').doc(uid).get();
+        if (doc.exists) p = doc.data();
+      }
+      if (p && p.photo) photos[uid] = p.photo;
+    } catch (e) {}
+  }));
+  list.forEach(function (a) {
+    var uid = (a.raw && a.raw.sellerUid) || a.sellerUid || '';
+    if (uid && photos[uid]) a.sellerPhoto = photos[uid];
+  });
+  return list;
+}
+
 function createProductCard(ad) {
   const initial = (ad.seller || 'V').charAt(0).toUpperCase();
   const price = (Number(ad.price) || 0).toFixed(2).replace('.', ',');
@@ -1672,6 +1700,10 @@ function createProductCard(ad) {
   const img = ad.cover
     ? '<img src="' + ad.cover + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0">'
     : '<i class="fas ' + (ad.icon || 'fa-gamepad') + '"></i>';
+  var photo = ad.sellerPhoto || '';
+  var avatarHtml = photo
+    ? '<span class="avatar" style="padding:0;overflow:hidden"><img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>'
+    : '<span class="avatar">' + initial + '</span>';
   return (
     '<a href="anuncio.html?id=' + encodeURIComponent(id) + '" class="product-card">' +
       '<div class="product-img ' + (ad.imgClass || 'prod-default') + '" style="overflow:hidden;position:relative">' +
@@ -1685,7 +1717,7 @@ function createProductCard(ad) {
         '<h3>' + escapeHtmlHome(ad.title) + '</h3>' +
         '<div class="product-price">R$ ' + price + '</div>' +
         '<div class="product-seller">' +
-          '<span class="avatar">' + initial + '</span> ' + escapeHtmlHome(ad.seller) +
+          avatarHtml + ' ' + escapeHtmlHome(ad.seller) +
           ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
           ' <span>(' + (ad.sales || 0) + ')</span>' +
         '</div>' +
@@ -1747,6 +1779,7 @@ async function loadFirestoreAdsHome() {
   try {
     if (typeof fsGetPublicAds !== 'function') return;
     const live = await fsGetPublicAds(30);
+    /* photos */;
     const premiumScroll = document.getElementById('premiumScroll');
     const featuredScroll = document.getElementById('featuredScroll');
     const emptyHtml = '<p style="padding:20px;color:var(--text-muted);text-align:center;width:100%">Nenhum anúncio publicado ainda. Seja o primeiro a <a href="anunciar.html" style="color:var(--primary);font-weight:700">anunciar</a>!</p>';
@@ -1756,6 +1789,7 @@ async function loadFirestoreAdsHome() {
       return;
     }
     window.adsDataLive = live;
+    await attachSellerPhotos(live);
     const CAT_LABELS = {
       freefire: 'Free Fire',
       roblox: 'Roblox',
