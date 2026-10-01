@@ -97,12 +97,14 @@
     var patch = {
       paymentMethod: data.method || 'pix',
       payerName: data.payerName || '',
-      payerCpf: data.payerCpf || '',
+      payerCpf: String(data.payerCpf || '').replace(/\D/g, ''),
+      buyerEmail: (u && u.email) || data.buyerEmail || '',
+      payerEmail: (u && u.email) || data.buyerEmail || '',
       vipPlan: data.vipPlan || 'none',
       total: data.total != null ? Number(data.total) : undefined,
       status: 'aguardando_pagamento',
       paymentId: 'PAY' + Date.now().toString().slice(-8),
-      paymentExpiresAtMs: Date.now() + 20 * 60 * 1000,
+      paymentExpiresAtMs: Date.now() + 10 * 60 * 1000,
       pixCopyPaste: data.pixCopyPaste || ('00020126BLOXZUH' + orderId + 'PIX'),
       updatedAtMs: Date.now()
     };
