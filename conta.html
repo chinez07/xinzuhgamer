@@ -1061,7 +1061,10 @@ img { max-width: 100%; display: block; }
       try {
         local = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
       } catch (e) {}
-      var src = local || user.photoURL || '';
+      var isCustom = false;
+      try { isCustom = localStorage.getItem('xinzuh-photo-custom-' + user.uid) === '1'; } catch(e){}
+      var src = local || (!isCustom ? (user.photoURL || '') : '') || '';
+      if (!src && user.photoURL) src = user.photoURL;
       var letter = (user.displayName || user.email || '?').charAt(0).toUpperCase();
       if (src) {
         if (box.tagName === 'IMG') {
@@ -1092,15 +1095,20 @@ img { max-width: 100%; display: block; }
         return;
       }
       try {
-        if (typeof fsGetProfile === 'function') {
-          var p = await fsGetProfile(user.uid);
-          if (p && p.photo) {
-            localStorage.setItem('xinzuh-photo-' + user.uid, p.photo);
-            localStorage.setItem('xinzuh-photo', p.photo);
-          }
-          if (p && p.displayName) {
-            localStorage.setItem('xinzuh-username', p.displayName);
-          }
+        var p = null;
+        if (typeof fsGetProfile === 'function') p = await fsGetProfile(user.uid);
+        else {
+          var doc = await firebase.firestore().collection('profiles').doc(user.uid).get();
+          if (doc.exists) p = doc.data();
+        }
+        if (p && p.photo) {
+          localStorage.setItem('xinzuh-photo-' + user.uid, p.photo);
+          localStorage.setItem('xinzuh-photo', p.photo);
+          localStorage.setItem('xinzuh-photo-custom-' + user.uid, '1');
+          if (window.BloxzuhPhotos) BloxzuhPhotos.setLocal(user.uid, p.photo);
+        }
+        if (p && p.displayName) {
+          localStorage.setItem('xinzuh-username', p.displayName);
         }
       } catch (e) { console.warn(e); }
       fillForm(user);
@@ -1109,32 +1117,36 @@ img { max-width: 100%; display: block; }
     document.getElementById('photoInput').addEventListener('change', async function (e) {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
-      if (file.size > 1024 * 1024) {
-        msg('A foto deve ter no máximo 1 MB.', 'err');
+      if (file.size > 2 * 1024 * 1024) {
+        msg('A foto deve ter no máximo 2 MB (será comprimida).', 'err');
         return;
       }
-      msg('Enviando foto...', 'ok');
+      msg('Salvando foto…', 'ok');
       try {
-        const url = await uploadProfilePhoto(file);
+        const dataUrl = await uploadProfilePhoto(file);
+        localStorage.setItem('xinzuh-photo-custom-' + auth.currentUser.uid, '1');
+        localStorage.setItem('xinzuh-photo-' + auth.currentUser.uid, dataUrl);
+        localStorage.setItem('xinzuh-photo', dataUrl);
+        if (window.BloxzuhPhotos) BloxzuhPhotos.setLocal(auth.currentUser.uid, dataUrl);
         renderAvatar(auth.currentUser);
-        var check = localStorage.getItem('xinzuh-photo-' + auth.currentUser.uid);
-        if (!check) {
-          msg('Não foi possível salvar a foto. Tente uma imagem menor.', 'err');
-          return;
-        }
-        // nuvem = outros celulares
         if (typeof fsSaveProfile === 'function') {
-          if (window.BloxzuhPhotos) BloxzuhPhotos.setLocal(auth.currentUser.uid, check);
-        await fsSaveProfile({
-            photo: check,
-            displayName: auth.currentUser.displayName || localStorage.getItem('xinzuh-username') || ''
+          await fsSaveProfile({
+            photo: dataUrl,
+            displayName: (document.getElementById('username') && document.getElementById('username').value) || auth.currentUser.displayName || ''
           });
+        } else {
+          await firebase.firestore().collection('profiles').doc(auth.currentUser.uid).set({
+            photo: dataUrl,
+            displayName: auth.currentUser.displayName || '',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
         }
-        msg('Foto atualizada e salva na sua conta (todos os dispositivos)!', 'ok');
+        msg('Foto salva com sucesso!', 'ok');
       } catch (err) {
-        msg(err.message || 'Erro ao enviar foto.', 'err');
         console.error(err);
+        msg(err.message || 'Erro ao salvar foto. Tente uma imagem menor.', 'err');
       }
+      e.target.value = '';
     });
 
     document.getElementById('btnSaveProfile').addEventListener('click', async function () {
