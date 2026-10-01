@@ -477,8 +477,9 @@ async function fsGetProfile(uid) {
 
 /** Pedidos (estrutura sem gateway) */
 function orderCode() {
-  var s = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return 'BZ' + s;
+  var s = Math.random().toString(36).slice(2, 6).toUpperCase();
+  var t = Date.now().toString(36).toUpperCase().slice(-4);
+  return 'BZ' + s + t;
 }
 
 async function fsCreateOrder(ad, extra) {
@@ -520,6 +521,7 @@ async function fsCreateOrder(ad, extra) {
     updatedAtMs: Date.now()
   };
   await ref.set(payload);
+  console.log('[Bloxzuh] pedido criado com ID=', code);
   return Object.assign({ id: code }, payload);
 }
 
@@ -547,9 +549,17 @@ async function fsGetMySales() {
 
 async function fsGetOrder(id) {
   if (!id) return null;
-  const doc = await getDb().collection('orders').doc(id).get();
-  if (!doc.exists) return null;
-  return Object.assign({ id: doc.id }, doc.data());
+  var doc = await getDb().collection('orders').doc(id).get();
+  if (doc.exists) return Object.assign({ id: doc.id }, doc.data());
+  // fallback: busca pelo campo code (pedidos antigos com id aleatório)
+  try {
+    var snap = await getDb().collection('orders').where('code', '==', id).limit(1).get();
+    if (!snap.empty) {
+      var d = snap.docs[0];
+      return Object.assign({ id: d.id }, d.data());
+    }
+  } catch (e) { console.warn(e); }
+  return null;
 }
 
 async function fsUpdateOrderStatus(id, status) {
@@ -650,3 +660,5 @@ console.log('[Bloxzuh] firestore-db carregado, fsCreateOrder=', typeof fsCreateO
 window.fsSyncSellerWallet = fsSyncSellerWallet;
 window.fsProcessWalletReleases = fsProcessWalletReleases;
 window.fsSyncSellerSalesAndWallet = fsSyncSellerSalesAndWallet;
+
+console.log('[Bloxzuh] firestore-db v-order-code-id');
