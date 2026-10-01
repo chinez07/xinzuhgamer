@@ -1363,11 +1363,12 @@ img { max-width: 100%; display: block; }
       <!-- SALDO -->
       <section class="painel-panel" id="panel-wallet">
         <h1>Saldo / Saque</h1>
-        <p class="sub">Acompanhe seu saldo e solicite saque (simulado).</p>
+        <p class="sub">Vendas pagas entram em <strong>A liberar</strong> e passam para <strong>Disponível</strong> após 1 minuto (teste; em produção será 10 dias).</p>
         <div class="stats-grid">
           <div class="stat-card"><div class="label">Disponível</div><div class="value" id="walletSaldo">R$ 0,00</div></div>
           <div class="stat-card"><div class="label">A liberar</div><div class="value" id="walletPending">R$ 0,00</div></div>
         </div>
+        <div id="walletPendingList" style="margin:12px 0 18px;font-size:0.9rem;color:#6b7280"></div>
         <div class="form-card">
           <div class="form-group">
             <label>Valor do saque (R$)</label>
@@ -1394,6 +1395,7 @@ img { max-width: 100%; display: block; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
+  <script src="js/experimental.js"></script>
   <script src="js/firestore-db.js"></script>
   <script>
   (function () {
@@ -1504,9 +1506,35 @@ img { max-width: 100%; display: block; }
       }).join('');
     }
 
+        function releaseCountdown(ms) {
+      var left = Math.max(0, (ms || 0) - Date.now());
+      if (left <= 0) return 'liberando…';
+      var s = Math.ceil(left / 1000);
+      if (s < 60) return s + 's';
+      var m = Math.floor(s / 60);
+      s = s % 60;
+      if (m < 60) return m + 'm ' + s + 's';
+      var h = Math.floor(m / 60);
+      m = m % 60;
+      return h + 'h ' + m + 'm';
+    }
+
     function renderWallet() {
       document.getElementById('walletSaldo').textContent = money(cacheWallet.saldo);
       document.getElementById('walletPending').textContent = money(cacheWallet.pending);
+      var listEl = document.getElementById('walletPendingList');
+      if (!listEl) return;
+      var items = (cacheWallet.pendingItems || []).filter(function (it) { return !it.released; });
+      if (!items.length) {
+        listEl.innerHTML = '<p style="margin:0">Nenhum valor a liberar no momento.</p>';
+        return;
+      }
+      listEl.innerHTML = '<strong style="color:#374151">Valores a liberar</strong>' +
+        items.map(function (it) {
+          return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #e5e7eb">' +
+            '<span>#' + escapeHtml(it.code || it.orderId) + ' · ' + money(it.amount) + '</span>' +
+            '<span>em ' + releaseCountdown(it.releaseAtMs) + '</span></div>';
+        }).join('');
     }
 
     function renderReviews() {
@@ -1532,7 +1560,11 @@ img { max-width: 100%; display: block; }
       try {
         cacheAds = await fsGetMyAds();
         cacheSales = await fsGetMySales();
-        cacheWallet = await fsGetWallet();
+        if (typeof fsSyncSellerWallet === 'function') {
+          cacheWallet = await fsSyncSellerWallet();
+        } else {
+          cacheWallet = await fsGetWallet();
+        }
         renderAll();
       } catch (err) {
         console.error(err);
@@ -1592,6 +1624,16 @@ img { max-width: 100%; display: block; }
       const elUser = document.getElementById('painelUser');
       if (elUser) elUser.textContent = user.displayName || (user.email ? user.email.split('@')[0] : 'Vendedor');
       loadAll();
+      if (window.__walletPoll) clearInterval(window.__walletPoll);
+      window.__walletPoll = setInterval(function () {
+        if (typeof fsSyncSellerWallet === 'function') {
+          fsSyncSellerWallet().then(function (w) {
+            cacheWallet = w;
+            renderDash();
+            renderWallet();
+          }).catch(function () {});
+        }
+      }, 10000);
     });
   })();
   </script>
