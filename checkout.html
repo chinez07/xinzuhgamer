@@ -67,7 +67,7 @@
     if (!sellerUid) throw new Error('Vendedor não encontrado neste anúncio. Peça ao vendedor republicar o anúncio.');
     if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
     var price = Number(ad.price) || 0;
-    var code = 'BZ' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    var code = 'BZ' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4);
     var ref = firebase.firestore().collection('orders').doc(code);
     for (var i = 0; i < 5; i++) {
       var exists = await ref.get();
@@ -95,6 +95,7 @@
       updatedAtMs: Date.now()
     };
     await ref.set(payload);
+    console.log('[Bloxzuh] pedido criado com ID=', code);
     return Object.assign({ id: code }, payload);
   }
   async function setPaymentLocal(orderId, data) {
