@@ -123,11 +123,7 @@
     .rev-item { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
     .rev-item:last-child { border-bottom: none; }
     .seller-card { text-align: center; padding: 20px 16px; }
-    .seller-card .big-av {
-      width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 10px;
-      background: var(--primary); color:#fff; display:flex; align-items:center; justify-content:center;
-      font-size: 1.6rem; font-weight: 800; overflow: hidden;
-    }
+    .seller-card .big-av { width:72px;height:72px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:800;margin:0 auto 10px;overflow:hidden;padding:0; }
     .seller-card .big-av img { width:100%; height:100%; object-fit:cover; }
     .seller-card a.name {
       color: var(--primary); font-weight: 800; font-size: 1.05rem; text-decoration: none;
@@ -258,12 +254,16 @@
         return questions.map(function (q, idx) {
           var replyHtml = '';
           if (q.reply) {
-            replyHtml = '<div class="q-reply"><div class="q-meta"><strong>' + esc(sellerName) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(q.reply) + '</div></div>';
+            replyHtml = '<div class="q-reply"><div class="q-meta">' +
+              (q.replyPhoto
+                ? '<span class="avatar" style="width:22px;height:22px;padding:0;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:50%"><img src="' + esc(q.replyPhoto) + '" style="width:100%;height:100%;object-fit:cover"></span>'
+                : '<span class="avatar bz-seller-av" data-uid="' + esc(sellerUid) + '" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-right:6px;font-size:0.7rem">' + esc((sellerName||'V').charAt(0).toUpperCase()) + '</span>') +
+              '<strong>' + esc(q.replyName || sellerName) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(q.reply) + '</div></div>';
           } else if (isOwner) {
             replyHtml = '<div class="q-reply"><textarea data-reply="' + idx + '" placeholder="Escreva sua resposta..." style="width:100%;min-height:60px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px"></textarea>' +
               '<button type="button" class="btn-primary" style="margin-top:8px" data-send-reply="' + idx + '">Responder</button></div>';
           }
-          return '<div class="q-item"><div class="q-user"><div class="avatar bz-q-av" data-uid="' + esc(q.userUid || '') + '" data-name="' + esc(q.user || '') + '">' + esc(q.user).charAt(0).toUpperCase() + '</div><div>' +
+          return '<div class="q-item"><div class="q-user"><div class="avatar bz-q-av" data-uid="' + esc(q.userUid || q.userId || '') + '" data-photo="' + esc(q.userPhoto || '') + '" data-name="' + esc(q.user || '') + '">' + (q.userPhoto ? ('<img src="' + esc(q.userPhoto) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">') : esc((q.user || '?').charAt(0).toUpperCase())) + '</div><div>' +
             '<div class="q-meta"><strong>' + esc(q.user) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.createdAtMs || q.time) : (q.time||'')) + '</div>' +
             '<div class="q-text">' + esc(q.text) + '</div>' + replyHtml +
             '</div></div></div>';
@@ -356,17 +356,51 @@
           });
         }
       })();
-      // Foto do vendedor no anúncio
-      (async function () {
-        var av = document.getElementById('sellerAv');
-        if (!av || !sellerUid) return;
+      
+      (async function loadAllPhotos() {
+        var photo = '';
         try {
-          var photo = window.BloxzuhPhotos ? await BloxzuhPhotos.fetch(sellerUid) : '';
-          if (photo) {
-            av.innerHTML = '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+          if (window.BloxzuhPhotos && sellerUid) photo = await BloxzuhPhotos.fetch(sellerUid);
+          if (!photo && sellerUid) {
+            var doc = await firebase.firestore().collection('profiles').doc(sellerUid).get();
+            if (doc.exists && doc.data().photo) photo = doc.data().photo;
           }
-        } catch (e) {}
+        } catch (e) { console.warn('seller photo', e); }
+        var av = document.getElementById('sellerAv');
+        if (av && photo) {
+          av.innerHTML = '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+          av.style.padding = '0';
+          av.style.overflow = 'hidden';
+          av.style.background = 'transparent';
+        }
+        var nodes = document.querySelectorAll('.bz-q-av');
+        for (var qi = 0; qi < nodes.length; qi++) {
+          (function(el){
+            if (el.querySelector('img')) return;
+            var uid = el.getAttribute('data-uid') || '';
+            var ph = el.getAttribute('data-photo') || '';
+            var go = async function() {
+              if (!ph && uid && window.BloxzuhPhotos) {
+                try { ph = await BloxzuhPhotos.fetch(uid); } catch(e){}
+              }
+              if (ph) {
+                el.innerHTML = '<img src="' + ph + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+                el.style.padding = '0';
+                el.style.overflow = 'hidden';
+              }
+            };
+            go();
+          })(nodes[qi]);
+        }
+        document.querySelectorAll('.bz-seller-av').forEach(function(el) {
+          if (photo && !el.querySelector('img')) {
+            el.innerHTML = '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+            el.style.padding = '0';
+            el.style.overflow = 'hidden';
+          }
+        });
       })();
+
       const favBtn = document.getElementById('favBtn');
       if (favBtn) {
         favBtn.onclick = function () {
@@ -406,6 +440,22 @@
             if (!text) { alert('Digite a resposta.'); return; }
             questions[idx].reply = text;
             questions[idx].repliedAtMs = Date.now();
+            questions[idx].replyName = sellerName;
+            questions[idx].replyUid = sellerUid;
+            try {
+              questions[idx].replyPhoto = (window.BloxzuhPhotos && sellerUid)
+                ? (BloxzuhPhotos.cache[sellerUid] || BloxzuhPhotos.getLocal(sellerUid) || '')
+                : '';
+            } catch (e1) { questions[idx].replyPhoto = ''; }
+            // tenta buscar foto async e atualizar depois
+            if (window.BloxzuhPhotos && sellerUid) {
+              BloxzuhPhotos.fetch(sellerUid).then(function(ph) {
+                if (ph) {
+                  questions[idx].replyPhoto = ph;
+                  saveQuestions(ad.id, questions);
+                }
+              });
+            }
             saveQuestions(ad.id, questions);
             if (questions[idx].userId && typeof fsAddNotification === 'function') {
               fsAddNotification(questions[idx].userId, {
@@ -437,8 +487,20 @@
           }
           const user = localStorage.getItem('xinzuh-username') || 'Usuário';
           var askerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
-          questions.unshift({ id: Date.now(), user: user,
-            userUid: (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "", userId: askerUid, text: text, reply: '', createdAtMs: Date.now() });
+          var askerPhoto = '';
+          try {
+            askerPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(askerUid)) || localStorage.getItem('xinzuh-photo') || '';
+          } catch (e0) {}
+          questions.unshift({
+            id: Date.now(),
+            user: user,
+            userUid: askerUid,
+            userId: askerUid,
+            userPhoto: askerPhoto,
+            text: text,
+            reply: '',
+            createdAtMs: Date.now()
+          });
           if (sellerUid && typeof fsAddNotification === 'function') {
             fsAddNotification(sellerUid, {
               type: 'pergunta',
