@@ -176,3 +176,5 @@ if (document.readyState === 'loading') {
   setupNotifBell();
 }
 setTimeout(setupNotifBell, 800);
+
+console.log('[Bloxzuh] notificacoes v-notif-readable');

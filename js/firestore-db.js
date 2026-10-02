@@ -12,6 +12,15 @@ function getDb() {
   return db;
 }
 
+
+/** IDs legíveis: AD… anúncios | BZ… pedidos | NT… notificações */
+function bloxzuhDocId(prefix) {
+  var s = Math.random().toString(36).slice(2, 6).toUpperCase();
+  var t = Date.now().toString(36).toUpperCase().slice(-4);
+  return String(prefix || 'ID') + s + t;
+}
+window.bloxzuhDocId = bloxzuhDocId;
+
 function requireUser() {
   const u = firebase.auth().currentUser;
   if (!u) throw new Error('Faça login primeiro.');
@@ -63,8 +72,8 @@ async function fsCreateAd(data) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     createdAtMs: Date.now()
   };
-  // ID legível do anúncio, ex: AD7K2M9A3B
-  const adId = bloxzuhDocId('AD');
+  // ID legível do anúncio, ex: AD7K2M9A3B (nunca usar .add)
+  var adId = (typeof bloxzuhDocId === 'function' ? bloxzuhDocId('AD') : ('AD' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4)));
   payload.code = adId;
   await getDb().collection('ads').doc(adId).set(payload);
   console.log('[Bloxzuh] anúncio criado com ID=', adId);
@@ -480,13 +489,6 @@ async function fsGetProfile(uid) {
 
 
 /** Pedidos (estrutura sem gateway) */
-/** IDs legíveis por coleção (sem .get() prévio — regras bloqueiam doc inexistente) */
-function bloxzuhDocId(prefix) {
-  var s = Math.random().toString(36).slice(2, 6).toUpperCase();
-  var t = Date.now().toString(36).toUpperCase().slice(-4);
-  return String(prefix || 'ID') + s + t;
-}
-
 function orderCode() {
   var s = Math.random().toString(36).slice(2, 6).toUpperCase();
   var t = Date.now().toString(36).toUpperCase().slice(-4);
@@ -666,4 +668,4 @@ window.fsSyncSellerWallet = fsSyncSellerWallet;
 window.fsProcessWalletReleases = fsProcessWalletReleases;
 window.fsSyncSellerSalesAndWallet = fsSyncSellerSalesAndWallet;
 
-console.log('[Bloxzuh] firestore-db v-readable-ids');
+console.log('[Bloxzuh] firestore-db v-readable-ids-3');
