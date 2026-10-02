@@ -1554,10 +1554,14 @@ img { max-width: 100%; display: block; }
       }
 
       
-      // Força liberação de teste: 2 min a partir de agora
+      // Só recalcula se o prazo antigo for longo (> 1h). Nao reinicia o timer a cada reload.
       items = items.map(function (it) {
         if (it.released) return it;
-        return Object.assign({}, it, { releaseAtMs: now + releaseMs, releaseFixed: true });
+        var left = (Number(it.releaseAtMs) || 0) - now;
+        if (!it.releaseAtMs || left > 60 * 60 * 1000) {
+          return Object.assign({}, it, { releaseAtMs: now + releaseMs, releaseFixed: true });
+        }
+        return it;
       });
 
       // liberar vencidos
@@ -1694,6 +1698,31 @@ img { max-width: 100%; display: block; }
     function renderWallet() {
       document.getElementById('walletSaldo').textContent = money(cacheWallet.saldo);
       document.getElementById('walletPending').textContent = money(cacheWallet.pending);
+
+    if (window.walletCountdownTimer) clearInterval(window.walletCountdownTimer);
+    window.walletCountdownTimer = setInterval(function () {
+      var listEl = document.getElementById('walletPendingList');
+      if (!listEl || !cacheWallet || !Array.isArray(cacheWallet.pendingItems)) return;
+      var pending = cacheWallet.pendingItems.filter(function (it) { return !it.released; });
+      if (!pending.length) return;
+      // se algum venceu, recarrega carteira
+      var now = Date.now();
+      var expired = pending.some(function (it) { return it.releaseAtMs && it.releaseAtMs <= now; });
+      if (expired) {
+        if (typeof loadAll === 'function') loadAll();
+        else if (typeof syncSellerEverything === 'function') syncSellerEverything().then(function(){ if (typeof renderWallet==='function') renderWallet(); });
+        return;
+      }
+      // so atualiza textos de countdown
+      var html = '<div style="margin-bottom:6px;font-weight:600">Valores a liberar</div>';
+      pending.forEach(function (it) {
+        html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">' +
+          '<span>#' + (it.code || it.orderId || '') + ' · ' + money(it.amount) + '</span>' +
+          '<span>em ' + releaseCountdown(it.releaseAtMs) + '</span></div>';
+      });
+      listEl.innerHTML = html;
+    }, 1000);
+
       try { renderSaqueHistorico(); } catch(e) {}
       var listEl = document.getElementById('walletPendingList');
       if (!listEl) return;
