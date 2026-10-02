@@ -855,3 +855,29 @@ window.fsProcessWalletReleases = fsProcessWalletReleases;
 window.fsSyncSellerSalesAndWallet = fsSyncSellerSalesAndWallet;
 
 console.log('[Bloxzuh] firestore-db v-readable-ids-3');
+
+
+async function trySaquePayout(w) {
+  var url = window.BLOXZUH_SAQUE_WORKER_URL || window.MP_WORKER_URL || '';
+  if (!url || !w) return null;
+  try {
+    var res = await fetch(String(url).replace(/\/$/, '') + '/payout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        withdrawalId: w.id,
+        amount: w.amount,
+        pixKey: w.pixKey,
+        pixType: w.pixType || 'cpf',
+        holderName: w.holderName || '',
+        holderCpf: w.holderCpf || '',
+        email: w.userEmail || ''
+      })
+    });
+    return await res.json();
+  } catch (e) {
+    console.warn('payout', e);
+    return { ok: false, status: 'pending_manual' };
+  }
+}
+window.trySaquePayout = trySaquePayout;
