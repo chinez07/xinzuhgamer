@@ -749,37 +749,85 @@ async function fsGetAdReviews(adId, limit) {
   } catch (e) { return []; }
 }
 
-async function fsRequestWithdraw(amount, pixKey) {
+async function fsRequestWithdraw(amount, pixKey, opts) {
   const u = requireUser();
+  opts = opts || {};
   amount = Number(amount) || 0;
-  if (amount < 10) throw new Error('Valor minimo de saque: R$ 10.');
+  if (amount < 5) throw new Error('Valor minimo de saque: R$ 5.');
   pixKey = String(pixKey || '').trim();
   if (!pixKey) throw new Error('Informe a chave Pix.');
+  var mode = (opts.mode === 'turbo') ? 'turbo' : 'normal';
+  // TESTE: normal 2 min, turbo 30s. Producao: normal ~2 dias uteis, turbo 30 min
+  var NORMAL_MS = (typeof window.BLOXZUH_SAQUE_NORMAL_MS === 'number') ? window.BLOXZUH_SAQUE_NORMAL_MS : (2 * 60 * 1000);
+  var TURBO_MS = (typeof window.BLOXZUH_SAQUE_TURBO_MS === 'number') ? window.BLOXZUH_SAQUE_TURBO_MS : (30 * 1000);
+  var TURBO_FEE = (typeof window.BLOXZUH_SAQUE_TURBO_FEE === 'number') ? window.BLOXZUH_SAQUE_TURBO_FEE : 3.50;
+  var fee = mode === 'turbo' ? TURBO_FEE : 0;
+  var delayMs = mode === 'turbo' ? TURBO_MS : NORMAL_MS;
+  var totalDebit = Math.round((amount + fee) * 100) / 100;
+
   var wref = getDb().collection('wallets').doc(u.uid);
   var wdoc = await wref.get();
   var saldo = wdoc.exists ? (Number(wdoc.data().saldo) || 0) : 0;
-  if (amount > saldo) throw new Error('Saldo disponivel insuficiente.');
+  if (totalDebit > saldo) throw new Error('Saldo disponivel insuficiente' + (fee ? ' (valor + taxa turbo R$ ' + fee.toFixed(2).replace('.',',') + ')' : '') + '.');
+
   var wid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('WD') : ('WD' + Date.now().toString(36).toUpperCase());
+  var now = Date.now();
   await getDb().collection('withdrawals').doc(wid).set({
     userId: u.uid,
-    userName: u.displayName || '',
+    userName: u.displayName || opts.holderName || '',
     userEmail: u.email || '',
+    holderName: opts.holderName || u.displayName || '',
+    holderCpf: opts.cpf || '',
+    pixType: opts.pixType || 'cpf',
     amount: Math.round(amount * 100) / 100,
+    fee: fee,
+    mode: mode,
     pixKey: pixKey,
-    status: 'pendente',
-    createdAtMs: Date.now(),
+    status: 'processando',
+    availableAtMs: now + delayMs,
+    createdAtMs: now,
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
   await wref.set({
-    saldo: Math.round((saldo - amount) * 100) / 100,
+    saldo: Math.round((saldo - totalDebit) * 100) / 100,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
-  return wid;
+  return { id: wid, availableAtMs: now + delayMs, mode: mode, fee: fee };
 }
 
-window.fsAddReview = fsAddReview;
-window.fsGetAdReviews = fsGetAdReviews;
+/** Libera saques cujo tempo ja passou (processando -> aprovado) */
+async function fsProcessMyWithdrawals() {
+  const u = requireUser();
+  var snap = await getDb().collection('withdrawals').where('userId', '==', u.uid).limit(50).get();
+  var now = Date.now();
+  var list = [];
+  var updates = [];
+  snap.forEach(function (d) {
+    var w = Object.assign({ id: d.id }, d.data());
+    if (w.status === 'processando' && w.availableAtMs && w.availableAtMs <= now) {
+      updates.push(getDb().collection('withdrawals').doc(d.id).update({
+        status: 'aprovado',
+        paidAtMs: now,
+        updatedAtMs: now
+      }));
+      w.status = 'aprovado';
+      w.paidAtMs = now;
+    }
+    list.push(w);
+  });
+  if (updates.length) await Promise.all(updates);
+  list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+  return list;
+}
+
+async function fsGetMyWithdrawals() {
+  return fsProcessMyWithdrawals();
+}
+
 window.fsRequestWithdraw = fsRequestWithdraw;
+window.fsProcessMyWithdrawals = fsProcessMyWithdrawals;
+window.fsGetMyWithdrawals = fsGetMyWithdrawals;
+
 
 window.fsCreateOrder = fsCreateOrder;
 window.fsGetMyPurchases = fsGetMyPurchases;
