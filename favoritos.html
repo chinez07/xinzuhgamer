@@ -130,7 +130,10 @@ function createProductCard(ad) {
         '<h3>' + escapeHtmlHome(ad.title) + '</h3>' +
         '<div class="product-price">R$ ' + price + '</div>' +
         '<div class="product-seller">' +
-          '<span class="avatar">' + initial + '</span> ' + escapeHtmlHome(ad.seller) +
+          (ad.sellerPhoto
+            ? '<span class="avatar" style="padding:0;overflow:hidden;width:22px;height:22px;border-radius:50%;display:inline-block"><img src="' + String(ad.sellerPhoto).replace(/"/g,'') + '" style="width:100%;height:100%;object-fit:cover;display:block"></span> '
+            : '<span class="avatar">' + initial + '</span> ') +
+          escapeHtmlHome(ad.seller) +
           ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
           ' <span>(' + (ad.sales || 0) + ')</span>' +
         '</div>' +
@@ -173,7 +176,21 @@ function escapeHtmlHome(s) {
       return;
     }
     countEl.textContent = ads.length + (ads.length === 1 ? ' anúncio salvo' : ' anúncios salvos');
+    
+    try {
+      var uids = {};
+      ads.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(u) uids[u]=1; });
+      var photos = {};
+      await Promise.all(Object.keys(uids).map(async function(uid){
+        try {
+          var d = await firebase.firestore().collection('profiles').doc(uid).get();
+          if (d.exists && d.data().photo) photos[uid] = d.data().photo;
+        } catch(e){}
+      }));
+      ads.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(photos[u]) a.sellerPhoto=photos[u]; });
+    } catch(e){ console.warn(e); }
     grid.innerHTML = ads.map(function(a){ return (typeof favCard==='function'?favCard(a):createProductCard(a)); }).join('');
+
     syncFavButtonsIn(grid);
   })();
   </script>

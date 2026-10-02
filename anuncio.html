@@ -207,9 +207,14 @@
       }
 
       const raw = ad.raw || {};
-      const stock = ad.stock || raw.stock || 1;
-      const sold = (raw.sold != null ? Number(raw.sold) : (ad.sold != null ? Number(ad.sold) : Number(ad.sales || 0)));
-      const sales = Number(ad.sales || raw.sales || 0);
+      const stock = (function(){ var s = Number(ad.stock != null ? ad.stock : raw.stock); return isNaN(s) ? 1 : Math.max(0, s); })();
+      const sold = (function(){
+        var s = Number(raw.sold != null ? raw.sold : ad.sold);
+        if (!isNaN(s)) return s;
+        var v = Number(ad.sales != null ? ad.sales : raw.sales);
+        return isNaN(v) ? 0 : v;
+      })();
+      const sales = (function(){ var s = Number(ad.sales != null ? ad.sales : raw.sales); return isNaN(s) ? 0 : s; })();
       const vis = (ad.visibility || 'prata');
       const model = (ad.model || raw.model || 'normal');
       const sellerUid = raw.sellerUid || '';

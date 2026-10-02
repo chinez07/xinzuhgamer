@@ -215,12 +215,14 @@
         [1,2,3,4,5].map(function(s){return '<button type="button" data-star="'+s+'" style="font-size:1.5rem;background:0;border:0;cursor:pointer;color:#fbbf24">★</button>';}).join('') +
         '</div><textarea id="revComment" rows="3" placeholder="Comentario (opcional)" style="width:100%;padding:10px;border-radius:10px;border:1px solid #2a2a36;background:#0f0f14;color:#fff;margin-bottom:10px"></textarea>' +
         '<button type="button" class="btn" id="btnReview">Enviar avaliacao</button></div>';
-      document.getElementById('app').insertAdjacentHTML('beforeend', revHtml);
+      var _page = document.getElementById('page') || document.getElementById('app');
+      if (_page) _page.insertAdjacentHTML('beforeend', revHtml);
       var picked = 5;
       document.querySelectorAll('#starPick [data-star]').forEach(function(btn){
         btn.onclick = function(){ picked = +btn.getAttribute('data-star'); };
       });
-      document.getElementById('btnReview').onclick = async function(){
+      var _br = document.getElementById('btnReview');
+      if (_br) _br.onclick = async function(){
         try {
           this.disabled = true;
           await fsAddReview(order, picked, (document.getElementById('revComment').value||'').trim());

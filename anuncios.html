@@ -1269,7 +1269,10 @@ function createProductCard(ad) {
         '<h3>' + escapeHtmlHome(ad.title) + '</h3>' +
         '<div class="product-price">R$ ' + price + '</div>' +
         '<div class="product-seller">' +
-          '<span class="avatar">' + initial + '</span> ' + escapeHtmlHome(ad.seller) +
+          (ad.sellerPhoto
+            ? '<span class="avatar" style="padding:0;overflow:hidden"><img src="' + String(ad.sellerPhoto).replace(/"/g,'') + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span> '
+            : '<span class="avatar">' + initial + '</span> ') +
+          escapeHtmlHome(ad.seller) +
           ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
           ' <span>(' + (ad.sales || 0) + ')</span>' +
         '</div>' +
