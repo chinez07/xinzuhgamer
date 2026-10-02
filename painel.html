@@ -968,7 +968,16 @@ img { max-width: 100%; display: block; }
   .painel-nav a { white-space: nowrap; font-size: 0.85rem; }
 }
 
+
+.saque-mode { text-align:left; line-height:1.3; padding:12px; }
+.saque-mode small { font-weight:400; opacity:.8; }
+.saque-mode.on { border-color:#7c3aed !important; background:#f5f3ff !important; color:#5b21b6 !important; }
+.wd-item { border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #7c3aed; background:#fff; }
+.wd-item .st { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.75rem; font-weight:700; }
+.wd-item .st-ok { background:#dcfce7; color:#166534; }
+.wd-item .st-wait { background:#fef3c7; color:#92400e; }
 </style>
+
   <style>
 .auth-page {
   min-height: calc(100vh - 60px);
@@ -1261,7 +1270,16 @@ img { max-width: 100%; display: block; }
   .painel-nav a { white-space: nowrap; font-size: 0.85rem; }
 }
 
+
+.saque-mode { text-align:left; line-height:1.3; padding:12px; }
+.saque-mode small { font-weight:400; opacity:.8; }
+.saque-mode.on { border-color:#7c3aed !important; background:#f5f3ff !important; color:#5b21b6 !important; }
+.wd-item { border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #7c3aed; background:#fff; }
+.wd-item .st { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.75rem; font-weight:700; }
+.wd-item .st-ok { background:#dcfce7; color:#166534; }
+.wd-item .st-wait { background:#fef3c7; color:#92400e; }
 </style>
+
 </head>
 <body>
   <header class="header">
@@ -1371,14 +1389,43 @@ img { max-width: 100%; display: block; }
         <div id="walletPendingList" style="margin:12px 0 18px;font-size:0.9rem;color:#6b7280"></div>
         <div class="form-card">
           <div class="form-group">
+            <label>Tipo de saque</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+              <button type="button" class="btn btn-outline saque-mode on" data-mode="normal" style="flex:1;text-align:left">Normal · grátis<br><small>Teste: 2 min</small></button>
+              <button type="button" class="btn btn-outline saque-mode" data-mode="turbo" style="flex:1;text-align:left">Turbo · R$ 3,50<br><small>Teste: 30s</small></button>
+            </div>
+          </div>
+          <div class="form-group">
             <label>Valor do saque (R$)</label>
-            <input type="number" id="saqueValor" min="10" step="0.01" placeholder="Mínimo R$ 10">
+            <input type="number" id="saqueValor" min="5" step="0.01" placeholder="Mínimo R$ 5">
+          </div>
+          <div class="form-group">
+            <label>Tipo de chave Pix</label>
+            <select id="saquePixType">
+              <option value="cpf">CPF</option>
+              <option value="email">E-mail</option>
+              <option value="telefone">Telefone</option>
+              <option value="aleatoria">Aleatória</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Chave Pix</label>
-            <input type="text" id="saquePix" placeholder="CPF, e-mail ou telefone">
+            <input type="text" id="saquePix" placeholder="CPF, e-mail, telefone ou aleatória">
           </div>
+          <div class="form-group">
+            <label>Nome do favorecido</label>
+            <input type="text" id="saqueNome" placeholder="Nome completo">
+          </div>
+          <div class="form-group">
+            <label>CPF do favorecido</label>
+            <input type="text" id="saqueCpf" placeholder="000.000.000-00">
+          </div>
+          <p class="sub" id="saqueHint">Saque <strong>Normal</strong>: processado em cerca de 2 minutos (teste).</p>
           <button type="button" class="btn btn-primary btn-block" id="btnSaque"><i class="fas fa-money-bill-wave"></i> Solicitar saque</button>
+        </div>
+        <div style="margin-top:20px">
+          <h2 style="font-size:1.05rem;margin-bottom:10px">Minhas retiradas</h2>
+          <div id="saqueHistorico"><p class="sub">Carregando...</p></div>
         </div>
       </section>
 
@@ -1667,6 +1714,7 @@ img { max-width: 100%; display: block; }
     function renderWallet() {
       document.getElementById('walletSaldo').textContent = money(cacheWallet.saldo);
       document.getElementById('walletPending').textContent = money(cacheWallet.pending);
+      try { renderSaqueHistorico(); } catch(e) {}
       var listEl = document.getElementById('walletPendingList');
       if (!listEl) return;
       var items = (cacheWallet.pendingItems || []).filter(function (it) { return !it.released; });
@@ -1786,17 +1834,69 @@ img { max-width: 100%; display: block; }
       }
     });
 
+    
+    var saqueMode = 'normal';
+    document.querySelectorAll('.saque-mode').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        document.querySelectorAll('.saque-mode').forEach(function(b){ b.classList.remove('on'); });
+        btn.classList.add('on');
+        saqueMode = btn.getAttribute('data-mode') || 'normal';
+        var h = document.getElementById('saqueHint');
+        if (h) h.innerHTML = saqueMode === 'turbo'
+          ? 'Saque <strong>Turbo</strong>: processado em ~30s (teste) · taxa <strong>R$ 3,50</strong>.'
+          : 'Saque <strong>Normal</strong>: processado em ~2 minutos (teste).';
+      });
+    });
+
+    async function renderSaqueHistorico() {
+      var el = document.getElementById('saqueHistorico');
+      if (!el) return;
+      try {
+        var list = typeof fsGetMyWithdrawals === 'function' ? await fsGetMyWithdrawals() : [];
+        if (!list.length) {
+          el.innerHTML = '<p class="sub">Nenhuma retirada ainda.</p>';
+          return;
+        }
+        el.innerHTML = list.map(function(w){
+          var st = w.status || 'processando';
+          var stLabel = st === 'aprovado' || st === 'pago' ? 'Aprovado' : (st === 'processando' ? 'Processando' : st);
+          var stClass = (st === 'aprovado' || st === 'pago') ? 'st-ok' : 'st-wait';
+          var when = w.createdAtMs ? new Date(w.createdAtMs).toLocaleString('pt-BR') : '';
+          var left = '';
+          if (st === 'processando' && w.availableAtMs) {
+            var ms = Math.max(0, w.availableAtMs - Date.now());
+            var s = Math.ceil(ms/1000);
+            left = s > 60 ? (Math.ceil(s/60) + ' min restantes') : (s + 's restantes');
+          }
+          return '<div class="wd-item"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+            '<strong>#' + (w.id||'') + '</strong> <span class="st ' + stClass + '">' + stLabel + '</span></div>' +
+            '<div style="margin-top:6px;font-size:0.9rem">Retirada Pix (' + (w.mode==='turbo'?'Turbo':'Normal') + ')</div>' +
+            '<div style="font-size:0.85rem;color:#6b7280;margin-top:4px">Para: ' + (w.pixKey||'') + ' · Valor: R$ ' + (Number(w.amount)||0).toFixed(2).replace('.',',') +
+            (w.fee ? (' · Taxa: R$ ' + Number(w.fee).toFixed(2).replace('.',',')) : '') + '</div>' +
+            '<div style="font-size:0.8rem;color:#9ca3af;margin-top:4px">Solicitado em ' + when + (left ? (' · ' + left) : '') + '</div></div>';
+        }).join('');
+      } catch (e) {
+        el.innerHTML = '<p class="sub">Nao foi possivel carregar o historico.</p>';
+      }
+    }
+
+
     document.getElementById('btnSaque').addEventListener('click', async function () {
       const val = parseFloat(document.getElementById('saqueValor').value);
       const pix = document.getElementById('saquePix').value.trim();
-      if (!val || val < 10) { msg('Valor minimo de saque: R$ 10.', 'err'); return; }
+      const nome = (document.getElementById('saqueNome') && document.getElementById('saqueNome').value.trim()) || '';
+      const cpf = (document.getElementById('saqueCpf') && document.getElementById('saqueCpf').value.trim()) || '';
+      const pixType = (document.getElementById('saquePixType') && document.getElementById('saquePixType').value) || 'cpf';
+      if (!val || val < 5) { msg('Valor minimo de saque: R$ 5.', 'err'); return; }
       if (!pix) { msg('Informe a chave Pix.', 'err'); return; }
       try {
-        var wid = await fsRequestWithdraw(val, pix);
-        msg('Saque ' + wid + ' solicitado! Aguarde processamento.', 'ok');
+        if (typeof fsRequestWithdraw !== 'function') throw new Error('Sistema de saque nao carregou. Atualize a pagina.');
+        var res = await fsRequestWithdraw(val, pix, { mode: saqueMode, holderName: nome, cpf: cpf, pixType: pixType });
+        var id = res && res.id ? res.id : res;
+        msg('Saque ' + id + ' solicitado! ' + (saqueMode==='turbo' ? 'Turbo: ~30s (teste).' : 'Normal: ~2 min (teste).'), 'ok');
         document.getElementById('saqueValor').value = '';
-        document.getElementById('saquePix').value = '';
         if (typeof loadAll === 'function') await loadAll();
+        await renderSaqueHistorico();
       } catch (err) {
         msg(err.message || 'Erro no saque.', 'err');
       }
