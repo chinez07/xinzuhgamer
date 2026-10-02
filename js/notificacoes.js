@@ -56,7 +56,8 @@ async function fsAddNotification(userId, data) {
   if (!userId) return;
   try {
     if (typeof firebase !== 'undefined' && firebase.firestore) {
-      await firebase.firestore().collection('notifications').add({
+      var nid = 'NT' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4);
+      await firebase.firestore().collection('notifications').doc(nid).set({
         userId: userId,
         type: data.type || 'sistema',
         title: data.title || 'Notificação',
@@ -66,6 +67,7 @@ async function fsAddNotification(userId, data) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         createdAtMs: Date.now()
       });
+      console.log('[Bloxzuh] notificação ID=', nid);
       return;
     }
   } catch (e) { console.warn(e); }
