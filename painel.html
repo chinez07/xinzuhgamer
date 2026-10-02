@@ -1789,15 +1789,14 @@ img { max-width: 100%; display: block; }
     document.getElementById('btnSaque').addEventListener('click', async function () {
       const val = parseFloat(document.getElementById('saqueValor').value);
       const pix = document.getElementById('saquePix').value.trim();
-      if (!val || val < 10) { msg('Valor mínimo de saque: R$ 10.', 'err'); return; }
+      if (!val || val < 10) { msg('Valor minimo de saque: R$ 10.', 'err'); return; }
       if (!pix) { msg('Informe a chave Pix.', 'err'); return; }
-      if (val > cacheWallet.saldo) { msg('Saldo insuficiente.', 'err'); return; }
       try {
-        const novo = Math.round((cacheWallet.saldo - val) * 100) / 100;
-        await fsSetWallet(novo, cacheWallet.pending);
-        msg('Saque de ' + money(val) + ' solicitado para ' + pix + '.', 'ok');
+        var wid = await fsRequestWithdraw(val, pix);
+        msg('Saque ' + wid + ' solicitado! Aguarde processamento.', 'ok');
         document.getElementById('saqueValor').value = '';
-        await loadAll();
+        document.getElementById('saquePix').value = '';
+        if (typeof loadAll === 'function') await loadAll();
       } catch (err) {
         msg(err.message || 'Erro no saque.', 'err');
       }

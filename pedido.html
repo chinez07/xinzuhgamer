@@ -161,6 +161,7 @@
     var isBuyer = o.buyerUid === currentUser.uid;
     var isSeller = o.sellerUid === currentUser.uid;
     var canChat = o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido';
+    var canReview = isBuyer && o.status === 'concluido' && !o.reviewed;
     var img = o.adCover ? '<img class="thumb" src="' + o.adCover + '" alt="">' : '';
     var actions = '';
     var waitingPay = o.status === 'aguardando_pagamento' && !(o.paymentExpiresAtMs && Date.now() >= Number(o.paymentExpiresAtMs));
@@ -207,6 +208,28 @@
     if ((b = document.getElementById('btnDeliver'))) b.onclick = async function(){
       await setStatus('em_entrega'); await reload();
     };
+    
+    if (canReview) {
+      var revHtml = '<div class="box" id="reviewBox"><h1>Avaliar pedido</h1><p class="muted">Como foi a entrega?</p>' +
+        '<div id="starPick" style="display:flex;gap:8px;margin:12px 0">' +
+        [1,2,3,4,5].map(function(s){return '<button type="button" data-star="'+s+'" style="font-size:1.5rem;background:0;border:0;cursor:pointer;color:#fbbf24">★</button>';}).join('') +
+        '</div><textarea id="revComment" rows="3" placeholder="Comentario (opcional)" style="width:100%;padding:10px;border-radius:10px;border:1px solid #2a2a36;background:#0f0f14;color:#fff;margin-bottom:10px"></textarea>' +
+        '<button type="button" class="btn" id="btnReview">Enviar avaliacao</button></div>';
+      document.getElementById('app').insertAdjacentHTML('beforeend', revHtml);
+      var picked = 5;
+      document.querySelectorAll('#starPick [data-star]').forEach(function(btn){
+        btn.onclick = function(){ picked = +btn.getAttribute('data-star'); };
+      });
+      document.getElementById('btnReview').onclick = async function(){
+        try {
+          this.disabled = true;
+          await fsAddReview(order, picked, (document.getElementById('revComment').value||'').trim());
+          alert('Avaliacao enviada!');
+          await reload();
+        } catch(e) { alert(e.message||'Erro'); this.disabled = false; }
+      };
+    }
+
     if ((b = document.getElementById('btnDone'))) b.onclick = async function(){
       await setStatus('concluido');
       try {

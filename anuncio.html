@@ -314,7 +314,7 @@
               '<button type="button" class="btn-primary" id="btnAsk">Perguntar</button></div></div>') +
         '</div>' +
         '<div class="section"><h2>Avaliações</h2><div class="card">' +
-          '<div class="rating-big"><div class="n">5.0</div><div class="stars">★★★★★</div><div style="color:var(--muted);font-size:0.85rem">Ainda sem avaliações neste anúncio</div></div>' +
+          '<div class="rating-big"><div class="n" id="ratingN">—</div><div class="stars" id="ratingStars">☆☆☆☆☆</div><div style="color:var(--muted);font-size:0.85rem" id="ratingSub">Carregando avaliacoes...</div></div><div id="reviewsList"></div>' +
         '</div></div>' +
         '<div class="section"><div class="card seller-card">' +
           '<div class="big-av" id="sellerAv">' + initial + '</div>' +
@@ -402,6 +402,24 @@
         });
       })();
 
+      try {
+        var _rn = document.getElementById('ratingN');
+        if (_rn && raw.rating != null) _rn.textContent = Number(raw.rating).toFixed(1);
+        var _rs = document.getElementById('ratingStars');
+        if (_rs && raw.rating) _rs.textContent = '★'.repeat(Math.round(Number(raw.rating))) + '☆'.repeat(5-Math.round(Number(raw.rating)));
+        var _rb = document.getElementById('ratingSub');
+        if (_rb) _rb.textContent = raw.ratingCount ? (raw.ratingCount + ' avaliacao(oes)') : 'Ainda sem avaliacoes neste anuncio';
+        if (typeof fsGetAdReviews === 'function') {
+          fsGetAdReviews(ad.id, 20).then(function(list){
+            var el = document.getElementById('reviewsList');
+            if (!el || !list.length) return;
+            el.innerHTML = list.map(function(r){
+              return '<div style="border-top:1px solid var(--border);padding:10px 0"><strong>' + esc(r.buyerName||'Comprador') + '</strong> ' + '★'.repeat(r.stars||0) +
+                '<div style="color:var(--muted);font-size:0.9rem;margin-top:4px">' + esc(r.comment||'') + '</div></div>';
+            }).join('');
+          });
+        }
+      } catch (_e) {}
       const favBtn = document.getElementById('favBtn');
       if (favBtn) {
         favBtn.onclick = function () {
