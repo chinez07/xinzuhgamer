@@ -69,12 +69,6 @@
     var price = Number(ad.price) || 0;
     var code = 'BZ' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4);
     var ref = firebase.firestore().collection('orders').doc(code);
-    for (var i = 0; i < 5; i++) {
-      var exists = await ref.get();
-      if (!exists.exists) break;
-      code = 'BZ' + Math.random().toString(36).slice(2, 8).toUpperCase();
-      ref = firebase.firestore().collection('orders').doc(code);
-    }
     var payload = {
       code: code,
       adId: ad.id,
