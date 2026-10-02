@@ -206,9 +206,11 @@ async function fsSyncSellerSalesAndWallet() {
       var adoc = await aref.get();
       if (adoc.exists && adoc.data().sellerUid === u.uid) {
         var ad = adoc.data();
-        var stock = Math.max(0, (Number(ad.stock) || 0) - (Number(o.quantity) || 1));
-        var sales = (Number(ad.sales) || 0) + (Number(o.quantity) || 1);
-        var patch = { stock: stock, sales: sales };
+        var qty = Number(o.quantity) || 1;
+        var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
+        var sold = (Number(ad.sold) || Number(ad.sales) || 0) + qty; // Vendidos: no pagamento
+        var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
+        // NÃO incrementa sales (Vendas) aqui — só na entrega confirmada
         if (stock <= 0) patch.status = 'pausado';
         await aref.update(patch);
       }
@@ -325,6 +327,7 @@ function normalizeAd(id, data) {
     seller: data.sellerName || 'Vendedor',
     rating: 5.0,
     sales: data.sales || 0,
+    sold: (data.sold != null ? data.sold : (data.sales || 0)),
     icon: 'fa-gamepad',
     imgClass: 'prod-default',
     cover: data.cover || '',
@@ -646,6 +649,56 @@ async function fsSetOrderPayment(orderId, data) {
 
 // Exports globais (garante disponibilidade no checkout)
 window.requireUser = requireUser;
+
+/** Baixa estoque + Vendidos assim que o pedido fica pago (qualquer um autenticado com regras) */
+async function fsApplyOrderStock(order) {
+  if (!order || !order.adId) return;
+  if (order.stockApplied) return;
+  try {
+    var aref = getDb().collection('ads').doc(order.adId);
+    var adoc = await aref.get();
+    if (!adoc.exists) {
+      await getDb().collection('orders').doc(order.id).update({ stockApplied: true });
+      return;
+    }
+    var ad = adoc.data();
+    var qty = Number(order.quantity) || 1;
+    var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
+    var sold = (Number(ad.sold) != null ? Number(ad.sold) : (Number(ad.sales) || 0)) + qty;
+    var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
+    if (stock <= 0) patch.status = 'pausado';
+    await aref.update(patch);
+    await getDb().collection('orders').doc(order.id).update({ stockApplied: true });
+    console.log('[Bloxzuh] estoque/vendidos atualizados ad=', order.adId, 'stock=', stock, 'sold=', sold);
+  } catch (e) {
+    console.warn('fsApplyOrderStock', e);
+  }
+}
+
+/** Vendas (entregas concluídas) — só quando status = concluido */
+async function fsApplyDeliverySale(order) {
+  if (!order || !order.adId) return;
+  if (order.saleCounted) return;
+  try {
+    var aref = getDb().collection('ads').doc(order.adId);
+    var adoc = await aref.get();
+    if (!adoc.exists) {
+      await getDb().collection('orders').doc(order.id).update({ saleCounted: true });
+      return;
+    }
+    var ad = adoc.data();
+    var qty = Number(order.quantity) || 1;
+    var sales = (Number(ad.sales) || 0) + qty;
+    await aref.update({ sales: sales, updatedAtMs: Date.now() });
+    await getDb().collection('orders').doc(order.id).update({ saleCounted: true });
+    console.log('[Bloxzuh] vendas +1 ad=', order.adId, 'sales=', sales);
+  } catch (e) {
+    console.warn('fsApplyDeliverySale', e);
+  }
+}
+
+window.fsApplyOrderStock = fsApplyOrderStock;
+window.fsApplyDeliverySale = fsApplyDeliverySale;
 window.fsCreateOrder = fsCreateOrder;
 window.fsGetMyPurchases = fsGetMyPurchases;
 window.fsGetMySales = fsGetMySales;
