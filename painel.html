@@ -1472,7 +1472,7 @@ img { max-width: 100%; display: block; }
       var u = firebase.auth().currentUser;
       if (!u) return { saldo: 0, pending: 0, pendingItems: [] };
       var db = firebase.firestore();
-      var releaseMs = (window.BLOXZUH_RELEASE_MS != null) ? window.BLOXZUH_RELEASE_MS : (2 * 60 * 1000); window.BLOXZUH_RELEASE_MS = releaseMs;
+      var releaseMs = 2 * 60 * 1000; window.BLOXZUH_RELEASE_MS = releaseMs; // teste 2 min
       function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
       var snap;
@@ -1554,15 +1554,10 @@ img { max-width: 100%; display: block; }
       }
 
       
-      // Ajusta itens ainda a liberar para o tempo atual de teste (2 min)
+      // Força liberação de teste: 2 min a partir de agora
       items = items.map(function (it) {
         if (it.released) return it;
-        var base = Number(it.createdAtMs) || now;
-        // se ainda falta muito (> 1h), recalcula para releaseMs a partir de agora (teste)
-        if (!it.releaseAtMs || (it.releaseAtMs - now) > 60 * 60 * 1000) {
-          return Object.assign({}, it, { releaseAtMs: now + releaseMs, releaseFixed: true });
-        }
-        return it;
+        return Object.assign({}, it, { releaseAtMs: now + releaseMs, releaseFixed: true });
       });
 
       // liberar vencidos
@@ -1863,6 +1858,68 @@ img { max-width: 100%; display: block; }
       } catch (e) {
         el.innerHTML = '<p class="sub">Nao foi possivel carregar o historico.</p>';
       }
+    }
+
+
+    
+    // Fallback local se firestore-db nao exportar fsRequestWithdraw
+    if (typeof window.fsRequestWithdraw !== 'function') {
+      window.fsRequestWithdraw = async function(amount, pixKey, opts) {
+        opts = opts || {};
+        var u = firebase.auth().currentUser;
+        if (!u) throw new Error('Faça login.');
+        amount = Number(amount) || 0;
+        if (amount < 1) throw new Error('Valor minimo de saque: R$ 1.');
+        pixKey = String(pixKey || '').trim();
+        if (!pixKey) throw new Error('Informe a chave Pix.');
+        var mode = opts.mode === 'turbo' ? 'turbo' : 'normal';
+        var fee = mode === 'turbo' ? 2 : 0;
+        var delayMs = mode === 'turbo' ? 30 * 1000 : 2 * 60 * 1000;
+        var total = Math.round((amount + fee) * 100) / 100;
+        var wref = firebase.firestore().collection('wallets').doc(u.uid);
+        var wdoc = await wref.get();
+        var saldo = wdoc.exists ? (Number(wdoc.data().saldo) || 0) : 0;
+        if (total > saldo) throw new Error('Saldo disponivel insuficiente.');
+        var wid = 'WD' + Math.random().toString(36).slice(2,6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4);
+        var now = Date.now();
+        await firebase.firestore().collection('withdrawals').doc(wid).set({
+          userId: u.uid,
+          userName: u.displayName || opts.holderName || '',
+          userEmail: u.email || '',
+          holderName: opts.holderName || '',
+          holderCpf: opts.cpf || '',
+          pixType: opts.pixType || 'cpf',
+          amount: Math.round(amount * 100) / 100,
+          fee: fee,
+          mode: mode,
+          pixKey: pixKey,
+          status: 'processando',
+          availableAtMs: now + delayMs,
+          createdAtMs: now
+        });
+        await wref.set({ saldo: Math.round((saldo - total) * 100) / 100 }, { merge: true });
+        return { id: wid, availableAtMs: now + delayMs, mode: mode, fee: fee };
+      };
+      window.fsGetMyWithdrawals = async function() {
+        var u = firebase.auth().currentUser;
+        if (!u) return [];
+        var snap = await firebase.firestore().collection('withdrawals').where('userId', '==', u.uid).limit(50).get();
+        var now = Date.now();
+        var list = [];
+        var ops = [];
+        snap.forEach(function(d) {
+          var w = Object.assign({ id: d.id }, d.data());
+          if (w.status === 'processando' && w.availableAtMs && w.availableAtMs <= now) {
+            ops.push(firebase.firestore().collection('withdrawals').doc(d.id).update({ status: 'aprovado', paidAtMs: now }));
+            w.status = 'aprovado';
+          }
+          list.push(w);
+        });
+        if (ops.length) await Promise.all(ops);
+        list.sort(function(a,b){ return (b.createdAtMs||0)-(a.createdAtMs||0); });
+        return list;
+      };
+      console.log('[Bloxzuh] saque fallback ativo no painel');
     }
 
 
