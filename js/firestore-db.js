@@ -699,6 +699,88 @@ async function fsApplyDeliverySale(order) {
 
 window.fsApplyOrderStock = fsApplyOrderStock;
 window.fsApplyDeliverySale = fsApplyDeliverySale;
+
+async function fsAddReview(order, stars, comment) {
+  const u = requireUser();
+  if (!order || !order.id) throw new Error('Pedido invalido.');
+  if (order.buyerUid !== u.uid) throw new Error('So o comprador pode avaliar.');
+  if (order.status !== 'concluido') throw new Error('Avalie apos a entrega confirmada.');
+  if (order.reviewed) throw new Error('Voce ja avaliou este pedido.');
+  stars = Math.min(5, Math.max(1, parseInt(stars, 10) || 5));
+  comment = String(comment || '').slice(0, 500);
+  var rid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('RV') : ('RV' + Date.now().toString(36).toUpperCase());
+  await getDb().collection('reviews').doc(rid).set({
+    orderId: order.id,
+    adId: order.adId || '',
+    sellerUid: order.sellerUid || '',
+    buyerUid: u.uid,
+    buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
+    stars: stars,
+    comment: comment,
+    createdAtMs: Date.now(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await getDb().collection('orders').doc(order.id).update({ reviewed: true, reviewStars: stars, updatedAtMs: Date.now() });
+  if (order.adId) {
+    try {
+      var snap = await getDb().collection('reviews').where('adId', '==', order.adId).limit(100).get();
+      var sum = 0, n = 0;
+      snap.forEach(function (d) { sum += Number(d.data().stars) || 0; n++; });
+      if (n > 0) {
+        await getDb().collection('ads').doc(order.adId).update({
+          rating: Math.round((sum / n) * 10) / 10,
+          ratingCount: n,
+          updatedAtMs: Date.now()
+        });
+      }
+    } catch (e) { console.warn(e); }
+  }
+  return rid;
+}
+
+async function fsGetAdReviews(adId, limit) {
+  if (!adId) return [];
+  try {
+    var snap = await getDb().collection('reviews').where('adId', '==', adId).limit(limit || 30).get();
+    var list = [];
+    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
+    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+    return list;
+  } catch (e) { return []; }
+}
+
+async function fsRequestWithdraw(amount, pixKey) {
+  const u = requireUser();
+  amount = Number(amount) || 0;
+  if (amount < 10) throw new Error('Valor minimo de saque: R$ 10.');
+  pixKey = String(pixKey || '').trim();
+  if (!pixKey) throw new Error('Informe a chave Pix.');
+  var wref = getDb().collection('wallets').doc(u.uid);
+  var wdoc = await wref.get();
+  var saldo = wdoc.exists ? (Number(wdoc.data().saldo) || 0) : 0;
+  if (amount > saldo) throw new Error('Saldo disponivel insuficiente.');
+  var wid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('WD') : ('WD' + Date.now().toString(36).toUpperCase());
+  await getDb().collection('withdrawals').doc(wid).set({
+    userId: u.uid,
+    userName: u.displayName || '',
+    userEmail: u.email || '',
+    amount: Math.round(amount * 100) / 100,
+    pixKey: pixKey,
+    status: 'pendente',
+    createdAtMs: Date.now(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await wref.set({
+    saldo: Math.round((saldo - amount) * 100) / 100,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+  return wid;
+}
+
+window.fsAddReview = fsAddReview;
+window.fsGetAdReviews = fsGetAdReviews;
+window.fsRequestWithdraw = fsRequestWithdraw;
+
 window.fsCreateOrder = fsCreateOrder;
 window.fsGetMyPurchases = fsGetMyPurchases;
 window.fsGetMySales = fsGetMySales;
