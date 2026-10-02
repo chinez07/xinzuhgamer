@@ -490,16 +490,10 @@ async function fsCreateOrder(ad, extra) {
   if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
 
   const price = Number(ad.price) || 0;
-  // ID do documento = código do pedido (ex: BZD3GNDR)
-  let code = orderCode();
-  let ref = getDb().collection('orders').doc(code);
-  // evita colisão rara
-  for (let i = 0; i < 5; i++) {
-    const exists = await ref.get();
-    if (!exists.exists) break;
-    code = orderCode();
-    ref = getDb().collection('orders').doc(code);
-  }
+  // ID do documento = código do pedido (ex: BZB8EQR6)
+  // NÃO faz .get() antes: regra do Firestore bloqueia leitura de doc inexistente
+  const code = orderCode();
+  const ref = getDb().collection('orders').doc(code);
   const payload = {
     code: code,
     adId: ad.id,
@@ -661,4 +655,4 @@ window.fsSyncSellerWallet = fsSyncSellerWallet;
 window.fsProcessWalletReleases = fsProcessWalletReleases;
 window.fsSyncSellerSalesAndWallet = fsSyncSellerSalesAndWallet;
 
-console.log('[Bloxzuh] firestore-db v-order-code-id');
+console.log('[Bloxzuh] firestore-db v-order-code-id-2-no-get');
