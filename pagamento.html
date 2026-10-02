@@ -45,6 +45,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
+  <script src="js/firestore-db.js"></script>
   <script src="js/mp-config.js"></script>
   <script>
 (function(){
@@ -77,6 +78,29 @@
       paidAtMs: Date.now(),
       updatedAtMs: Date.now()
     });
+    // Atualiza Disponíveis e Vendidos na hora
+    try {
+      var odoc = await firebase.firestore().collection('orders').doc(orderId).get();
+      if (odoc.exists) {
+        var o = Object.assign({ id: odoc.id }, odoc.data());
+        if (typeof fsApplyOrderStock === 'function') {
+          await fsApplyOrderStock(o);
+        } else if (o.adId && !o.stockApplied) {
+          var aref = firebase.firestore().collection('ads').doc(o.adId);
+          var adoc = await aref.get();
+          if (adoc.exists) {
+            var ad = adoc.data();
+            var qty = Number(o.quantity) || 1;
+            var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
+            var sold = (Number(ad.sold) != null ? Number(ad.sold) : (Number(ad.sales) || 0)) + qty;
+            var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
+            if (stock <= 0) patch.status = 'pausado';
+            await aref.update(patch);
+            await firebase.firestore().collection('orders').doc(orderId).update({ stockApplied: true });
+          }
+        }
+      }
+    } catch (e) { console.warn('stock on pay', e); }
   }
 
   async function markExpired(orderId){

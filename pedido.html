@@ -147,6 +147,12 @@
           order.status = 'expirado';
         } catch (ex) {}
       }
+      if (order.status === 'pago' || order.status === 'em_entrega' || order.status === 'concluido') {
+        if (typeof fsApplyOrderStock === 'function') await fsApplyOrderStock(order);
+      }
+      if (order.status === 'concluido' && typeof fsApplyDeliverySale === 'function') {
+        await fsApplyDeliverySale(order);
+      }
       draw();
   }
 
@@ -202,7 +208,21 @@
       await setStatus('em_entrega'); await reload();
     };
     if ((b = document.getElementById('btnDone'))) b.onclick = async function(){
-      await setStatus('concluido'); await reload();
+      await setStatus('concluido');
+      try {
+        if (typeof fsApplyDeliverySale === 'function') await fsApplyDeliverySale(order);
+        else if (order && order.adId && !order.saleCounted) {
+          var aref = firebase.firestore().collection('ads').doc(order.adId);
+          var adoc = await aref.get();
+          if (adoc.exists) {
+            var ad = adoc.data();
+            var qty = Number(order.quantity) || 1;
+            await aref.update({ sales: (Number(ad.sales)||0) + qty, updatedAtMs: Date.now() });
+            await firebase.firestore().collection('orders').doc(orderId).update({ saleCounted: true });
+          }
+        }
+      } catch (e) { console.warn(e); }
+      await reload();
     };
     if ((b = document.getElementById('btnSend'))) b.onclick = async function(){
       var t = (document.getElementById('msgIn').value || '').trim();

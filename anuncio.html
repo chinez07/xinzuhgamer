@@ -208,7 +208,8 @@
 
       const raw = ad.raw || {};
       const stock = ad.stock || raw.stock || 1;
-      const sales = ad.sales || 0;
+      const sold = (raw.sold != null ? Number(raw.sold) : (ad.sold != null ? Number(ad.sold) : Number(ad.sales || 0)));
+      const sales = Number(ad.sales || raw.sales || 0);
       const vis = (ad.visibility || 'prata');
       const model = (ad.model || raw.model || 'normal');
       const sellerUid = raw.sellerUid || '';
@@ -284,7 +285,7 @@
         '</div>' +
         '<div class="stats">' +
           '<div class="stat"><div class="k">Disponíveis</div><div class="v plus">+' + stock + '</div></div>' +
-          '<div class="stat"><div class="k">Vendidos</div><div class="v">' + sales + '</div></div>' +
+          '<div class="stat"><div class="k">Vendidos</div><div class="v">' + sold + '</div></div>' +
           '<div class="stat"><div class="k">Vendas</div><div class="v">' + sales + '</div></div>' +
         '</div>' +
         '<div class="buy-box">' +
