@@ -1,6 +1,6 @@
-// Mercado Pago / Bloxzuh – configure a URL do seu Cloudflare Worker
-// Exemplo: https://bloxzuh-pix.seuusuario.workers.dev
-window.MP_WORKER_URL = window.MP_WORKER_URL || '';
-// Deixe vazio até criar o Worker. Enquanto vazio, o site usa modo teste (simular).
+// Mercado Pago / Bloxzuh
+// Worker de RECEBER Pix (checkout)
+window.MP_WORKER_URL = window.MP_WORKER_URL || 'https://bloxzuh-pix.hskkaj48.workers.dev';
 
-window.BLOXZUH_SAQUE_WORKER_URL = window.BLOXZUH_SAQUE_WORKER_URL || (window.MP_WORKER_URL || '');
+// Worker de SAQUE / enviar Pix (Payouts)
+window.BLOXZUH_SAQUE_WORKER_URL = 'https://bloxzuh-saque.hskkaj48.workers.dev';
