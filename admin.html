@@ -1,74 +1,217 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin | Bloxzuh</title>
 <style>
 :root{--p:#7c3aed;--bg:#0f0f14;--card:#16161f;--text:#f3f4f6;--muted:#9ca3af;--border:#2a2a36}
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
-.top{display:flex;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
-.wrap{max-width:960px;margin:0 auto;padding:16px}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-.tabs button{padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:0;color:var(--text);cursor:pointer;font-weight:600}
-.tabs button.on{background:var(--p);border-color:var(--p)}.box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
-.row{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.9rem;flex-wrap:wrap}
-.muted{color:var(--muted)}.btn{padding:8px 12px;border:0;border-radius:8px;background:var(--p);color:#fff;font-weight:700;cursor:pointer}
-.btn-ghost{background:0;border:1px solid var(--border);color:var(--text)}.badge{padding:2px 8px;border-radius:999px;font-size:.75rem;background:#2a2a36}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
+.top{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
+.top a{color:#c4b5fd;text-decoration:none}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.tabs button{padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;font-weight:600}
+.tabs button.on{background:var(--p);border-color:var(--p);color:#fff}
+.box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.box h1{font-size:1.15rem;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:.9rem;flex-wrap:wrap;align-items:flex-start}
+.row:last-child{border-bottom:0}
+.muted{color:var(--muted);font-size:.85rem}
+.btn{padding:8px 12px;border:0;border-radius:8px;background:var(--p);color:#fff;font-weight:700;cursor:pointer;font-size:.85rem}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;background:#2a2a36;text-transform:lowercase}
+.badge-ok{background:#14532d;color:#bbf7d0}
+.badge-wait{background:#713f12;color:#fde68a}
+.err{color:#fca5a5;padding:12px;background:#3f1d1d;border-radius:10px;margin-bottom:10px}
+.loading{color:var(--muted);padding:20px 0;text-align:center}
 </style>
 </head>
 <body>
-<div class="top"><strong>Admin Bloxzuh</strong><a href="index.html" style="color:#c4b5fd">Site</a></div>
+<div class="top">
+  <strong>Admin Bloxzuh</strong>
+  <a href="index.html">Site</a>
+</div>
 <div class="wrap">
-<p class="muted" id="who">Verificando...</p>
-<div class="tabs">
-<button type="button" class="on" data-tab="orders">Pedidos</button>
-<button type="button" data-tab="withdrawals">Saques</button>
-<button type="button" data-tab="ads">Anuncios</button>
+  <p class="muted" id="who">Verificando...</p>
+  <div class="tabs">
+    <button type="button" class="on" data-tab="orders">Pedidos</button>
+    <button type="button" data-tab="withdrawals">Saques</button>
+    <button type="button" data-tab="ads">Anuncios</button>
+  </div>
+  <div id="panel"><p class="loading">Carregando...</p></div>
 </div>
-<div id="panel"></div>
-</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <script src="js/firebase-auth.js"></script>
 <script src="js/admin-config.js"></script>
 <script>
-(function(){
-  var panel=document.getElementById('panel'), tab='orders';
-  function isAdmin(u){
-    var emails=(window.BLOXZUH_ADMIN_EMAILS||[]).map(function(e){return String(e).toLowerCase();});
-    var uids=window.BLOXZUH_ADMIN_UIDS||[];
-    return u && ((u.email&&emails.indexOf(u.email.toLowerCase())>=0)||uids.indexOf(u.uid)>=0);
+(function () {
+  var panel = document.getElementById('panel');
+  var tab = 'orders';
+  var loading = false;
+
+  function isAdmin(u) {
+    var emails = (window.BLOXZUH_ADMIN_EMAILS || []).map(function (e) { return String(e).toLowerCase(); });
+    var uids = window.BLOXZUH_ADMIN_UIDS || [];
+    if (!u) return false;
+    if (u.email && emails.indexOf(String(u.email).toLowerCase()) >= 0) return true;
+    if (uids.indexOf(u.uid) >= 0) return true;
+    return false;
   }
-  function money(n){return 'R$ '+(Number(n)||0).toFixed(2).replace('.',',');}
-  function esc(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-  document.querySelectorAll('.tabs button').forEach(function(b){
-    b.onclick=function(){document.querySelectorAll('.tabs button').forEach(function(x){x.classList.remove('on');});b.classList.add('on');tab=b.getAttribute('data-tab');load();};
+
+  function money(n) {
+    return 'R$ ' + (Number(n) || 0).toFixed(2).replace('.', ',');
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function badgeClass(st) {
+    st = String(st || '').toLowerCase();
+    if (st === 'pago' || st === 'aprovado' || st === 'concluido') return 'badge badge-ok';
+    if (st === 'processando' || st === 'pendente' || st === 'em_entrega') return 'badge badge-wait';
+    return 'badge';
+  }
+
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (x) { x.classList.remove('on'); });
+      b.classList.add('on');
+      tab = b.getAttribute('data-tab') || 'orders';
+      load();
+    });
   });
-  async function load(){
-    if(tab==='orders'){
-      var snap=await firebase.firestore().collection('orders').limit(40).get();
-      var html='<div class="box"><h1>Pedidos</h1>';
-      snap.forEach(function(d){var o=d.data();html+='<div class="row"><div><strong>#'+esc(o.code||d.id)+'</strong> '+esc(o.adTitle)+'<div class="muted">'+esc(o.buyerName)+' / '+money(o.total||o.price)+'</div></div><span class="badge">'+esc(o.status)+'</span></div>';});
-      panel.innerHTML=html+'</div>';
-    } else if(tab==='withdrawals'){
-      var snap=await firebase.firestore().collection('withdrawals').limit(40).get();
-      var html='<div class="box"><h1>Saques</h1>';
-      snap.forEach(function(d){var w=Object.assign({id:d.id},d.data());html+='<div class="row"><div><strong>'+esc(w.id)+'</strong> '+money(w.amount)+'<div class="muted">Pix: '+esc(w.pixKey)+'</div></div>'+(w.status==='pendente'?'<button class="btn" data-pay="'+esc(w.id)+'">Marcar pago</button>':'<span class="badge">'+esc(w.status)+'</span>')+'</div>';});
-      panel.innerHTML=html+'</div>';
-      document.querySelectorAll('[data-pay]').forEach(function(btn){btn.onclick=async function(){await firebase.firestore().collection('withdrawals').doc(btn.getAttribute('data-pay')).update({status:'pago',paidAtMs:Date.now()});load();};});
-    } else {
-      var snap=await firebase.firestore().collection('ads').limit(40).get();
-      var html='<div class="box"><h1>Anuncios</h1>';
-      snap.forEach(function(d){var a=Object.assign({id:d.id},d.data());html+='<div class="row"><div><strong>'+esc(a.title)+'</strong><div class="muted">'+esc(a.id)+' stock '+(a.stock||0)+'</div></div><button class="btn btn-ghost" data-pause="'+esc(a.id)+'">Pausar</button></div>';});
-      panel.innerHTML=html+'</div>';
-      document.querySelectorAll('[data-pause]').forEach(function(btn){btn.onclick=async function(){await firebase.firestore().collection('ads').doc(btn.getAttribute('data-pause')).update({status:'pausado'});load();};});
+
+  async function loadOrders() {
+    var snap = await firebase.firestore().collection('orders').limit(80).get();
+    var list = [];
+    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
+    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+
+    var html = '<div class="box"><h1>Pedidos (' + list.length + ')</h1>';
+    if (!list.length) html += '<p class="muted">Nenhum pedido encontrado.</p>';
+    list.forEach(function (o) {
+      html += '<div class="row"><div><strong>#' + esc(o.code || o.id) + '</strong> ' + esc(o.adTitle || '') +
+        '<div class="muted">' + esc(o.buyerName || o.buyerUid) + ' → ' + esc(o.sellerName || o.sellerUid) +
+        ' · ' + money(o.total != null ? o.total : o.price) + '</div></div>' +
+        '<span class="' + badgeClass(o.status) + '">' + esc(o.status || '—') + '</span></div>';
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+  }
+
+  async function loadWithdrawals() {
+    var snap = await firebase.firestore().collection('withdrawals').limit(80).get();
+    var list = [];
+    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
+    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+
+    var html = '<div class="box"><h1>Saques (' + list.length + ')</h1>' +
+      '<p class="muted" style="margin-bottom:12px">Depois de enviar o Pix, clique em <strong>Marcar pago</strong>.</p>';
+    if (!list.length) html += '<p class="muted">Nenhum saque ainda.</p>';
+    list.forEach(function (w) {
+      var st = String(w.status || 'processando');
+      var canPay = st === 'pendente' || st === 'processando' || st === 'aprovado';
+      html += '<div class="row"><div><strong>' + esc(w.id) + '</strong> · ' + money(w.amount) +
+        (w.fee ? (' (taxa ' + money(w.fee) + ')') : '') +
+        '<div class="muted">Pix: ' + esc(w.pixKey) + (w.holderName ? (' · ' + esc(w.holderName)) : '') + '</div>' +
+        '<div class="muted">' + esc(w.userEmail || w.userName || w.userId) +
+        (w.mode ? (' · ' + (w.mode === 'turbo' ? 'Turbo' : 'Normal')) : '') + '</div></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+        '<span class="' + badgeClass(st) + '">' + esc(st) + '</span>' +
+        (canPay ? '<button type="button" class="btn" data-pay="' + esc(w.id) + '">Marcar pago</button>' : '') +
+        '</div></div>';
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+
+    document.querySelectorAll('[data-pay]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+          await firebase.firestore().collection('withdrawals').doc(btn.getAttribute('data-pay')).update({
+            status: 'pago',
+            paidAtMs: Date.now(),
+            updatedAtMs: Date.now()
+          });
+          await load();
+        } catch (e) {
+          alert(e.message || 'Erro ao marcar pago');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function loadAds() {
+    var snap = await firebase.firestore().collection('ads').limit(80).get();
+    var list = [];
+    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
+    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+
+    var html = '<div class="box"><h1>Anuncios (' + list.length + ')</h1>';
+    if (!list.length) html += '<p class="muted">Nenhum anuncio.</p>';
+    list.forEach(function (a) {
+      html += '<div class="row"><div><strong>' + esc(a.title) + '</strong>' +
+        '<div class="muted">' + esc(a.id) + ' · stock ' + (a.stock || 0) + ' · ' + esc(a.sellerName || a.sellerUid) + '</div></div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<span class="' + badgeClass(a.status) + '">' + esc(a.status || 'ativo') + '</span>' +
+        (a.status !== 'pausado' ? '<button type="button" class="btn btn-ghost" data-pause="' + esc(a.id) + '">Pausar</button>' : '') +
+        '</div></div>';
+    });
+    html += '</div>';
+    panel.innerHTML = html;
+
+    document.querySelectorAll('[data-pause]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+          await firebase.firestore().collection('ads').doc(btn.getAttribute('data-pause')).update({ status: 'pausado' });
+          await load();
+        } catch (e) {
+          alert(e.message || 'Erro');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function load() {
+    if (loading) return;
+    loading = true;
+    panel.innerHTML = '<p class="loading">Carregando ' + (tab === 'orders' ? 'pedidos' : tab === 'withdrawals' ? 'saques' : 'anuncios') + '...</p>';
+    try {
+      if (tab === 'orders') await loadOrders();
+      else if (tab === 'withdrawals') await loadWithdrawals();
+      else await loadAds();
+    } catch (e) {
+      console.error(e);
+      panel.innerHTML = '<div class="err"><strong>Erro ao carregar</strong><br>' + esc(e.message || e) +
+        '<br><br>Publique as regras do arquivo FIRESTORE-RULES-ADMIN.txt no Firebase (permite o admin ler tudo).</div>';
+    } finally {
+      loading = false;
     }
   }
-  firebase.auth().onAuthStateChanged(function(u){
-    if(!u){location.href='login.html?redirect=admin.html';return;}
-    if(!isAdmin(u)){document.getElementById('who').textContent='Acesso negado. Ajuste js/admin-config.js';return;}
-    document.getElementById('who').textContent='Admin: '+(u.email||u.uid);load();
+
+  firebase.auth().onAuthStateChanged(function (u) {
+    if (!u) {
+      location.href = 'login.html?redirect=admin.html';
+      return;
+    }
+    if (!isAdmin(u)) {
+      document.getElementById('who').textContent = 'Acesso negado. Ajuste js/admin-config.js';
+      panel.innerHTML = '';
+      return;
+    }
+    document.getElementById('who').textContent = 'Admin: ' + (u.email || u.uid);
+    load();
   });
 })();
 </script>
-</body></html>
+</body>
+</html>
