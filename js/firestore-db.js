@@ -211,7 +211,7 @@ async function fsSyncSellerSalesAndWallet() {
         var ad = adoc.data();
         var qty = Number(o.quantity) || 1;
         var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-        var sold = (Number(ad.sold) || Number(ad.sales) || 0) + qty; // Vendidos: no pagamento
+        var prevSold = Number(ad.sold); if (isNaN(prevSold)) prevSold = Number(ad.sales) || 0; var sold = prevSold + qty; // Vendidos no pagamento
         var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
         // NÃO incrementa sales (Vendas) aqui — só na entrega confirmada
         if (stock <= 0) patch.status = 'pausado';
@@ -330,7 +330,7 @@ function normalizeAd(id, data) {
     seller: data.sellerName || 'Vendedor',
     rating: 5.0,
     sales: data.sales || 0,
-    sold: (data.sold != null ? data.sold : (data.sales || 0)),
+    sold: (function(){ var s = Number(data.sold); if (!isNaN(s)) return s; var v = Number(data.sales); return isNaN(v) ? 0 : v; })(),
     icon: 'fa-gamepad',
     imgClass: 'prod-default',
     cover: data.cover || '',
@@ -667,7 +667,7 @@ async function fsApplyOrderStock(order) {
     var ad = adoc.data();
     var qty = Number(order.quantity) || 1;
     var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-    var sold = (Number(ad.sold) != null ? Number(ad.sold) : (Number(ad.sales) || 0)) + qty;
+    var prevSold = Number(ad.sold); if (isNaN(prevSold)) prevSold = Number(ad.sales) || 0; var sold = prevSold + qty;
     var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
     if (stock <= 0) patch.status = 'pausado';
     await aref.update(patch);
