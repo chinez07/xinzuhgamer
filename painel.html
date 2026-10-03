@@ -1676,8 +1676,28 @@ img { max-width: 100%; display: block; }
         return;
       }
       el.innerHTML = cacheSales.map(function (s) {
-        return '<div class="sale-item"><div><strong>' + escapeHtml(s.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(s.date || '') + ' · ' + escapeHtml(s.buyer || 'Comprador') + '</small></div><div style="font-weight:800;color:var(--primary)">' + money(s.price) + '</div></div>';
+        var nm = s.buyer || 'Comprador';
+        var av = s.buyerPhoto
+          ? ('<img src="'+escapeHtml(s.buyerPhoto)+'" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0">')
+          : ('<div style="width:40px;height:40px;border-radius:50%;background:#7c3aed;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">'+escapeHtml((nm||'?').charAt(0).toUpperCase())+'</div>');
+        return '<a class="sale-item" href="pedido.html?id='+encodeURIComponent(s.id)+'" style="display:flex;gap:12px;align-items:center;text-decoration:none;color:inherit">' +
+          av +
+          '<div style="flex:1;min-width:0"><strong>' + escapeHtml(s.title) + '</strong><br>' +
+          '<small style="color:var(--text-muted)">' + escapeHtml(s.date || '') + ' · ' + escapeHtml(nm) + '</small></div>' +
+          '<div style="font-weight:800;color:var(--primary)">' + money(s.price) + '</div></a>';
       }).join('');
+      // fotos dos compradores (async, sem quebrar lista)
+      cacheSales.forEach(function(s){
+        if (!s.buyerUid || s.buyerPhoto) return;
+        if (typeof fsGetProfile !== 'function') return;
+        fsGetProfile(s.buyerUid).then(function(p){
+          if (!p) return;
+          var ph = p.photo || p.photoURL || '';
+          if (!ph) return;
+          s.buyerPhoto = ph;
+          renderSales();
+        }).catch(function(){});
+      });
     }
 
         function releaseCountdown(ms) {
@@ -1845,6 +1865,8 @@ img { max-width: 100%; display: block; }
               title: o.adTitle || 'Pedido',
               price: o.total != null ? o.total : o.price,
               buyer: o.buyerName || 'Comprador',
+              buyerUid: o.buyerUid || '',
+              buyerPhoto: o.buyerPhoto || '',
               date: o.paidAtMs ? new Date(o.paidAtMs).toLocaleString('pt-BR') : '',
               status: st,
               code: o.code || ''
