@@ -625,6 +625,20 @@ img { max-width: 100%; display: block; }
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+.product-seller .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+.product-seller .bz-av {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
 .product-seller .avatar {
   width: 22px;
   height: 22px;
@@ -1269,10 +1283,18 @@ function createProductCard(ad) {
         '<h3>' + escapeHtmlHome(ad.title) + '</h3>' +
         '<div class="product-price">R$ ' + price + '</div>' +
         '<div class="product-seller">' +
-          (ad.sellerPhoto
-            ? '<span class="avatar" style="padding:0;overflow:hidden"><img src="' + String(ad.sellerPhoto).replace(/"/g,'') + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span> '
-            : '<span class="avatar">' + initial + '</span> ') +
-          escapeHtmlHome(ad.seller) +
+          (function(){
+            var uid = (ad.sellerUid || (ad.raw && ad.raw.sellerUid) || '');
+            var ph = ad.sellerPhoto || '';
+            if (window.BloxzuhPhotos && BloxzuhPhotos.avatarHtml) {
+              return BloxzuhPhotos.avatarHtml(ph, initial, 22);
+            }
+            if (ph) {
+              return '<span class="avatar" data-uid="' + uid + '" style="padding:0;overflow:hidden;width:22px;height:22px"><img src="' + String(ph).replace(/"/g,'') + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>';
+            }
+            return '<span class="avatar" data-uid="' + uid + '">' + initial + '</span>';
+          })() +
+          ' ' + escapeHtmlHome(ad.seller) +
           ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
           ' <span>(' + (ad.sales || 0) + ')</span>' +
         '</div>' +
@@ -1306,6 +1328,51 @@ const sortFilter = document.getElementById('sortFilter');
 const priceMin = document.getElementById('priceMin');
 const priceMax = document.getElementById('priceMax');
 const searchFilter = document.getElementById('searchFilter');
+
+
+async function hydrateSellerAvatars(root) {
+  root = root || document;
+  var nodes = root.querySelectorAll('.product-seller .avatar[data-uid], .product-seller .bz-av');
+  // also any avatar with data-uid
+  nodes = root.querySelectorAll('[data-uid]');
+  var uids = {};
+  nodes.forEach(function(el){
+    var u = el.getAttribute('data-uid');
+    if (u) uids[u] = 1;
+  });
+  var keys = Object.keys(uids);
+  if (!keys.length) {
+    // fill data-uid from adsData seller fields by matching sibling text - skip
+    return;
+  }
+  await Promise.all(keys.map(async function(uid){
+    var url = '';
+    try {
+      if (window.BloxzuhPhotos && BloxzuhPhotos.fetch) url = await BloxzuhPhotos.fetch(uid);
+      if (!url && typeof fsGetProfile === 'function') {
+        var p = await fsGetProfile(uid);
+        url = (p && (p.photo || p.photoURL)) || '';
+      }
+      if (!url) {
+        var d = await firebase.firestore().collection('profiles').doc(uid).get();
+        if (d.exists) url = d.data().photo || d.data().photoURL || '';
+      }
+    } catch(e){}
+    if (!url) return;
+    root.querySelectorAll('[data-uid="'+uid+'"]').forEach(function(el){
+      el.style.padding = '0';
+      el.style.overflow = 'hidden';
+      el.innerHTML = '<img src="'+url.replace(/"/g,'')+'" alt="" style="width:100%;height:100%;object-fit:cover;display:block">';
+    });
+    // update adsData cache
+    try {
+      adsData.forEach(function(a){
+        var su = a.sellerUid || (a.raw && a.raw.sellerUid) || '';
+        if (su === uid) a.sellerPhoto = url;
+      });
+    } catch(e){}
+  }));
+}
 
 function applyFilters() {
   if (!adsListContainer) return;
@@ -1344,6 +1411,26 @@ function applyFilters() {
   if (resultsCount) {
     resultsCount.textContent = `${filtered.length} anúncio${filtered.length !== 1 ? 's' : ''} encontrado${filtered.length !== 1 ? 's' : ''}`;
   }
+  // Garante foto do vendedor mesmo se o attach anterior falhou
+  try {
+    // coloca data-uid nos avatares sem foto
+    filtered.forEach(function(ad){
+      var uid = ad.sellerUid || (ad.raw && ad.raw.sellerUid) || '';
+      if (!uid) return;
+    });
+    var cards = adsListContainer.querySelectorAll('.product-seller');
+    filtered.forEach(function(ad, i){
+      var uid = ad.sellerUid || (ad.raw && ad.raw.sellerUid) || '';
+      if (!uid || !cards[i]) return;
+      var av = cards[i].querySelector('.avatar, .bz-av');
+      if (av && !av.getAttribute('data-uid')) av.setAttribute('data-uid', uid);
+      if (av && ad.sellerPhoto && !av.querySelector('img')) {
+        av.style.padding='0'; av.style.overflow='hidden';
+        av.innerHTML = '<img src="'+String(ad.sellerPhoto).replace(/"/g,'')+'" style="width:100%;height:100%;object-fit:cover;display:block">';
+      }
+    });
+    hydrateSellerAvatars(adsListContainer);
+  } catch (e) { console.warn(e); }
 }
 
 [categoryFilter, sortFilter, priceMin, priceMax, searchFilter].forEach(el => {
