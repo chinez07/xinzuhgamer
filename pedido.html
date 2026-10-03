@@ -210,26 +210,59 @@
       await setStatus('em_entrega'); await reload();
     };
     
+    if (isBuyer && o.status === 'concluido' && o.reviewed) {
+      var starsDone = Number(o.reviewStars) || 0;
+      var doneHtml = '<div class="box" id="reviewBox"><h1>Sua avaliação</h1>' +
+        '<div style="color:#fbbf24;font-size:1.4rem;margin:8px 0">' + '★'.repeat(starsDone) + '☆'.repeat(5-starsDone) + '</div>' +
+        (o.reviewComment ? ('<p class="muted">' + esc(o.reviewComment) + '</p>') : '<p class="muted">Obrigado por avaliar!</p>') +
+        '</div>';
+      var _p0 = document.getElementById('page') || document.getElementById('app');
+      if (_p0) _p0.insertAdjacentHTML('beforeend', doneHtml);
+    }
     if (canReview) {
-      var revHtml = '<div class="box" id="reviewBox"><h1>Avaliar pedido</h1><p class="muted">Como foi a entrega?</p>' +
-        '<div id="starPick" style="display:flex;gap:8px;margin:12px 0">' +
-        [1,2,3,4,5].map(function(s){return '<button type="button" data-star="'+s+'" style="font-size:1.5rem;background:0;border:0;cursor:pointer;color:#fbbf24">★</button>';}).join('') +
-        '</div><textarea id="revComment" rows="3" placeholder="Comentario (opcional)" style="width:100%;padding:10px;border-radius:10px;border:1px solid #2a2a36;background:#0f0f14;color:#fff;margin-bottom:10px"></textarea>' +
-        '<button type="button" class="btn" id="btnReview">Enviar avaliacao</button></div>';
+      var itemHint = o.itemName ? ('<p class="muted">Item: <strong style="color:#e5e7eb">' + esc(o.itemName) + '</strong></p>') : '';
+      var revHtml = '<div class="box" id="reviewBox" style="border-color:#7c3aed">' +
+        '<h1>⭐ Avaliar pedido</h1>' +
+        '<p class="muted">Como foi a entrega deste anúncio?</p>' + itemHint +
+        '<div id="starPick" style="display:flex;gap:6px;margin:14px 0;justify-content:center">' +
+        [1,2,3,4,5].map(function(s){
+          return '<button type="button" data-star="'+s+'" aria-label="'+s+' estrelas" style="font-size:2rem;background:0;border:0;cursor:pointer;color:#4b5563;line-height:1;padding:4px">★</button>';
+        }).join('') +
+        '</div>' +
+        '<p id="starLabel" class="muted" style="text-align:center;margin-bottom:10px">5 estrelas — Excelente</p>' +
+        '<textarea id="revComment" rows="3" placeholder="Comentário opcional (máx. 500 caracteres)" style="width:100%;padding:12px;border-radius:10px;border:1px solid #2a2a36;background:#0f0f14;color:#fff;margin-bottom:12px;font-family:inherit"></textarea>' +
+        '<button type="button" class="btn" id="btnReview" style="width:100%">Enviar avaliação</button></div>';
       var _page = document.getElementById('page') || document.getElementById('app');
       if (_page) _page.insertAdjacentHTML('beforeend', revHtml);
       var picked = 5;
+      var labels = {1:'1 estrela — Ruim',2:'2 estrelas — Fraco',3:'3 estrelas — Regular',4:'4 estrelas — Bom',5:'5 estrelas — Excelente'};
+      function paintStars() {
+        document.querySelectorAll('#starPick [data-star]').forEach(function(btn){
+          var s = +btn.getAttribute('data-star');
+          btn.style.color = s <= picked ? '#fbbf24' : '#4b5563';
+        });
+        var lb = document.getElementById('starLabel');
+        if (lb) lb.textContent = labels[picked] || '';
+      }
+      paintStars();
       document.querySelectorAll('#starPick [data-star]').forEach(function(btn){
-        btn.onclick = function(){ picked = +btn.getAttribute('data-star'); };
+        btn.onclick = function(){ picked = +btn.getAttribute('data-star'); paintStars(); };
       });
       var _br = document.getElementById('btnReview');
       if (_br) _br.onclick = async function(){
         try {
           this.disabled = true;
-          await fsAddReview(order, picked, (document.getElementById('revComment').value||'').trim());
-          alert('Avaliacao enviada!');
+          this.textContent = 'Enviando…';
+          var fn = typeof fsAddReview === 'function' ? fsAddReview : window.fsAddReview;
+          if (typeof fn !== 'function') throw new Error('Sistema de avaliação indisponível. Atualize a página.');
+          await fn(order, picked, (document.getElementById('revComment').value||'').trim());
+          alert('Avaliação enviada! Obrigado.');
           await reload();
-        } catch(e) { alert(e.message||'Erro'); this.disabled = false; }
+        } catch(e) {
+          alert(e.message||'Erro ao avaliar');
+          this.disabled = false;
+          this.textContent = 'Enviar avaliação';
+        }
       };
     }
 

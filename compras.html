@@ -47,6 +47,7 @@
   <script>
   function money(n){ return 'R$ '+(Number(n)||0).toFixed(2).replace('.',','); }
   function label(s){ return ({aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_entrega:'Em entrega',concluido:'Concluído',cancelado:'Cancelado'})[s]||s; }
+  function reviewHint(o){ return (o.status==='concluido' && !o.reviewed) ? ' · Avaliar' : (o.reviewed ? ' · Avaliado' : ''); }
   firebase.auth().onAuthStateChanged(async function(user){
     if(!user){ location.href='login.html'; return; }
     var el=document.getElementById('list');
@@ -61,7 +62,7 @@
       }
       el.innerHTML=list.map(function(o){
         var img=o.adCover?'<img class="thumb" src="'+o.adCover+'" alt="">':'<div class="thumb"></div>';
-        return '<a class="card" href="pedido.html?id='+encodeURIComponent(o.id)+'"><div class="row">'+img+'<div><div class="title">'+(o.adTitle||'Pedido')+'</div><div class="meta">#'+(o.code||'')+' · Vendedor: '+(o.sellerName||'')+'</div><div class="price">'+money(o.total||o.price)+'</div><span class="badge st-'+(o.status||'')+'">'+label(o.status)+'</span></div></div></a>';
+        return '<a class="card" href="pedido.html?id='+encodeURIComponent(o.id)+'"><div class="row">'+img+'<div><div class="title">'+(o.adTitle||'Pedido')+'</div><div class="meta">#'+(o.code||'')+' · Vendedor: '+(o.sellerName||'')+'</div><div class="price">'+money(o.total||o.price)+'</div><span class="badge st-'+(o.status||'')+'">'+label(o.status) + reviewHint(o)+'</span></div></div></a>';
       }).join('');
     }catch(e){
       el.innerHTML='<div class="empty">Erro: '+(e.message||'')+'</div>';

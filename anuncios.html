@@ -1295,8 +1295,8 @@ function createProductCard(ad) {
             return '<span class="avatar" data-uid="' + uid + '">' + initial + '</span>';
           })() +
           ' ' + escapeHtmlHome(ad.seller) +
-          ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
-          ' <span>(' + (ad.sold != null ? ad.sold : (ad.sales || 0)) + ')</span>' +
+          ' <span class="rating"><i class="fas fa-star"></i> ' + (Number(ad.rating)||5).toFixed(1).replace(/\.0$/,'') + '</span>' +
+          ' <span>(' + (ad.ratingCount != null ? ad.ratingCount : 0) + ')</span>' +
         '</div>' +
       '</div>' +
     '</a>'

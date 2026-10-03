@@ -134,8 +134,8 @@ function createProductCard(ad) {
             ? '<span class="avatar" style="padding:0;overflow:hidden;width:22px;height:22px;border-radius:50%;display:inline-block"><img src="' + String(ad.sellerPhoto).replace(/"/g,'') + '" style="width:100%;height:100%;object-fit:cover;display:block"></span> '
             : '<span class="avatar">' + initial + '</span> ') +
           escapeHtmlHome(ad.seller) +
-          ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
-          ' <span>(' + (ad.sold != null ? ad.sold : (ad.sales || 0)) + ')</span>' +
+          ' <span class="rating"><i class="fas fa-star"></i> ' + (Number(ad.rating)||5).toFixed(1).replace(/\.0$/,'') + '</span>' +
+          ' <span>(' + (ad.ratingCount != null ? ad.ratingCount : 0) + ')</span>' +
         '</div>' +
       '</div>' +
     '</a>'

@@ -451,13 +451,44 @@
         var _rb = document.getElementById('ratingSub');
         if (_rb) _rb.textContent = raw.ratingCount ? (raw.ratingCount + ' avaliacao(oes)') : 'Ainda sem avaliacoes neste anuncio';
         if (typeof fsGetAdReviews === 'function') {
-          fsGetAdReviews(ad.id, 20).then(function(list){
+          fsGetAdReviews(ad.id, 30).then(function(list){
             var el = document.getElementById('reviewsList');
-            if (!el || !list.length) return;
+            if (!el) return;
+            if (!list.length) {
+              el.innerHTML = '<p style="color:var(--muted);font-size:0.9rem;text-align:center;padding:8px 0">Ainda não há avaliações neste anúncio.</p>';
+              return;
+            }
+            function rel(ms){
+              if (!ms) return '';
+              var d = Date.now() - ms;
+              if (d < 60000) return 'agora';
+              if (d < 3600000) return Math.floor(d/60000) + ' min';
+              if (d < 86400000) return Math.floor(d/3600000) + ' h';
+              if (d < 604800000) return Math.floor(d/86400000) + ' d';
+              return Math.floor(d/604800000) + ' sem';
+            }
             el.innerHTML = list.map(function(r){
-              return '<div style="border-top:1px solid var(--border);padding:10px 0"><strong>' + esc(r.buyerName||'Comprador') + '</strong> ' + '★'.repeat(r.stars||0) +
-                '<div style="color:var(--muted);font-size:0.9rem;margin-top:4px">' + esc(r.comment||'') + '</div></div>';
+              var st = Math.min(5, Math.max(0, Number(r.stars)||0));
+              return '<div style="border-top:1px solid var(--border);padding:12px 0">' +
+                '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+                '<strong>' + esc(r.buyerName||'Comprador') + '</strong>' +
+                '<span style="color:var(--muted);font-size:0.8rem">' + rel(r.createdAtMs) + '</span></div>' +
+                '<div style="color:#fbbf24;margin:4px 0">' + '★'.repeat(st) + '☆'.repeat(5-st) + '</div>' +
+                (r.itemName ? ('<div style="color:var(--muted);font-size:0.8rem">Item: ' + esc(r.itemName) + '</div>') : '') +
+                (r.comment ? ('<div style="color:var(--muted);font-size:0.9rem;margin-top:4px">' + esc(r.comment) + '</div>') : '') +
+                '</div>';
             }).join('');
+            // atualiza cabeçalho se veio da lista
+            if (list.length) {
+              var sum = 0; list.forEach(function(r){ sum += Number(r.stars)||0; });
+              var avg = Math.round((sum / list.length) * 10) / 10;
+              var _rn = document.getElementById('ratingN');
+              if (_rn) _rn.textContent = avg.toFixed(1);
+              var _rs = document.getElementById('ratingStars');
+              if (_rs) _rs.textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5-Math.round(avg));
+              var _rb = document.getElementById('ratingSub');
+              if (_rb) _rb.textContent = list.length + ' avaliação(ões)';
+            }
           });
         }
       } catch (_e) {}
