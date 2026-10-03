@@ -715,7 +715,7 @@ async function fsApplyOrderStock(order) {
     await getDb().collection('orders').doc(order.id).update({ stockApplied: true });
     console.log('[Bloxzuh] estoque/vendidos atualizados ad=', order.adId, 'item=', itemIndex);
   } catch (e) {
-    console.warn('fsApplyOrderStock', e);
+    console.warn('fsApplyOrderStock', e && e.message, e);
   }
 }
 
