@@ -138,7 +138,19 @@
     .guarantee i { font-size: 1.6rem; color: var(--primary); margin-bottom: 8px; }
     .back { display:inline-block; margin-bottom: 12px; color: var(--muted); text-decoration:none; font-size:0.9rem; }
     .loading { text-align:center; padding: 48px 16px; color: var(--muted); }
-  </style>
+  
+.dyn-pick { display:flex; flex-direction:column; gap:8px; margin:12px 0; }
+.dyn-pick-item {
+  text-align:left; padding:12px 14px; border-radius:12px; border:1px solid var(--border,#2a2a36);
+  background: var(--card,#16161f); color: var(--text,#f3f4f6); cursor:pointer; width:100%;
+}
+.dyn-pick-item:hover:not(:disabled) { border-color:#7c3aed; }
+.dyn-pick-item.is-sel { border-color:#7c3aed; background:rgba(124,58,237,.15); }
+.dyn-pick-item.is-out, .dyn-pick-item:disabled { opacity:.45; cursor:not-allowed; }
+.dyn-pick-name { display:block; font-weight:700; font-size:0.95rem; }
+.dyn-pick-meta { display:block; font-size:0.8rem; color:#9ca3af; margin-top:4px; }
+</style>
+
 </head>
 <body>
   <div class="top">
@@ -304,15 +316,18 @@
           (function(){
           if (model !== 'dinamico') return '';
           var items = (raw.items && raw.items.length) ? raw.items : ((ad.items && ad.items.length) ? ad.items : []);
-          if (!items.length) return '<div class="item-sel" style="padding:12px;color:#fca5a5;font-size:0.9rem">Este anúncio dinâmico não tem itens cadastrados. Edite o anúncio e adicione os itens.</div><select class="item-sel" id="itemSel" style="display:none"><option value=""></option></select>';
-          var opts = '<option value="">Selecione um item</option>';
+          console.log('[Bloxzuh] itens no anúncio:', items.length, items);
+          if (!items.length) return '<div style="padding:12px;color:#fca5a5;font-size:0.9rem;margin-bottom:10px">Este anúncio dinâmico não tem itens cadastrados.</div><select id="itemSel" style="display:none"></select>';
+          var html = '<div class="dyn-pick" id="dynPick">';
           items.forEach(function(it, idx){
             var st = Number(it.stock)||0;
-            var dis = st <= 0 ? ' disabled' : '';
-            opts += '<option value="'+idx+'" data-price="'+Number(it.price)+'" data-stock="'+st+'"'+dis+'>' +
-              esc(it.name) + (st>0 ? (' ('+st+' em estoque)') : ' (esgotado)') + ' — ' + money(it.price) + '</option>';
+            var dis = st <= 0;
+            html += '<button type="button" class="dyn-pick-item'+(dis?' is-out':'')+'" data-idx="'+idx+'" data-price="'+Number(it.price)+'" data-stock="'+st+'" '+(dis?'disabled':'')+'>' +
+              '<span class="dyn-pick-name">'+esc(it.name)+'</span>' +
+              '<span class="dyn-pick-meta">'+(dis ? 'Esgotado' : (st+' em estoque'))+' · '+money(it.price)+'</span></button>';
           });
-          return '<select class="item-sel" id="itemSel">' + opts + '</select>';
+          html += '</div><input type="hidden" id="itemSel" value="">';
+          return html;
         })() +
           (function(){
           var st = (ad.raw && ad.raw.status) || ad.status || 'ativo';
@@ -456,18 +471,34 @@
       }
       const itemSel = document.getElementById('itemSel');
       const btnBuy = document.getElementById('btnBuy');
-      if (itemSel && btnBuy) {
-        itemSel.onchange = function () {
-          var ok = !!itemSel.value;
-          btnBuy.disabled = !ok;
-          if (ok) {
-            var opt = itemSel.options[itemSel.selectedIndex];
-            var p = opt.getAttribute('data-price');
-            if (p) btnBuy.textContent = 'COMPRAR · ' + money(Number(p));
-          } else {
-            btnBuy.textContent = 'COMPRAR · ' + money(ad.price);
-          }
-        };
+      if (btnBuy) {
+        var pick = document.getElementById('dynPick');
+        if (pick) {
+          pick.querySelectorAll('.dyn-pick-item').forEach(function(btn){
+            btn.onclick = function(){
+              if (btn.disabled) return;
+              pick.querySelectorAll('.dyn-pick-item').forEach(function(b){ b.classList.remove('is-sel'); });
+              btn.classList.add('is-sel');
+              var hidden = document.getElementById('itemSel');
+              if (hidden) hidden.value = btn.getAttribute('data-idx');
+              btnBuy.disabled = false;
+              var p = btn.getAttribute('data-price');
+              if (p) btnBuy.textContent = 'COMPRAR · ' + money(Number(p));
+            };
+          });
+        } else if (itemSel) {
+          itemSel.onchange = function () {
+            var ok = !!itemSel.value;
+            btnBuy.disabled = !ok;
+            if (ok) {
+              var opt = itemSel.options[itemSel.selectedIndex];
+              var p = opt && opt.getAttribute('data-price');
+              if (p) btnBuy.textContent = 'COMPRAR · ' + money(Number(p));
+            } else {
+              btnBuy.textContent = 'COMPRAR · ' + money(ad.price);
+            }
+          };
+        }
       }
       if (btnBuy) {
         btnBuy.onclick = async function () {
