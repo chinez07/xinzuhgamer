@@ -745,6 +745,9 @@ async function fsApplyDeliverySale(order) {
 window.fsApplyOrderStock = fsApplyOrderStock;
 window.fsApplyDeliverySale = fsApplyDeliverySale;
 window.fsAddReview = fsAddReview;
+window.attachReviewerPhotos = attachReviewerPhotos;
+window.fsAddBuyerReview = fsAddBuyerReview;
+window.fsGetSellerReviews = fsGetSellerReviews;
 window.fsGetAdReviews = fsGetAdReviews;
 
 async function fsAddReview(order, stars, comment) {
@@ -757,7 +760,16 @@ async function fsAddReview(order, stars, comment) {
   comment = String(comment || '').slice(0, 500);
   var rid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('RV') : ('RV' + Date.now().toString(36).toUpperCase());
   var buyerName = u.displayName || localStorage.getItem('xinzuh-username') || (u.email ? u.email.split('@')[0] : 'Comprador');
+  var buyerPhoto = '';
+  try {
+    buyerPhoto = localStorage.getItem('xinzuh-photo-' + u.uid) || localStorage.getItem('xinzuh-photo') || '';
+    if (typeof fsGetProfile === 'function') {
+      var bp = await fsGetProfile(u.uid);
+      if (bp && (bp.photo || bp.photoURL)) buyerPhoto = bp.photo || bp.photoURL;
+    }
+  } catch (e) {}
   await getDb().collection('reviews').doc(rid).set({
+    type: 'ad',
     orderId: order.id,
     adId: order.adId || '',
     adTitle: order.adTitle || '',
@@ -765,6 +777,10 @@ async function fsAddReview(order, stars, comment) {
     sellerUid: order.sellerUid || '',
     buyerUid: u.uid,
     buyerName: buyerName,
+    buyerPhoto: buyerPhoto,
+    fromUid: u.uid,
+    fromName: buyerName,
+    fromPhoto: buyerPhoto,
     stars: stars,
     comment: comment,
     createdAtMs: Date.now(),
@@ -824,13 +840,129 @@ async function fsAddReview(order, stars, comment) {
 async function fsGetAdReviews(adId, limit) {
   if (!adId) return [];
   try {
-    var snap = await getDb().collection('reviews').where('adId', '==', adId).limit(limit || 30).get();
+    var snap = await getDb().collection('reviews').where('adId', '==', adId).limit(limit || 50).get();
     var list = [];
-    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
+    snap.forEach(function (d) {
+      var r = Object.assign({ id: d.id }, d.data());
+      // só avaliações do comprador sobre o anúncio/vendedor
+      if (r.type && r.type !== 'ad' && r.type !== 'seller') return;
+      list.push(r);
+    });
     list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
     return list;
   } catch (e) { return []; }
 }
+
+/** Avaliações recebidas pelo vendedor (compradores avaliando) */
+async function fsGetSellerReviews(sellerUid, limit) {
+  if (!sellerUid) return [];
+  try {
+    var snap = await getDb().collection('reviews').where('sellerUid', '==', sellerUid).limit(limit || 50).get();
+    var list = [];
+    snap.forEach(function (d) {
+      var r = Object.assign({ id: d.id }, d.data());
+      if (r.type === 'buyer') return; // skip seller->buyer
+      list.push(r);
+    });
+    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+    return list;
+  } catch (e) { return []; }
+}
+
+/** Vendedor avalia o comprador */
+async function fsAddBuyerReview(order, stars, comment) {
+  const u = requireUser();
+  if (!order || !order.id) throw new Error('Pedido inválido.');
+  if (order.sellerUid !== u.uid) throw new Error('Só o vendedor pode avaliar o comprador.');
+  if (order.status !== 'concluido') throw new Error('Avalie após a entrega concluída.');
+  if (order.buyerReviewed) throw new Error('Você já avaliou este comprador.');
+  stars = Math.min(5, Math.max(1, parseInt(stars, 10) || 5));
+  comment = String(comment || '').slice(0, 500);
+  var rid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('RB') : ('RB' + Date.now().toString(36).toUpperCase());
+  var fromName = u.displayName || localStorage.getItem('xinzuh-username') || 'Vendedor';
+  var fromPhoto = '';
+  try {
+    fromPhoto = localStorage.getItem('xinzuh-photo-' + u.uid) || localStorage.getItem('xinzuh-photo') || '';
+    if (typeof fsGetProfile === 'function') {
+      var pr = await fsGetProfile(u.uid);
+      if (pr && (pr.photo || pr.photoURL)) fromPhoto = pr.photo || pr.photoURL;
+    }
+  } catch (e) {}
+  await getDb().collection('reviews').doc(rid).set({
+    type: 'buyer',
+    orderId: order.id,
+    adId: order.adId || '',
+    adTitle: order.adTitle || '',
+    itemName: order.itemName || '',
+    sellerUid: order.sellerUid || '',
+    buyerUid: order.buyerUid || '',
+    fromUid: u.uid,
+    fromName: fromName,
+    fromPhoto: fromPhoto,
+    toUid: order.buyerUid || '',
+    buyerName: order.buyerName || 'Comprador',
+    stars: stars,
+    comment: comment,
+    createdAtMs: Date.now(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await getDb().collection('orders').doc(order.id).update({
+    buyerReviewed: true,
+    buyerReviewStars: stars,
+    buyerReviewComment: comment,
+    updatedAtMs: Date.now()
+  });
+  // média do comprador no perfil
+  if (order.buyerUid) {
+    try {
+      var snap = await getDb().collection('reviews').where('buyerUid', '==', order.buyerUid).where('type', '==', 'buyer').limit(200).get();
+      var sum = 0, n = 0;
+      snap.forEach(function (d) { sum += Number(d.data().stars) || 0; n++; });
+      if (n > 0) {
+        await getDb().collection('profiles').doc(order.buyerUid).set({
+          buyerRating: Math.round((sum / n) * 10) / 10,
+          buyerRatingCount: n,
+          updatedAtMs: Date.now()
+        }, { merge: true });
+      }
+    } catch (e) { console.warn('buyer rating', e); }
+  }
+  try {
+    if (typeof fsAddNotification === 'function' && order.buyerUid) {
+      await fsAddNotification(order.buyerUid, {
+        type: 'review',
+        title: 'O vendedor te avaliou ' + stars + '★',
+        body: fromName + (comment ? (': ' + comment.slice(0, 80)) : ''),
+        link: 'pedido.html?id=' + encodeURIComponent(order.id),
+        createdAtMs: Date.now()
+      });
+    }
+  } catch (e) {}
+  return rid;
+}
+
+async function attachReviewerPhotos(list) {
+  if (!list || !list.length) return list;
+  var cache = {};
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i];
+    var uid = r.buyerUid || r.fromUid || '';
+    if (r.buyerPhoto || r.fromPhoto) continue;
+    if (!uid) continue;
+    if (cache[uid] === undefined) {
+      try {
+        var p = typeof fsGetProfile === 'function' ? await fsGetProfile(uid) : null;
+        cache[uid] = (p && (p.photo || p.photoURL || p.avatar)) || '';
+      } catch (e) { cache[uid] = ''; }
+    }
+    if (cache[uid]) {
+      r.buyerPhoto = r.buyerPhoto || cache[uid];
+      r.fromPhoto = r.fromPhoto || cache[uid];
+    }
+  }
+  return list;
+}
+
 
 async function fsRequestWithdraw(amount, pixKey, opts) {
   const u = requireUser();
