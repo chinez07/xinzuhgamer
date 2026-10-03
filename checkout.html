@@ -85,7 +85,8 @@
   var ad=null, order=null, vip='none', payMethod='pix';
 
   // Fallback se firestore-db não exportar
-  async function createOrderLocal(ad, Object.assign({ itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName }, extra||{})) {
+  async function createOrderLocal(ad, extra) {
+    extra = Object.assign({ itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName }, extra || {});
     if (typeof fsCreateOrder === 'function') return fsCreateOrder(ad, extra);
     if (typeof window.fsCreateOrder === 'function') return window.fsCreateOrder(ad, extra);
     var u = firebase.auth().currentUser;
@@ -111,6 +112,8 @@
       sellerUid: sellerUid,
       sellerName: ad.seller || 'Vendedor',
       category: ad.category || '',
+      itemIndex: (extra && extra.itemIndex != null) ? Number(extra.itemIndex) : null,
+      itemName: (extra && extra.itemName) || '',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       createdAtMs: Date.now(),
       updatedAtMs: Date.now()
@@ -156,12 +159,13 @@
     var app=document.getElementById('app');
     if(!ad){ app.innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
     var img = ad.cover ? '<img class="thumb" src="'+ad.cover+'" alt="">' : '';
+    var itemLine = (window.__selectedItemName ? ('<div class="row"><span>Item</span><strong>'+esc(window.__selectedItemName)+'</strong></div>') : '');
     app.innerHTML =
       '<div class="step on" id="step1">'+
         '<div class="box">'+
           '<h1><i class="fas fa-shopping-cart"></i> Pedido</h1>'+
           '<p class="muted">Revise os dados antes de pagar</p>'+
-          '<div class="row"><span>Produto</span><span>'+esc(ad.title)+'</span></div>'+
+          '<div class="row"><span>Produto</span><span>'+esc(ad.title)+'</span></div>'+(window.__selectedItemName ? ('<div class="row"><span>Item</span><strong>'+esc(window.__selectedItemName)+'</strong></div>') : '')+
           '<div class="row"><span>Vendedor</span><span>'+esc(ad.seller)+'</span></div>'+
           '<div class="row"><span>Categoria</span><span>'+esc(ad.categoryLabel||ad.category)+'</span></div>'+
           '<div class="row"><span>Subtotal</span><span class="price">'+money(ad.price)+'</span></div>'+

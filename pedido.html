@@ -162,6 +162,7 @@
     var isSeller = o.sellerUid === currentUser.uid;
     var canChat = o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido';
     var canReview = isBuyer && o.status === 'concluido' && !o.reviewed;
+    var itemBanner = o.itemName ? ('<div class="box" style="margin-bottom:10px;border-color:#7c3aed"><strong>Item comprado:</strong> '+esc(o.itemName)+'</div>') : '';
     var img = o.adCover ? '<img class="thumb" src="' + o.adCover + '" alt="">' : '';
     var actions = '';
     var waitingPay = o.status === 'aguardando_pagamento' && !(o.paymentExpiresAtMs && Date.now() >= Number(o.paymentExpiresAtMs));
@@ -179,7 +180,7 @@
       actions += '<button type="button" class="btn" id="btnDone">Confirmar entrega</button>';
     }
 
-    document.getElementById('page').innerHTML =
+    document.getElementById('page').innerHTML = itemBanner +
       '<div class="box">' +
         '<h1>Pedido #' + esc(o.code) + '</h1>' +
         '<p class="muted" style="margin:8px 0"><span class="badge st-' + esc(o.status) + '">' + label(o.status) + '</span></p>' +
