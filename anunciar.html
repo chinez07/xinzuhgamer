@@ -130,10 +130,22 @@
       .row2 { grid-template-columns: 1fr; }
     }
   
-.dyn-row { display:grid; grid-template-columns:1fr 90px 70px 36px; gap:8px; margin-bottom:8px; align-items:end; }
-.dyn-row input { width:100%; }
-.dyn-row button { height:42px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; color:#ef4444; cursor:pointer; }
-@media(max-width:480px){ .dyn-row { grid-template-columns:1fr 1fr; } .dyn-row button { grid-column:1/-1; } }
+.dyn-card {
+  border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; margin-bottom: 12px; background: #fafafa;
+}
+.dyn-card .dyn-top {
+  display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-weight:700; font-size:0.9rem;
+}
+.dyn-card .dyn-badge {
+  display:inline-block; background:#ede9fe; color:#6d28d9; font-size:0.75rem; padding:2px 8px; border-radius:999px; margin-left:6px;
+}
+.dyn-card label { display:block; font-size:0.8rem; color:#6b7280; margin-bottom:4px; }
+.dyn-card input { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; font-size:0.95rem; background:#fff; }
+.dyn-card .dyn-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+.dyn-card .dyn-del {
+  border:none; background:transparent; color:#ef4444; cursor:pointer; font-size:1rem; padding:4px 8px;
+}
+.dyn-err { border-color:#f87171 !important; box-shadow:0 0 0 2px rgba(248,113,113,.2); }
 </style>
 
 </head>
@@ -201,12 +213,13 @@
         <div class="acc-body">
           <div id="priceNormal">
             <div class="row2">
-              <div><label>Valor (R$)</label><input type="number" id="price" min="1" step="0.01" placeholder="20,00"></div>
-              <div><label>Estoque</label><input type="number" id="stock" min="1" value="1"></div>
+              <div><label>Valor do anúncio</label><input type="number" id="price" min="1" step="0.01" placeholder="R$ 0,00"></div>
+              <div><label>Quantidade em estoque</label><input type="number" id="stock" min="1" value="1"></div>
             </div>
           </div>
           <div id="priceDinamico" style="display:none">
-            <p class="hint" style="margin-bottom:10px">Adicione cada variação (ex.: Lv15, Lv30…). O comprador escolhe um item antes de comprar.</p>
+            <p style="font-weight:700;margin-bottom:8px">Itens do anúncio dinâmico</p>
+            <p class="hint" style="margin-bottom:12px">Cada item tem título, preço e estoque. O comprador escolhe um antes de comprar.</p>
             <div id="dynItems"></div>
             <button type="button" class="btn btn-outline" id="btnAddItem" style="margin-bottom:12px;width:100%"><i class="fas fa-plus"></i> Adicionar item</button>
           </div>
@@ -396,12 +409,78 @@
         if (on) a.querySelector('.acc-head').classList.add('done');
       });
     }
+    function validateAcc(name) {
+      if (name === 'title') {
+        var t = (document.getElementById('title').value || '').trim();
+        if (!t) { alert('Preencha o título do anúncio.'); document.getElementById('title').focus(); return false; }
+        if (!state.model) { alert('Selecione o modelo do anúncio (Normal ou Dinâmico).'); return false; }
+        return true;
+      }
+      if (name === 'price') {
+        if (state.model === 'dinamico') {
+          markDynErrors();
+          var items = getDynItems();
+          if (items.length < 1) {
+            alert('No modelo Dinâmico, preencha pelo menos 1 item (título e preço).');
+            return false;
+          }
+          // precisa de pelo menos 1 completo; avisa se algum card incompleto
+          var cards = document.querySelectorAll('#dynItems .dyn-card');
+          for (var i = 0; i < cards.length; i++) {
+            var n = (cards[i].querySelector('.dyn-name').value || '').trim();
+            var p = parseFloat(cards[i].querySelector('.dyn-price').value);
+            if (n && !(p > 0)) { alert('Item #' + (i+1) + ': informe o preço.'); return false; }
+            if (!n && p > 0) { alert('Item #' + (i+1) + ': informe o título.'); return false; }
+          }
+          return true;
+        }
+        var price = parseFloat(document.getElementById('price').value);
+        var stock = parseInt(document.getElementById('stock').value, 10);
+        if (!(price > 0)) { alert('Informe o valor do anúncio.'); document.getElementById('price').focus(); return false; }
+        if (!(stock >= 1)) { alert('Informe a quantidade em estoque (mínimo 1).'); document.getElementById('stock').focus(); return false; }
+        return true;
+      }
+      if (name === 'cat') {
+        if (!document.getElementById('category').value) { alert('Selecione a categoria.'); return false; }
+        if (!document.getElementById('subcategory').value) { alert('Selecione a subcategoria.'); return false; }
+        return true;
+      }
+      return true;
+    }
     document.querySelectorAll('[data-next-acc]').forEach(btn => {
       btn.addEventListener('click', () => {
         const cur = btn.closest('.acc');
+        const curName = cur ? cur.getAttribute('data-acc') : '';
+        if (curName && !validateAcc(curName)) return;
         if (cur) cur.querySelector('.acc-head').classList.add('done');
         openAcc(btn.getAttribute('data-next-acc'));
+        // ao abrir preço, garante UI do modelo
+        if (btn.getAttribute('data-next-acc') === 'price') syncPriceUI();
       });
+    });
+    // impede pular seções clicando no cabeçalho sem validar a atual
+    document.querySelectorAll('.acc-head').forEach(h => {
+      h.addEventListener('click', function(ev) {
+        var card = h.parentElement;
+        var target = card.getAttribute('data-acc');
+        var order = ['title','price','cat','desc','faq','vis','plan'];
+        var ti = order.indexOf(target);
+        // se tentar ir para frente, valida as anteriores
+        for (var i = 0; i < ti; i++) {
+          var prev = document.querySelector('.acc[data-acc="'+order[i]+'"]');
+          if (prev && !prev.querySelector('.acc-head').classList.contains('done')) {
+            // deixa abrir só a atual se for a primeira incompleta
+            if (i === 0 || order[i] === 'title') {
+              if (!validateAcc(order[i])) { ev.stopImmediatePropagation(); return; }
+            } else {
+              alert('Complete a etapa anterior antes de continuar.');
+              openAcc(order[i]);
+              ev.stopImmediatePropagation();
+              return;
+            }
+          }
+        }
+      }, true);
     });
 
     // Models
@@ -422,6 +501,12 @@
     }
     document.getElementById('category').addEventListener('change', fillSubcats);
 
+    function renumberDyn() {
+      document.querySelectorAll('#dynItems .dyn-card').forEach(function(card, i){
+        var b = card.querySelector('.dyn-badge');
+        if (b) b.textContent = 'Item #' + (i+1);
+      });
+    }
     function syncPriceUI() {
       var dyn = state.model === 'dinamico';
       var n = document.getElementById('priceNormal');
@@ -436,18 +521,30 @@
     function addDynRow(name, price, stock) {
       var box = document.getElementById('dynItems');
       if (!box) return;
-      var row = document.createElement('div');
-      row.className = 'dyn-row';
-      row.innerHTML = '<div><label>Nome do item</label><input type="text" class="dyn-name" placeholder="Ex: Lv15 + 300 Dimas" value="'+(name||'').replace(/"/g,'&quot;')+'"></div>' +
-        '<div><label>Preço</label><input type="number" class="dyn-price" min="0.01" step="0.01" placeholder="10,00" value="'+(price||'')+'"></div>' +
-        '<div><label>Estoque</label><input type="number" class="dyn-stock" min="0" value="'+(stock!==''&&stock!=null?stock:1)+'"></div>' +
-        '<button type="button" class="dyn-del" title="Remover"><i class="fas fa-trash"></i></button>';
-      box.appendChild(row);
-      row.querySelector('.dyn-del').onclick = function(){ row.remove(); };
+      var card = document.createElement('div');
+      card.className = 'dyn-card';
+      card.innerHTML =
+        '<div class="dyn-top"><span>Título <span class="dyn-badge">Item #1</span></span>' +
+        '<button type="button" class="dyn-del" title="Remover"><i class="fas fa-trash"></i></button></div>' +
+        '<div><label>Título do item</label><input type="text" class="dyn-name" placeholder="Digite um título curto" value="'+(name||'').replace(/"/g,'&quot;')+'"></div>' +
+        '<div class="dyn-grid">' +
+          '<div><label>Preço</label><input type="number" class="dyn-price" min="0.01" step="0.01" placeholder="R$ 0,00" value="'+(price||'')+'"></div>' +
+          '<div><label>Quantidade em estoque</label><input type="number" class="dyn-stock" min="0" value="'+(stock!==''&&stock!=null?stock:1)+'"></div>' +
+        '</div>';
+      box.appendChild(card);
+      card.querySelector('.dyn-del').onclick = function(){
+        if (document.querySelectorAll('#dynItems .dyn-card').length <= 1) {
+          alert('Precisa ter pelo menos 1 item no anúncio dinâmico.');
+          return;
+        }
+        card.remove();
+        renumberDyn();
+      };
+      renumberDyn();
     }
     function getDynItems() {
       var items = [];
-      document.querySelectorAll('#dynItems .dyn-row').forEach(function(row){
+      document.querySelectorAll('#dynItems .dyn-card').forEach(function(row){
         var name = (row.querySelector('.dyn-name').value||'').trim();
         var price = parseFloat(row.querySelector('.dyn-price').value);
         var stock = parseInt(row.querySelector('.dyn-stock').value, 10);
@@ -455,6 +552,14 @@
         items.push({ name: name, price: price, stock: isNaN(stock) ? 0 : Math.max(0, stock) });
       });
       return items;
+    }
+    function markDynErrors() {
+      document.querySelectorAll('#dynItems .dyn-card').forEach(function(row){
+        var name = row.querySelector('.dyn-name');
+        var price = row.querySelector('.dyn-price');
+        name.classList.toggle('dyn-err', !(name.value||'').trim());
+        price.classList.toggle('dyn-err', !(parseFloat(price.value) > 0));
+      });
     }
     var btnAdd = document.getElementById('btnAddItem');
     if (btnAdd) btnAdd.onclick = function(){ addDynRow('','',''); };
