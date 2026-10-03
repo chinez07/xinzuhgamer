@@ -216,7 +216,7 @@
       })();
       const sales = (function(){ var s = Number(ad.sales != null ? ad.sales : raw.sales); return isNaN(s) ? 0 : s; })();
       const vis = (ad.visibility || 'prata');
-      const model = (ad.model || raw.model || 'normal');
+      const model = String(ad.model || raw.model || 'normal').toLowerCase();
       const sellerUid = raw.sellerUid || '';
       const sellerName = ad.seller || 'Vendedor';
       const currentUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
@@ -296,8 +296,8 @@
         '<div class="buy-box">' +
           (function(){
           if (model !== 'dinamico') return '';
-          var items = (raw.items && raw.items.length) ? raw.items : [];
-          if (!items.length) return '<select class="item-sel" id="itemSel"><option value="">Escolha um item</option></select>';
+          var items = (raw.items && raw.items.length) ? raw.items : ((ad.items && ad.items.length) ? ad.items : []);
+          if (!items.length) return '<div class="item-sel" style="padding:12px;color:#fca5a5;font-size:0.9rem">Este anúncio dinâmico não tem itens cadastrados. Edite o anúncio e adicione os itens.</div><select class="item-sel" id="itemSel" style="display:none"><option value=""></option></select>';
           var opts = '<option value="">Selecione um item</option>';
           items.forEach(function(it, idx){
             var st = Number(it.stock)||0;
