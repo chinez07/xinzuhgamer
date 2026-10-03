@@ -1240,7 +1240,7 @@ async function attachSellerPhotos(list) {
     try {
       var p = typeof fsGetProfile==='function' ? await fsGetProfile(uid) : null;
       if (!p) { var d=await firebase.firestore().collection('profiles').doc(uid).get(); if(d.exists) p=d.data(); }
-      if (p && p.photo) photos[uid]=p.photo;
+      if (p) { var u=p.photo||p.photoURL||p.avatar||''; if(u) photos[uid]=u; }
     } catch(e){}
   }));
   list.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(photos[u]) a.sellerPhoto=photos[u]; });
@@ -1413,8 +1413,10 @@ if (adDetailContainer) {
 async function loadFirestoreAdsList() {
   try {
     if (typeof fsGetPublicAds !== 'function') return;
-    const live = await fsGetPublicAds(50);
+    var live = await fsGetPublicAds(50);
     if (!live.length) return;
+    if (typeof attachSellerPhotos === 'function') live = await attachSellerPhotos(live);
+    else if (window.BloxzuhPhotos && BloxzuhPhotos.attachToAds) live = await BloxzuhPhotos.attachToAds(live);
     window.adsData = live; adsData.length = 0; live.forEach(function(a){ adsData.push(a); });
     if (typeof applyFilters === 'function') applyFilters();
     else {

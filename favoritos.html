@@ -178,16 +178,24 @@ function escapeHtmlHome(s) {
     countEl.textContent = ads.length + (ads.length === 1 ? ' anúncio salvo' : ' anúncios salvos');
     
     try {
-      var uids = {};
-      ads.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(u) uids[u]=1; });
-      var photos = {};
-      await Promise.all(Object.keys(uids).map(async function(uid){
-        try {
-          var d = await firebase.firestore().collection('profiles').doc(uid).get();
-          if (d.exists && d.data().photo) photos[uid] = d.data().photo;
-        } catch(e){}
-      }));
-      ads.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(photos[u]) a.sellerPhoto=photos[u]; });
+      if (window.BloxzuhPhotos && BloxzuhPhotos.attachToAds) {
+        await BloxzuhPhotos.attachToAds(ads);
+      } else {
+        var uids = {};
+        ads.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(u) uids[u]=1; });
+        var photos = {};
+        await Promise.all(Object.keys(uids).map(async function(uid){
+          try {
+            var d = await firebase.firestore().collection('profiles').doc(uid).get();
+            if (d.exists) {
+              var pd = d.data();
+              var u = pd.photo || pd.photoURL || '';
+              if (u) photos[uid] = u;
+            }
+          } catch(e){}
+        }));
+        ads.forEach(function(a){ var u=(a.raw&&a.raw.sellerUid)||a.sellerUid||''; if(photos[u]) a.sellerPhoto=photos[u]; });
+      }
     } catch(e){ console.warn(e); }
     grid.innerHTML = ads.map(function(a){ return (typeof favCard==='function'?favCard(a):createProductCard(a)); }).join('');
 
