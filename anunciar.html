@@ -452,6 +452,10 @@
       if (name === 'cat') {
         if (!document.getElementById('category').value) { alert('Selecione a categoria.'); return false; }
         if (!document.getElementById('subcategory').value) { alert('Selecione a subcategoria.'); return false; }
+        var origin = document.getElementById('origin');
+        var acc = document.getElementById('accountInfo');
+        if (origin && !origin.value) { alert('Selecione a Procedência.'); return false; }
+        if (acc && !acc.value) { alert('Selecione as Informações da conta.'); return false; }
         return true;
       }
       return true;
@@ -809,11 +813,30 @@
             document.getElementById('stock').value = sumS;
           }
           var stockVal = parseInt(document.getElementById('stock').value, 10) || 0;
+          var originEl = document.getElementById('origin');
+          var accEl = document.getElementById('accountInfo');
+          var sectionEl = document.getElementById('section');
+          var typeEl = document.getElementById('productType');
+          if (originEl && !originEl.value) {
+            alert('Selecione a Procedência.');
+            openAcc('cat');
+            btn.disabled = false;
+            return;
+          }
+          if (accEl && !accEl.value) {
+            alert('Selecione as Informações da conta.');
+            openAcc('cat');
+            btn.disabled = false;
+            return;
+          }
           var patch = {
             title: document.getElementById('title').value.trim(),
             category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Jogos',
             subcategory: document.getElementById('subcategory').value || '',
-            section: document.getElementById('section') ? document.getElementById('section').value : '',
+            section: sectionEl ? sectionEl.value.trim() : '',
+            productType: typeEl ? typeEl.value : '',
+            origin: originEl ? originEl.value : '',
+            accountInfo: accEl ? accEl.value : '',
             model: state.model || 'normal',
             items: state.model === 'dinamico' ? listItems.map(function(it){
               return { name: String(it.name), price: Number(it.price), stock: Number(it.stock)||0 };
@@ -821,16 +844,21 @@
             price: parseFloat(document.getElementById('price').value),
             stock: stockVal,
             desc: document.getElementById('desc') ? document.getElementById('desc').value.trim() : '',
+            faq: (state.faq || []).filter(function(f){ return f.q && f.a; }),
+            visibility: state.visibility || 'prata',
+            plan: state.plan || 'none',
+            feePercent: state.feePercent || 9.99,
             status: stockVal > 0 ? 'ativo' : 'pausado',
             updatedAtMs: Date.now()
           };
-          console.log('[Bloxzuh] atualizando ad', editAdId, 'items', (patch.items||[]).length, patch.items);
+          if (state.cover) patch.cover = state.cover;
+          console.log('[Bloxzuh] atualizando ad', editAdId, patch);
           if (typeof fsUpdateAd === 'function') {
             await fsUpdateAd(editAdId, patch);
           } else {
             await firebase.firestore().collection('ads').doc(editAdId).update(patch);
           }
-          showMsg('Anúncio atualizado com ' + (patch.items && patch.items.length ? patch.items.length + ' itens' : 'sucesso') + '!', 'ok');
+          showMsg('Anúncio atualizado!', 'ok');
           setTimeout(function(){ location.href = 'painel.html'; }, 800);
           return;
         }
@@ -893,23 +921,27 @@
       var d = doc.data();
       var u = firebase.auth().currentUser;
       if (!u || d.sellerUid !== u.uid) throw new Error('Sem permissão para editar.');
+
+      // Título / preço / estoque
       document.getElementById('title').value = d.title || '';
       document.getElementById('price').value = d.price != null ? d.price : '';
       document.getElementById('stock').value = d.stock != null ? d.stock : 1;
-      if (d.desc && document.getElementById('desc')) document.getElementById('desc').value = d.desc;
+      if (document.getElementById('desc')) document.getElementById('desc').value = d.desc || '';
 
+      // Modelo
       state.model = String(d.model || 'normal').toLowerCase();
       document.querySelectorAll('.model-opt').forEach(function(el){
         el.classList.toggle('sel', el.getAttribute('data-model') === state.model);
       });
 
-      if (d.category && document.getElementById('category')) {
+      // Categoria + sub
+      if (document.getElementById('category')) {
         var cat = document.getElementById('category');
-        var want = d.category;
+        var want = d.category || '';
         if (/assinat/i.test(want)) want = 'Assinaturas';
-        else if (want !== 'Assinaturas' && want !== 'Jogos') want = 'Jogos';
+        else if (want && want !== 'Assinaturas' && want !== 'Jogos') want = 'Jogos';
         for (var i = 0; i < cat.options.length; i++) {
-          if (cat.options[i].value === want || cat.options[i].value === d.category || cat.options[i].text === d.category) {
+          if (cat.options[i].value === want || cat.options[i].value === d.category) {
             cat.selectedIndex = i; break;
           }
         }
@@ -919,14 +951,64 @@
         try { document.getElementById('subcategory').value = d.subcategory; } catch (e) {}
       }
 
+      // Seção, tipo, procedência, info conta
+      function setSelect(id, val) {
+        var el = document.getElementById(id);
+        if (!el || val == null || val === '') return;
+        var v = String(val);
+        var found = false;
+        for (var i = 0; i < el.options.length; i++) {
+          if (el.options[i].value === v || el.options[i].text === v) {
+            el.selectedIndex = i; found = true; break;
+          }
+        }
+        if (!found) {
+          // cria option se valor antigo não existir na lista
+          var opt = document.createElement('option');
+          opt.value = v; opt.textContent = v; el.appendChild(opt); el.value = v;
+        }
+      }
+      if (document.getElementById('section')) document.getElementById('section').value = d.section || '';
+      setSelect('productType', d.productType);
+      setSelect('origin', d.origin);
+      setSelect('accountInfo', d.accountInfo);
+
+      // Visibilidade
+      state.visibility = d.visibility || 'prata';
+      state.feePercent = d.feePercent != null ? Number(d.feePercent) : (state.visibility === 'diamante' ? 12.99 : state.visibility === 'ouro' ? 11.99 : 9.99);
+      document.querySelectorAll('.vis-opt').forEach(function(el){
+        el.classList.toggle('sel', el.getAttribute('data-vis') === state.visibility);
+      });
+
+      // Plano
+      state.plan = d.plan || 'none';
+      document.querySelectorAll('.plan-opt').forEach(function(el){
+        el.classList.toggle('sel', el.getAttribute('data-plan') === state.plan);
+      });
+
+      // FAQ
+      state.faq = Array.isArray(d.faq) ? d.faq.slice() : [];
+      var faqList = document.getElementById('faqList');
+      if (faqList && typeof renderFaq === 'function') {
+        try { renderFaq(); } catch (e) {}
+      } else if (faqList) {
+        faqList.innerHTML = '';
+        state.faq.forEach(function(f, idx){
+          var div = document.createElement('div');
+          div.className = 'faq-item';
+          div.innerHTML = '<input type="text" class="faq-q" placeholder="Pergunta" value="'+(f.q||'').replace(/"/g,'&quot;')+'">' +
+            '<textarea class="faq-a" placeholder="Resposta">'+(f.a||'')+'</textarea>';
+          faqList.appendChild(div);
+        });
+      }
+
+      // Itens dinâmicos
       var items = Array.isArray(d.items) ? d.items : [];
       state.items = items.map(function(it){
         return { name: it.name || '', price: Number(it.price) || 0, stock: Number(it.stock) || 0 };
       });
-
       var box = document.getElementById('dynItems');
       if (box) box.innerHTML = '';
-
       if (state.model === 'dinamico') {
         var n = document.getElementById('priceNormal');
         var dy = document.getElementById('priceDinamico');
@@ -939,7 +1021,6 @@
           addDynRow('','','');
         }
         if (typeof syncItemsToState === 'function') syncItemsToState();
-        if (typeof openAcc === 'function') openAcc('price');
       } else {
         var n2 = document.getElementById('priceNormal');
         var dy2 = document.getElementById('priceDinamico');
@@ -947,11 +1028,15 @@
         if (dy2) dy2.style.display = 'none';
       }
 
+      // Capa
       if (d.cover) {
         state.cover = d.cover;
         var coverZone = document.getElementById('coverZone');
         if (coverZone) coverZone.innerHTML = '<img src="' + d.cover + '" alt="Capa"><p>Escolher outra imagem</p>';
       }
+
+      // Marca etapas como done
+      document.querySelectorAll('.acc-head').forEach(function(h){ h.classList.add('done'); });
 
       document.title = 'Editar anúncio | Bloxzuh';
       document.querySelectorAll('button').forEach(function(btn) {
@@ -960,8 +1045,8 @@
           btn.setAttribute('data-edit-mode', '1');
         }
       });
-      showMsg('Editando anúncio. Itens carregados: ' + state.items.length + '. Altere e salve.', 'ok');
-      console.log('[Bloxzuh] edit load items', state.items.length, state.items);
+      showMsg('Editando anúncio. Todos os dados carregados (' + state.items.length + ' itens). Altere e salve.', 'ok');
+      console.log('[Bloxzuh] edit load', { model: state.model, items: state.items.length, origin: d.origin, accountInfo: d.accountInfo, visibility: d.visibility });
       return d;
     }
 
