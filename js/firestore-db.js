@@ -333,7 +333,8 @@ function normalizeAd(id, data) {
     seller: data.sellerName || 'Vendedor',
     sellerUid: data.sellerUid || '',
     sellerPhoto: data.sellerPhoto || '',
-    rating: 5.0,
+    rating: (function(){ var r = Number(data.rating); return isNaN(r) ? 5.0 : r; })(),
+    ratingCount: (function(){ var n = Number(data.ratingCount); return isNaN(n) ? 0 : n; })(),
     sales: data.sales || 0,
     sold: (function(){ var s = Number(data.sold); if (!isNaN(s)) return s; var v = Number(data.sales); return isNaN(v) ? 0 : v; })(),
     icon: 'fa-gamepad',
@@ -743,31 +744,42 @@ async function fsApplyDeliverySale(order) {
 
 window.fsApplyOrderStock = fsApplyOrderStock;
 window.fsApplyDeliverySale = fsApplyDeliverySale;
+window.fsAddReview = fsAddReview;
+window.fsGetAdReviews = fsGetAdReviews;
 
 async function fsAddReview(order, stars, comment) {
   const u = requireUser();
-  if (!order || !order.id) throw new Error('Pedido invalido.');
-  if (order.buyerUid !== u.uid) throw new Error('So o comprador pode avaliar.');
-  if (order.status !== 'concluido') throw new Error('Avalie apos a entrega confirmada.');
-  if (order.reviewed) throw new Error('Voce ja avaliou este pedido.');
+  if (!order || !order.id) throw new Error('Pedido inválido.');
+  if (order.buyerUid !== u.uid) throw new Error('Só o comprador pode avaliar.');
+  if (order.status !== 'concluido') throw new Error('Avalie após a entrega confirmada.');
+  if (order.reviewed) throw new Error('Você já avaliou este pedido.');
   stars = Math.min(5, Math.max(1, parseInt(stars, 10) || 5));
   comment = String(comment || '').slice(0, 500);
   var rid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('RV') : ('RV' + Date.now().toString(36).toUpperCase());
+  var buyerName = u.displayName || localStorage.getItem('xinzuh-username') || (u.email ? u.email.split('@')[0] : 'Comprador');
   await getDb().collection('reviews').doc(rid).set({
     orderId: order.id,
     adId: order.adId || '',
+    adTitle: order.adTitle || '',
+    itemName: order.itemName || '',
     sellerUid: order.sellerUid || '',
     buyerUid: u.uid,
-    buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
+    buyerName: buyerName,
     stars: stars,
     comment: comment,
     createdAtMs: Date.now(),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  await getDb().collection('orders').doc(order.id).update({ reviewed: true, reviewStars: stars, updatedAtMs: Date.now() });
+  await getDb().collection('orders').doc(order.id).update({
+    reviewed: true,
+    reviewStars: stars,
+    reviewComment: comment,
+    updatedAtMs: Date.now()
+  });
+  // média do anúncio
   if (order.adId) {
     try {
-      var snap = await getDb().collection('reviews').where('adId', '==', order.adId).limit(100).get();
+      var snap = await getDb().collection('reviews').where('adId', '==', order.adId).limit(200).get();
       var sum = 0, n = 0;
       snap.forEach(function (d) { sum += Number(d.data().stars) || 0; n++; });
       if (n > 0) {
@@ -777,8 +789,35 @@ async function fsAddReview(order, stars, comment) {
           updatedAtMs: Date.now()
         });
       }
-    } catch (e) { console.warn(e); }
+    } catch (e) { console.warn('ad rating', e); }
   }
+  // média do vendedor no perfil
+  if (order.sellerUid) {
+    try {
+      var snap2 = await getDb().collection('reviews').where('sellerUid', '==', order.sellerUid).limit(200).get();
+      var sum2 = 0, n2 = 0;
+      snap2.forEach(function (d) { sum2 += Number(d.data().stars) || 0; n2++; });
+      if (n2 > 0) {
+        await getDb().collection('profiles').doc(order.sellerUid).set({
+          rating: Math.round((sum2 / n2) * 10) / 10,
+          ratingCount: n2,
+          updatedAtMs: Date.now()
+        }, { merge: true });
+      }
+    } catch (e) { console.warn('seller rating', e); }
+  }
+  // notifica vendedor
+  try {
+    if (typeof fsAddNotification === 'function' && order.sellerUid) {
+      await fsAddNotification(order.sellerUid, {
+        type: 'review',
+        title: 'Nova avaliação ' + stars + '★',
+        body: buyerName + (order.itemName ? (' · ' + order.itemName) : '') + (comment ? (': ' + comment.slice(0, 80)) : ''),
+        link: order.adId ? ('anuncio.html?id=' + encodeURIComponent(order.adId)) : 'painel.html',
+        createdAtMs: Date.now()
+      });
+    }
+  } catch (e) {}
   return rid;
 }
 
