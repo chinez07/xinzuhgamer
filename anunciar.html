@@ -129,7 +129,13 @@
       .account-grid { grid-template-columns: 1fr; }
       .row2 { grid-template-columns: 1fr; }
     }
-  </style>
+  
+.dyn-row { display:grid; grid-template-columns:1fr 90px 70px 36px; gap:8px; margin-bottom:8px; align-items:end; }
+.dyn-row input { width:100%; }
+.dyn-row button { height:42px; border-radius:10px; border:1px solid #e5e7eb; background:#fff; color:#ef4444; cursor:pointer; }
+@media(max-width:480px){ .dyn-row { grid-template-columns:1fr 1fr; } .dyn-row button { grid-column:1/-1; } }
+</style>
+
 </head>
 <body>
   <div class="top">
@@ -182,10 +188,9 @@
           <input type="text" id="title" maxlength="80" placeholder="Ex: Conta Roblox — Blox Fruits">
           <p class="hint">Exemplos: Conta Valorant, Free Fire Diamante, Spotify Premium…</p>
           <label>Modelo do anúncio</label>
-          <div class="model-grid">
+          <div class="model-grid" style="grid-template-columns:1fr 1fr">
             <div class="model-opt sel" data-model="normal"><i class="fas fa-shopping-cart"></i><strong>Normal</strong><br>1 item com este título</div>
-            <div class="model-opt" data-model="dinamico"><i class="fas fa-layer-group"></i><strong>Dinâmico</strong><br>Vários itens</div>
-            <div class="model-opt" data-model="servico"><i class="fas fa-briefcase"></i><strong>Serviço</strong><br>Preço sob consulta</div>
+            <div class="model-opt" data-model="dinamico"><i class="fas fa-layer-group"></i><strong>Dinâmico</strong><br>Vários itens com preços</div>
           </div>
           <button type="button" class="btn btn-primary" data-next-acc="price">Continuar</button>
         </div>
@@ -194,9 +199,16 @@
       <div class="card acc" data-acc="price">
         <div class="acc-head"><div class="ico"><i class="fas fa-tag"></i></div> Valor e estoque <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
         <div class="acc-body">
-          <div class="row2">
-            <div><label>Valor (R$)</label><input type="number" id="price" min="1" step="0.01" placeholder="20,00"></div>
-            <div><label>Estoque</label><input type="number" id="stock" min="1" value="1"></div>
+          <div id="priceNormal">
+            <div class="row2">
+              <div><label>Valor (R$)</label><input type="number" id="price" min="1" step="0.01" placeholder="20,00"></div>
+              <div><label>Estoque</label><input type="number" id="stock" min="1" value="1"></div>
+            </div>
+          </div>
+          <div id="priceDinamico" style="display:none">
+            <p class="hint" style="margin-bottom:10px">Adicione cada variação (ex.: Lv15, Lv30…). O comprador escolhe um item antes de comprar.</p>
+            <div id="dynItems"></div>
+            <button type="button" class="btn btn-outline" id="btnAddItem" style="margin-bottom:12px;width:100%"><i class="fas fa-plus"></i> Adicionar item</button>
           </div>
           <button type="button" class="btn btn-primary" data-next-acc="cat">Continuar</button>
         </div>
@@ -209,14 +221,18 @@
           <select id="category">
             <option value="">Selecione</option>
             <option value="Jogos">Jogos</option>
-            <option value="Outros">Outros</option>
+            <option value="Assinaturas">Assinaturas</option>
           </select>
-          <label>Subcategoria (jogo)</label>
+          <label id="subcatLabel">Subcategoria (jogo)</label>
           <select id="subcategory">
             <option value="">Selecione</option>
-            <option>Roblox</option><option>Valorant</option><option>Free Fire</option>
-            <option>League of Legends</option><option>Fortnite</option><option>CS2</option>
-            <option>Genshin Impact</option><option>Outro jogo</option>
+            <option value="Roblox">Roblox</option>
+            <option value="Valorant">Valorant</option>
+            <option value="Free Fire">Free Fire</option>
+            <option value="League of Legends">League of Legends</option>
+            <option value="Fortnite">Fortnite</option>
+            <option value="CS2">CS2</option>
+            <option value="Genshin Impact">Genshin Impact</option>
           </select>
           <label>Seção</label>
           <input type="text" id="section" placeholder="Ex: Blox Fruits, Conta Ranked…">
@@ -389,11 +405,67 @@
     });
 
     // Models
+    
+    var GAMES = ['Roblox','Valorant','Free Fire','League of Legends','Fortnite','CS2','Genshin Impact'];
+    function fillSubcats() {
+      var cat = document.getElementById('category').value;
+      var sub = document.getElementById('subcategory');
+      var lab = document.getElementById('subcatLabel');
+      sub.innerHTML = '<option value="">Selecione</option>';
+      if (cat === 'Assinaturas') {
+        if (lab) lab.textContent = 'Subcategoria';
+        sub.innerHTML += '<option value="Assinatura">Assinatura</option>';
+      } else {
+        if (lab) lab.textContent = 'Subcategoria (jogo)';
+        GAMES.forEach(function(g){ sub.innerHTML += '<option value="'+g+'">'+g+'</option>'; });
+      }
+    }
+    document.getElementById('category').addEventListener('change', fillSubcats);
+
+    function syncPriceUI() {
+      var dyn = state.model === 'dinamico';
+      var n = document.getElementById('priceNormal');
+      var d = document.getElementById('priceDinamico');
+      if (n) n.style.display = dyn ? 'none' : 'block';
+      if (d) d.style.display = dyn ? 'block' : 'none';
+      if (dyn && document.getElementById('dynItems') && !document.getElementById('dynItems').children.length) {
+        addDynRow('','','');
+        addDynRow('','','');
+      }
+    }
+    function addDynRow(name, price, stock) {
+      var box = document.getElementById('dynItems');
+      if (!box) return;
+      var row = document.createElement('div');
+      row.className = 'dyn-row';
+      row.innerHTML = '<div><label>Nome do item</label><input type="text" class="dyn-name" placeholder="Ex: Lv15 + 300 Dimas" value="'+(name||'').replace(/"/g,'&quot;')+'"></div>' +
+        '<div><label>Preço</label><input type="number" class="dyn-price" min="0.01" step="0.01" placeholder="10,00" value="'+(price||'')+'"></div>' +
+        '<div><label>Estoque</label><input type="number" class="dyn-stock" min="0" value="'+(stock!==''&&stock!=null?stock:1)+'"></div>' +
+        '<button type="button" class="dyn-del" title="Remover"><i class="fas fa-trash"></i></button>';
+      box.appendChild(row);
+      row.querySelector('.dyn-del').onclick = function(){ row.remove(); };
+    }
+    function getDynItems() {
+      var items = [];
+      document.querySelectorAll('#dynItems .dyn-row').forEach(function(row){
+        var name = (row.querySelector('.dyn-name').value||'').trim();
+        var price = parseFloat(row.querySelector('.dyn-price').value);
+        var stock = parseInt(row.querySelector('.dyn-stock').value, 10);
+        if (!name || !(price > 0)) return;
+        items.push({ name: name, price: price, stock: isNaN(stock) ? 0 : Math.max(0, stock) });
+      });
+      return items;
+    }
+    var btnAdd = document.getElementById('btnAddItem');
+    if (btnAdd) btnAdd.onclick = function(){ addDynRow('','',''); };
+
+
     document.querySelectorAll('.model-opt').forEach(el => {
       el.addEventListener('click', () => {
         document.querySelectorAll('.model-opt').forEach(x => x.classList.remove('sel'));
         el.classList.add('sel');
         state.model = el.getAttribute('data-model');
+        syncPriceUI();
       });
     });
     document.querySelectorAll('.vis-opt').forEach(el => {
@@ -522,6 +594,15 @@
 
     document.getElementById('btnContaNext').addEventListener('click', () => goStep(2));
     document.getElementById('btnToImages').addEventListener('click', () => {
+      if (state.model === 'dinamico') {
+        var _items = getDynItems();
+        if (!_items.length) { alert('No modelo Dinâmico, adicione pelo menos 1 item com nome e preço.'); return; }
+        // preço/estoque base = menor preço e soma estoques
+        var minP = _items[0].price, sumS = 0;
+        _items.forEach(function(it){ if (it.price < minP) minP = it.price; sumS += it.stock; });
+        document.getElementById('price').value = minP;
+        document.getElementById('stock').value = sumS;
+      }
       if (!document.getElementById('title').value.trim()) { showMsg('Preencha o título.', 'err'); openAcc('title'); return; }
       if (!parseFloat(document.getElementById('price').value)) { showMsg('Informe o preço.', 'err'); openAcc('price'); return; }
       goStep(3);
@@ -572,7 +653,7 @@
           var stockVal = parseInt(document.getElementById('stock').value, 10) || 1;
           var patch = {
             title: document.getElementById('title').value.trim(),
-            category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Outros',
+            category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Jogos',
             subcategory: document.getElementById('subcategory').value || '',
             section: document.getElementById('section') ? document.getElementById('section').value : '',
             price: parseFloat(document.getElementById('price').value),
@@ -591,13 +672,15 @@
         }
         await fsCreateAd({
           title: document.getElementById('title').value.trim(),
-          category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Outros',
+          category: document.getElementById('category').value || document.getElementById('subcategory').value || 'Jogos',
           subcategory: document.getElementById('subcategory').value,
           section: document.getElementById('section').value.trim(),
           productType: document.getElementById('productType').value,
           origin: document.getElementById('origin').value,
           accountInfo: document.getElementById('accountInfo').value,
           model: state.model,
+          items: state.model === 'dinamico' ? getDynItems() : [],
+          sellerPhoto: (function(){ try { return localStorage.getItem('xinzuh-photo-'+(firebase.auth().currentUser&&firebase.auth().currentUser.uid)) || localStorage.getItem('xinzuh-photo') || ''; } catch(e){ return ''; } })(),
           price: parseFloat(document.getElementById('price').value),
           stock: parseInt(document.getElementById('stock').value, 10) || 1,
           desc: document.getElementById('desc').value.trim(),

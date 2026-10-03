@@ -50,6 +50,33 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/firestore-db.js"></script>
+<script>
+
+  window.__selectedItemPrice = null;
+  window.__selectedItemName = null;
+  window.__selectedItemIndex = null;
+  async function applyDynamicItem(ad) {
+    if (!ad) return ad;
+    try {
+      var idx = new URLSearchParams(location.search).get('item');
+      if (idx == null || idx === '') return ad;
+      var items = (ad.raw && ad.raw.items) || ad.items || [];
+      var it = items[parseInt(idx, 10)];
+      if (!it) return ad;
+      window.__selectedItemPrice = Number(it.price);
+      window.__selectedItemName = it.name;
+      window.__selectedItemIndex = parseInt(idx, 10);
+      ad = Object.assign({}, ad, {
+        price: Number(it.price),
+        title: (ad.title || '') + ' — ' + it.name,
+        selectedItem: it,
+        selectedItemIndex: parseInt(idx, 10)
+      });
+      return ad;
+    } catch (e) { return ad; }
+  }
+
+</script>
   <script src="js/notificacoes.js"></script>
   <script>
   function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
@@ -227,8 +254,9 @@
         var doc=await firebase.firestore().collection('ads').doc(adId).get();
         if(!doc.exists) return null;
         var d=doc.data();
-        return {id:doc.id,title:d.title,price:d.price,cover:d.cover,seller:d.sellerName,sellerUid:d.sellerUid,category:d.category,categoryLabel:d.category,raw:d};
+        return {id:doc.id,title:d.title,price:d.price,cover:d.cover,seller:d.sellerName,sellerUid:d.sellerUid,category:d.category,categoryLabel:d.category,raw:d,items:d.items||[]};
       })());
+      if (typeof applyDynamicItem === 'function') ad = await applyDynamicItem(ad);
       if(ad && !ad.sellerUid && ad.raw) ad.sellerUid = ad.raw.sellerUid;
       if(!ad){ document.getElementById('app').innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
       render();

@@ -294,7 +294,19 @@
           '<div class="stat"><div class="k">Vendas</div><div class="v">' + sales + '</div></div>' +
         '</div>' +
         '<div class="buy-box">' +
-          (model === 'dinamico' ? '<select class="item-sel" id="itemSel"><option value="">Escolha um item</option><option value="1">Item padrão — ' + money(ad.price) + '</option></select>' : '') +
+          (function(){
+          if (model !== 'dinamico') return '';
+          var items = (raw.items && raw.items.length) ? raw.items : [];
+          if (!items.length) return '<select class="item-sel" id="itemSel"><option value="">Escolha um item</option></select>';
+          var opts = '<option value="">Selecione um item</option>';
+          items.forEach(function(it, idx){
+            var st = Number(it.stock)||0;
+            var dis = st <= 0 ? ' disabled' : '';
+            opts += '<option value="'+idx+'" data-price="'+Number(it.price)+'" data-stock="'+st+'"'+dis+'>' +
+              esc(it.name) + (st>0 ? (' ('+st+' em estoque)') : ' (esgotado)') + ' — ' + money(it.price) + '</option>';
+          });
+          return '<select class="item-sel" id="itemSel">' + opts + '</select>';
+        })() +
           (function(){
           var st = (ad.raw && ad.raw.status) || ad.status || 'ativo';
           var stock = Number((ad.raw && ad.raw.stock) != null ? ad.raw.stock : ad.stock);
@@ -436,7 +448,17 @@
       const itemSel = document.getElementById('itemSel');
       const btnBuy = document.getElementById('btnBuy');
       if (itemSel && btnBuy) {
-        itemSel.onchange = function () { btnBuy.disabled = !itemSel.value; };
+        itemSel.onchange = function () {
+          var ok = !!itemSel.value;
+          btnBuy.disabled = !ok;
+          if (ok) {
+            var opt = itemSel.options[itemSel.selectedIndex];
+            var p = opt.getAttribute('data-price');
+            if (p) btnBuy.textContent = 'COMPRAR · ' + money(Number(p));
+          } else {
+            btnBuy.textContent = 'COMPRAR · ' + money(ad.price);
+          }
+        };
       }
       if (btnBuy) {
         btnBuy.onclick = async function () {
@@ -447,12 +469,24 @@
             alert('Este anúncio está desativado no momento.');
             return;
           }
+          if (model === 'dinamico') {
+            var sel = document.getElementById('itemSel');
+            if (!sel || !sel.value) {
+              alert('Selecione um item antes de comprar.');
+              return;
+            }
+          }
           if (!firebase.auth().currentUser) {
             alert('Entre na sua conta para comprar.');
             location.href = 'login.html?redirect=' + encodeURIComponent(location.href);
             return;
           }
-          location.href = 'checkout.html?adId=' + encodeURIComponent(ad.id);
+          var q = 'checkout.html?adId=' + encodeURIComponent(ad.id);
+          if (model === 'dinamico') {
+            var sel2 = document.getElementById('itemSel');
+            q += '&item=' + encodeURIComponent(sel2.value);
+          }
+          location.href = q;
         };
       }
       function bindReplyButtons() {
