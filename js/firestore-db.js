@@ -534,7 +534,7 @@ async function fsCreateOrder(ad, extra) {
   const payload = {
     code: code,
     adId: ad.id,
-    adTitle: ad.title || '',
+    adTitle: (ad.title || '') + ((extra && extra.itemName) ? (' — ' + extra.itemName) : ((window.__selectedItemName) ? (' — ' + window.__selectedItemName) : '')),
     adCover: ad.cover || '',
     price: price,
     quantity: (extra && extra.quantity) || 1,
