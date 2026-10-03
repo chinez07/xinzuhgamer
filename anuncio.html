@@ -502,15 +502,6 @@
               if (_rb) _rb.textContent = list.length + ' avaliação(ões)';
             }
           });
-              var avg = Math.round((sum / list.length) * 10) / 10;
-              var _rn = document.getElementById('ratingN');
-              if (_rn) _rn.textContent = avg.toFixed(1);
-              var _rs = document.getElementById('ratingStars');
-              if (_rs) _rs.textContent = '★'.repeat(Math.round(avg)) + '☆'.repeat(5-Math.round(avg));
-              var _rb = document.getElementById('ratingSub');
-              if (_rb) _rb.textContent = list.length + ' avaliação(ões)';
-            }
-          });
         }
       } catch (_e) {}
       const favBtn = document.getElementById('favBtn');
