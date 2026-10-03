@@ -1296,7 +1296,7 @@ function createProductCard(ad) {
           })() +
           ' ' + escapeHtmlHome(ad.seller) +
           ' <span class="rating"><i class="fas fa-star"></i> ' + (ad.rating || 5) + '</span>' +
-          ' <span>(' + (ad.sales || 0) + ')</span>' +
+          ' <span>(' + (ad.sold != null ? ad.sold : (ad.sales || 0)) + ')</span>' +
         '</div>' +
       '</div>' +
     '</a>'

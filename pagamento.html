@@ -91,10 +91,20 @@
           if (adoc.exists) {
             var ad = adoc.data();
             var qty = Number(o.quantity) || 1;
-            var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-            var sold = (Number(ad.sold) != null ? Number(ad.sold) : (Number(ad.sales) || 0)) + qty;
-            var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
-            if (stock <= 0) patch.status = 'pausado';
+            var _ps = Number(ad.sold); if (isNaN(_ps)) _ps = Number(ad.sales) || 0; var sold = _ps + qty;
+            var items = Array.isArray(ad.items) ? ad.items.slice() : [];
+            var itemIndex = o.itemIndex != null ? Number(o.itemIndex) : -1;
+            var patch = { sold: sold, updatedAtMs: Date.now() };
+            if (String(ad.model||'').toLowerCase()==='dinamico' && items.length && itemIndex>=0 && items[itemIndex]) {
+              items[itemIndex] = Object.assign({}, items[itemIndex], { stock: Math.max(0, (Number(items[itemIndex].stock)||0) - qty) });
+              var sum=0; items.forEach(function(x){ sum += Math.max(0, Number(x.stock)||0); });
+              patch.items = items; patch.stock = sum;
+              if (sum <= 0) patch.status = 'pausado';
+            } else {
+              var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
+              patch.stock = stock;
+              if (stock <= 0) patch.status = 'pausado';
+            }
             await aref.update(patch);
             await firebase.firestore().collection('orders').doc(orderId).update({ stockApplied: true });
           }
