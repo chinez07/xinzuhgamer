@@ -266,6 +266,54 @@
       };
     }
 
+    
+    // Vendedor avalia comprador
+    var isSeller = order && firebase.auth().currentUser && order.sellerUid === firebase.auth().currentUser.uid;
+    if (isSeller && o.status === 'concluido' && o.buyerReviewed) {
+      var bs = Number(o.buyerReviewStars) || 0;
+      var doneB = '<div class="box"><h1>Sua avaliação do comprador</h1>' +
+        '<div style="color:#fbbf24;font-size:1.3rem">' + '★'.repeat(bs) + '☆'.repeat(5-bs) + '</div>' +
+        (o.buyerReviewComment ? ('<p class="muted">' + esc(o.buyerReviewComment) + '</p>') : '') + '</div>';
+      var _pb = document.getElementById('page') || document.getElementById('app');
+      if (_pb) _pb.insertAdjacentHTML('beforeend', doneB);
+    }
+    if (isSeller && o.status === 'concluido' && !o.buyerReviewed) {
+      var buyerName = o.buyerName || 'Comprador';
+      var revS = '<div class="box" id="buyerReviewBox" style="border-color:#22c55e">' +
+        '<h1>⭐ Avaliar comprador</h1>' +
+        '<p class="muted">Como foi a negociação com <strong style="color:#e5e7eb">' + esc(buyerName) + '</strong>?</p>' +
+        '<div id="starPickBuyer" style="display:flex;gap:6px;margin:14px 0;justify-content:center">' +
+        [1,2,3,4,5].map(function(s){ return '<button type="button" data-star="'+s+'" style="font-size:2rem;background:0;border:0;cursor:pointer;color:#4b5563;line-height:1">★</button>'; }).join('') +
+        '</div>' +
+        '<textarea id="revCommentBuyer" rows="2" placeholder="Comentário opcional" style="width:100%;padding:12px;border-radius:10px;border:1px solid #2a2a36;background:#0f0f14;color:#fff;margin-bottom:12px;font-family:inherit"></textarea>' +
+        '<button type="button" class="btn" id="btnReviewBuyer" style="width:100%">Enviar avaliação do comprador</button></div>';
+      var _ps = document.getElementById('page') || document.getElementById('app');
+      if (_ps) _ps.insertAdjacentHTML('beforeend', revS);
+      var pickedB = 5;
+      function paintB() {
+        document.querySelectorAll('#starPickBuyer [data-star]').forEach(function(btn){
+          var s = +btn.getAttribute('data-star');
+          btn.style.color = s <= pickedB ? '#fbbf24' : '#4b5563';
+        });
+      }
+      paintB();
+      document.querySelectorAll('#starPickBuyer [data-star]').forEach(function(btn){
+        btn.onclick = function(){ pickedB = +btn.getAttribute('data-star'); paintB(); };
+      });
+      var _bb = document.getElementById('btnReviewBuyer');
+      if (_bb) _bb.onclick = async function(){
+        try {
+          this.disabled = true;
+          var fn = typeof fsAddBuyerReview === 'function' ? fsAddBuyerReview : window.fsAddBuyerReview;
+          if (typeof fn !== 'function') throw new Error('Função indisponível. Atualize a página.');
+          await fn(order, pickedB, (document.getElementById('revCommentBuyer').value||'').trim());
+          alert('Avaliação do comprador enviada!');
+          await reload();
+        } catch(e) { alert(e.message||'Erro'); this.disabled = false; }
+      };
+    }
+
+
     if ((b = document.getElementById('btnDone'))) b.onclick = async function(){
       await setStatus('concluido');
       try {
