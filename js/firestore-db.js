@@ -79,7 +79,7 @@ async function fsCreateAd(data) {
   var adId = (typeof bloxzuhDocId === 'function' ? bloxzuhDocId('AD') : ('AD' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4)));
   payload.code = adId;
   await getDb().collection('ads').doc(adId).set(payload);
-  console.log('[Bloxzuh] anúncio criado com ID=', adId);
+  console.log('[Bloxzuh] anúncio criado com ID=', adId, 'model=', payload.model, 'items=', (payload.items||[]).length);
   return adId;
 }
 
@@ -539,7 +539,7 @@ async function fsCreateOrder(ad, extra) {
     price: price,
     quantity: (extra && extra.quantity) || 1,
     total: price * ((extra && extra.quantity) || 1),
-    status: 'aguardando_pagamento', // aguardando_pagamento | pago | em_entrega | concluido | cancelado | expirado
+    status: 'aguardando_pagamento',
     buyerUid: u.uid,
     buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
     buyerEmail: u.email || '',
@@ -547,6 +547,8 @@ async function fsCreateOrder(ad, extra) {
     sellerName: ad.seller || 'Vendedor',
     category: ad.category || '',
     note: (extra && extra.note) || '',
+    itemIndex: (extra && extra.itemIndex != null) ? Number(extra.itemIndex) : (window.__selectedItemIndex != null ? Number(window.__selectedItemIndex) : null),
+    itemName: (extra && extra.itemName) || (window.__selectedItemName) || '',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     createdAtMs: Date.now(),
     updatedAtMs: Date.now()
@@ -684,13 +686,34 @@ async function fsApplyOrderStock(order) {
     }
     var ad = adoc.data();
     var qty = Number(order.quantity) || 1;
-    var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-    var prevSold = Number(ad.sold); if (isNaN(prevSold)) prevSold = Number(ad.sales) || 0; var sold = prevSold + qty;
-    var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
-    if (stock <= 0) patch.status = 'pausado';
-    await aref.update(patch);
+    var items = Array.isArray(ad.items) ? ad.items.slice() : [];
+    var itemIndex = (order.itemIndex != null ? Number(order.itemIndex) : (order.selectedItemIndex != null ? Number(order.selectedItemIndex) : -1));
+    // Dinâmico: baixa só o item escolhido
+    if (String(ad.model || '').toLowerCase() === 'dinamico' && items.length && itemIndex >= 0 && items[itemIndex]) {
+      var it = Object.assign({}, items[itemIndex]);
+      it.stock = Math.max(0, (Number(it.stock) || 0) - qty);
+      items[itemIndex] = it;
+      var sumStock = 0;
+      items.forEach(function (x) { sumStock += Math.max(0, Number(x.stock) || 0); });
+      var prevSold = Number(ad.sold); if (isNaN(prevSold)) prevSold = Number(ad.sales) || 0;
+      var patch = {
+        items: items,
+        stock: sumStock,
+        sold: prevSold + qty,
+        updatedAtMs: Date.now()
+      };
+      // só pausa o anúncio inteiro se TODOS os itens zeram
+      if (sumStock <= 0) patch.status = 'pausado';
+      await aref.update(patch);
+    } else {
+      var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
+      var prevSold2 = Number(ad.sold); if (isNaN(prevSold2)) prevSold2 = Number(ad.sales) || 0;
+      var patch2 = { stock: stock, sold: prevSold2 + qty, updatedAtMs: Date.now() };
+      if (stock <= 0) patch2.status = 'pausado';
+      await aref.update(patch2);
+    }
     await getDb().collection('orders').doc(order.id).update({ stockApplied: true });
-    console.log('[Bloxzuh] estoque/vendidos atualizados ad=', order.adId, 'stock=', stock, 'sold=', sold);
+    console.log('[Bloxzuh] estoque/vendidos atualizados ad=', order.adId, 'item=', itemIndex);
   } catch (e) {
     console.warn('fsApplyOrderStock', e);
   }
