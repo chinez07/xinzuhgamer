@@ -328,6 +328,8 @@ function normalizeAd(id, data) {
     categoryLabel: data.subcategory || data.category || 'Jogos',
     price: Number(data.price) || 0,
     seller: data.sellerName || 'Vendedor',
+    sellerUid: data.sellerUid || '',
+    sellerPhoto: data.sellerPhoto || '',
     rating: 5.0,
     sales: data.sales || 0,
     sold: (function(){ var s = Number(data.sold); if (!isNaN(s)) return s; var v = Number(data.sales); return isNaN(v) ? 0 : v; })(),
@@ -461,7 +463,7 @@ async function fsGetSellerPublic(uid) {
     const p = await fsGetProfile(uid);
     if (p) {
       profile.name = p.displayName || p.name || profile.name;
-      profile.photo = p.photo || p.photoURL || '';
+      profile.photo = p.photo || p.photoURL || p.avatar || '';
       profile.bio = p.bio || '';
     }
   } catch (e) {}
