@@ -207,7 +207,14 @@
       }
 
       const raw = ad.raw || {};
-      const stock = (function(){ var s = Number(ad.stock != null ? ad.stock : raw.stock); return isNaN(s) ? 1 : Math.max(0, s); })();
+      const stock = (function(){
+        var itemsArr = (raw.items && raw.items.length) ? raw.items : (ad.items || []);
+        if (String(ad.model || raw.model || '').toLowerCase() === 'dinamico' && itemsArr.length) {
+          var s = 0; itemsArr.forEach(function(it){ s += Math.max(0, Number(it.stock)||0); });
+          return s;
+        }
+        var s2 = Number(ad.stock != null ? ad.stock : raw.stock); return isNaN(s2) ? 1 : Math.max(0, s2);
+      })();
       const sold = (function(){
         var s = Number(raw.sold != null ? raw.sold : ad.sold);
         if (!isNaN(s)) return s;
@@ -311,7 +318,9 @@
           var st = (ad.raw && ad.raw.status) || ad.status || 'ativo';
           var stock = Number((ad.raw && ad.raw.stock) != null ? ad.raw.stock : ad.stock);
           if (isNaN(stock)) stock = 1;
-          var blocked = st === 'pausado' || st === 'vendido' || stock <= 0;
+          var itemsArr = (raw.items && raw.items.length) ? raw.items : (ad.items || []);
+          var anyItemStock = itemsArr.some(function(it){ return (Number(it.stock)||0) > 0; });
+          var blocked = st === 'pausado' || st === 'vendido' || (model === 'dinamico' ? !anyItemStock : stock <= 0);
           if (blocked) {
             return '<button type="button" class="btn-buy" id="btnBuy" disabled style="opacity:.55;cursor:not-allowed;background:#4b5563">ANÚNCIO DESATIVADO</button>';
           }

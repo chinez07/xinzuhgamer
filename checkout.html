@@ -85,7 +85,7 @@
   var ad=null, order=null, vip='none', payMethod='pix';
 
   // Fallback se firestore-db não exportar
-  async function createOrderLocal(ad, extra) {
+  async function createOrderLocal(ad, Object.assign({ itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName }, extra||{})) {
     if (typeof fsCreateOrder === 'function') return fsCreateOrder(ad, extra);
     if (typeof window.fsCreateOrder === 'function') return window.fsCreateOrder(ad, extra);
     var u = firebase.auth().currentUser;
@@ -220,7 +220,7 @@
       var btn=document.getElementById('btnPix');
       btn.disabled=true; btn.textContent='Criando pedido…';
       try{
-        order = await createOrderLocal(ad, { quantity:1 });
+        order = await createOrderLocal(ad, { quantity:1, itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName });
         await setPaymentLocal(order.id, {
           method:'pix',
           payerName:name,

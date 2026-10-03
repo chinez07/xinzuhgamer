@@ -362,6 +362,7 @@
   (function () {
     const state = {
       model: 'normal',
+      items: [],
       visibility: 'prata',
       feePercent: 9.99,
       plan: 'none',
@@ -424,6 +425,7 @@
             alert('No modelo Dinâmico, preencha pelo menos 1 item (título e preço).');
             return false;
           }
+          state.items = items;
           // precisa de pelo menos 1 completo; avisa se algum card incompleto
           var cards = document.querySelectorAll('#dynItems .dyn-card');
           for (var i = 0; i < cards.length; i++) {
@@ -702,11 +704,11 @@
       if (state.model === 'dinamico') {
         var _items = getDynItems();
         if (!_items.length) { alert('No modelo Dinâmico, adicione pelo menos 1 item com nome e preço.'); return; }
-        // preço/estoque base = menor preço e soma estoques
+        state.items = _items;
         var minP = _items[0].price, sumS = 0;
-        _items.forEach(function(it){ if (it.price < minP) minP = it.price; sumS += it.stock; });
+        _items.forEach(function(it){ if (it.price < minP) minP = it.price; sumS += (Number(it.stock)||0); });
         document.getElementById('price').value = minP;
-        document.getElementById('stock').value = sumS;
+        document.getElementById('stock').value = sumS || 1;
       }
       if (!document.getElementById('title').value.trim()) { showMsg('Preencha o título.', 'err'); openAcc('title'); return; }
       if (!parseFloat(document.getElementById('price').value)) { showMsg('Informe o preço.', 'err'); openAcc('price'); return; }
@@ -784,7 +786,18 @@
           origin: document.getElementById('origin').value,
           accountInfo: document.getElementById('accountInfo').value,
           model: state.model,
-          items: state.model === 'dinamico' ? getDynItems() : [],
+          items: (function(){
+            if (state.model !== 'dinamico') return [];
+            var list = getDynItems();
+            if ((!list || !list.length) && state.items && state.items.length) list = state.items;
+            if (!list || !list.length) throw new Error('Anúncio dinâmico sem itens. Volte em Valor e estoque e preencha os itens.');
+            state.items = list;
+            var minP = list[0].price, sumS = 0;
+            list.forEach(function(it){ if (it.price < minP) minP = it.price; sumS += (Number(it.stock)||0); });
+            var pe = document.getElementById('price'); if (pe) pe.value = minP;
+            var se = document.getElementById('stock'); if (se) se.value = sumS || 1;
+            return list.map(function(it){ return { name: String(it.name), price: Number(it.price), stock: Number(it.stock)||0 }; });
+          })(),
           sellerPhoto: (function(){ try { return localStorage.getItem('xinzuh-photo-'+(firebase.auth().currentUser&&firebase.auth().currentUser.uid)) || localStorage.getItem('xinzuh-photo') || ''; } catch(e){ return ''; } })(),
           price: parseFloat(document.getElementById('price').value),
           stock: parseInt(document.getElementById('stock').value, 10) || 1,
