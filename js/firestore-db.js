@@ -50,6 +50,7 @@ async function fsCreateAd(data) {
   const payload = {
     sellerUid: u.uid,
     sellerName: u.displayName || (u.email ? u.email.split('@')[0] : 'Vendedor'),
+    sellerPhoto: data.sellerPhoto || '',
     title: data.title,
     category: data.category || '',
     subcategory: data.subcategory || '',
@@ -58,6 +59,7 @@ async function fsCreateAd(data) {
     origin: data.origin || '',
     accountInfo: data.accountInfo || '',
     model: data.model || 'normal',
+    items: Array.isArray(data.items) ? data.items : [],
     price: Number(data.price),
     stock: Number(data.stock) || 1,
     desc: data.desc || '',
@@ -68,6 +70,7 @@ async function fsCreateAd(data) {
     gallery: data.gallery || [],
     status: 'ativo',
     sales: 0,
+    sold: 0,
     feePercent: data.feePercent || 9.99,
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     createdAtMs: Date.now()
