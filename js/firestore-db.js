@@ -320,7 +320,7 @@ function normalizeAd(id, data) {
     genshinimpact: 'genshin', genshin: 'genshin', premium: 'premium', assinaturas: 'premium'
   };
   let category = map[cat] || map[(data.category || '').toLowerCase()] || 'outros';
-  if ((data.category || '').toLowerCase().indexOf('assinat') >= 0) category = 'premium';
+  if ((data.category || '').toLowerCase().indexOf('assinat') >= 0 || (data.subcategory || '').toLowerCase().indexOf('assinat') >= 0) category = 'premium';
   return {
     id: id,
     title: data.title || 'Anúncio',
@@ -340,6 +340,7 @@ function normalizeAd(id, data) {
     stock: data.stock || 1,
     visibility: data.visibility || 'prata',
     productType: data.productType || '',
+    items: data.items || [],
     raw: data
   };
 }
