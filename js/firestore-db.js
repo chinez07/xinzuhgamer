@@ -912,21 +912,8 @@ async function fsAddBuyerReview(order, stars, comment) {
     buyerReviewComment: comment,
     updatedAtMs: Date.now()
   });
-  // média do comprador no perfil
-  if (order.buyerUid) {
-    try {
-      var snap = await getDb().collection('reviews').where('buyerUid', '==', order.buyerUid).where('type', '==', 'buyer').limit(200).get();
-      var sum = 0, n = 0;
-      snap.forEach(function (d) { sum += Number(d.data().stars) || 0; n++; });
-      if (n > 0) {
-        await getDb().collection('profiles').doc(order.buyerUid).set({
-          buyerRating: Math.round((sum / n) * 10) / 10,
-          buyerRatingCount: n,
-          updatedAtMs: Date.now()
-        }, { merge: true });
-      }
-    } catch (e) { console.warn('buyer rating', e); }
-  }
+  // (média do comprador fica só nas reviews; perfil do comprador só ele mesmo pode escrever)
+
   try {
     if (typeof fsAddNotification === 'function' && order.buyerUid) {
       await fsAddNotification(order.buyerUid, {
