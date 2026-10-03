@@ -485,6 +485,18 @@ async function fsSaveProfile(data) {
     throw new Error('Foto muito grande. Use uma imagem menor que 1 MB.');
   }
   await getDb().collection('profiles').doc(u.uid).set(payload, { merge: true });
+  // Propaga foto para anúncios ativos (listas leem sellerPhoto)
+  if (payload.photo) {
+    try {
+      var snap = await getDb().collection('ads').where('sellerUid', '==', u.uid).limit(40).get();
+      var batch = getDb().batch();
+      var n = 0;
+      snap.forEach(function (d) {
+        if (n < 20) { batch.update(d.ref, { sellerPhoto: payload.photo }); n++; }
+      });
+      if (n) await batch.commit();
+    } catch (e) { console.warn('sellerPhoto on ads', e); }
+  }
   return payload;
 }
 
