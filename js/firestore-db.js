@@ -1067,7 +1067,8 @@ window.fsGetSellerPublic = fsGetSellerPublic;
 window.fsSaveProfile = fsSaveProfile;
 window.fsGetProfile = fsGetProfile;
 
-/** Presença online: ativo se lastSeenMs < 2 min */
+
+/** Presença online: ativo se lastSeenMs nos últimos 3 minutos */
 function isUserOnline(profileOrMs) {
   var ms = 0;
   if (profileOrMs && typeof profileOrMs === 'object') {
@@ -1076,47 +1077,52 @@ function isUserOnline(profileOrMs) {
     ms = Number(profileOrMs) || 0;
   }
   if (!ms) return false;
-  return (Date.now() - ms) < 120000;
+  return (Date.now() - ms) < 180000;
 }
 window.isUserOnline = isUserOnline;
 
 async function fsTouchPresence() {
   try {
-    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return;
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return null;
     var u = firebase.auth().currentUser;
-    if (!u) return;
-    var dbx = firebase.firestore();
-    var ref = dbx.collection('profiles').doc(u.uid);
+    if (!u) return null;
+    var ref = firebase.firestore().collection('profiles').doc(u.uid);
     var snap = await ref.get();
+    var data = snap.exists ? (snap.data() || {}) : {};
+    var created = Date.now();
+    try {
+      if (u.metadata && u.metadata.creationTime) {
+        created = new Date(u.metadata.creationTime).getTime() || created;
+      }
+    } catch (e) {}
     var patch = {
       lastSeenMs: Date.now(),
       online: true,
       updatedAtMs: Date.now(),
-      email: u.email || '',
-      displayName: u.displayName || (u.email ? u.email.split('@')[0] : '')
+      email: u.email || data.email || '',
+      displayName: u.displayName || data.displayName || data.name || (u.email ? u.email.split('@')[0] : '') || 'Usuário'
     };
-    var data = snap.exists ? (snap.data() || {}) : {};
+    // Contas antigas: grava memberSinceMs na primeira visita após o update
     if (!data.memberSinceMs) {
-      var created = Date.now();
-      try {
-        if (u.metadata && u.metadata.creationTime) {
-          created = new Date(u.metadata.creationTime).getTime() || created;
-        }
-      } catch (e) {}
       patch.memberSinceMs = created;
     }
     await ref.set(patch, { merge: true });
-  } catch (e) { console.warn('presence', e); }
+    return patch;
+  } catch (e) {
+    console.warn('[Bloxzuh] presence', e);
+    return null;
+  }
 }
 window.fsTouchPresence = fsTouchPresence;
 
 async function fsSetOffline() {
   try {
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return;
     var u = firebase.auth().currentUser;
     if (!u) return;
-    await getDb().collection('profiles').doc(u.uid).set({
+    await firebase.firestore().collection('profiles').doc(u.uid).set({
       online: false,
-      lastSeenMs: Date.now() - 180000,
+      lastSeenMs: Date.now() - 200000,
       updatedAtMs: Date.now()
     }, { merge: true });
   } catch (e) {}
@@ -1124,23 +1130,26 @@ async function fsSetOffline() {
 window.fsSetOffline = fsSetOffline;
 
 (function startPresenceLoop() {
+  var started = false;
   function tick() {
     try {
       if (typeof firebase === 'undefined' || !firebase.auth) return;
       if (!firebase.auth().currentUser) return;
-      if (typeof fsTouchPresence === 'function') fsTouchPresence();
+      fsTouchPresence();
     } catch (e) {}
   }
   function bind() {
     if (typeof firebase === 'undefined' || !firebase.auth) {
-      setTimeout(bind, 400);
+      setTimeout(bind, 500);
       return;
     }
+    if (started) return;
+    started = true;
     firebase.auth().onAuthStateChanged(function (u) {
       if (u) {
         tick();
         if (!window.__bzPresenceTimer) {
-          window.__bzPresenceTimer = setInterval(tick, 30000);
+          window.__bzPresenceTimer = setInterval(tick, 25000);
         }
       } else if (window.__bzPresenceTimer) {
         clearInterval(window.__bzPresenceTimer);
@@ -1149,24 +1158,29 @@ window.fsSetOffline = fsSetOffline;
     });
   }
   bind();
-  window.addEventListener('beforeunload', function () {
+  setTimeout(tick, 800);
+  setTimeout(tick, 2500);
+  setTimeout(tick, 6000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') tick();
+    else if (typeof fsSetOffline === 'function') {
+      // marca offline só se ficar escondido por um tempo — evita OFF ao trocar de aba rápido
+    }
+  });
+  window.addEventListener('pagehide', function () {
     try {
       var u = firebase.auth().currentUser;
       if (!u || !firebase.firestore) return;
+      // sendBeacon não funciona bem com Firestore; best-effort
       firebase.firestore().collection('profiles').doc(u.uid).set({
         online: false,
-        lastSeenMs: Date.now() - 180000,
+        lastSeenMs: Date.now() - 200000,
         updatedAtMs: Date.now()
       }, { merge: true });
     } catch (e) {}
   });
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') tick();
-  });
-  // primeiro tick atrasado (firebase pronto)
-  setTimeout(tick, 1500);
-  setTimeout(tick, 4000);
 })();
+
 
 window.fsGetWallet = fsGetWallet;
 console.log('[Bloxzuh] firestore-db carregado, fsCreateOrder=', typeof fsCreateOrder);
