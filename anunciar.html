@@ -183,7 +183,7 @@
           <i class="fas fa-user" style="font-size:1.4rem;color:var(--primary)"></i>
           <h3 id="helloName">Olá!</h3>
           <p>Continue com esta conta para criar o anúncio.</p>
-          <button type="button" class="btn btn-primary" id="btnContaNext">Continuar</button>
+          <button type="button" class="btn btn-primary" id="btnContaNext" onclick="try{goStep(2);openAcc('title');}catch(e){console.error(e)}">Continuar</button>
         </div>
       </div>
     </div>
@@ -394,6 +394,7 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
       if (n === 4) renderSummary();
     }
+    window.goStep = goStep;
 
     // Accordion
     document.querySelectorAll('.acc-head').forEach(h => {
@@ -410,6 +411,8 @@
         if (on) a.querySelector('.acc-head').classList.add('done');
       });
     }
+    window.openAcc = openAcc;
+    window.goStep = goStep;
     function validateAcc(name) {
       if (name === 'title') {
         var t = (document.getElementById('title').value || '').trim();
@@ -690,8 +693,8 @@
       return true;
     }
 
-    coverZone.addEventListener('click', () => coverInput.click());
-    coverInput.addEventListener('change', async () => {
+    if (coverZone && coverInput) coverZone.addEventListener('click', () => coverInput.click());
+    if (coverInput) coverInput.addEventListener('change', async () => {
       const f = coverInput.files[0];
       if (!f) return;
       if (!f.type.startsWith('image/')) {
@@ -723,6 +726,7 @@
 
     const galZone = document.getElementById('galZone');
     const galInput = document.getElementById('galInput');
+    if (galZone && galInput) {
     galZone.addEventListener('click', () => galInput.click());
     galInput.addEventListener('change', async () => {
       const files = [...galInput.files].slice(0, 4);
@@ -743,8 +747,21 @@
         '<img src="' + src + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px">'
       ).join('');
     });
+    }
 
-    document.getElementById('btnContaNext').addEventListener('click', () => goStep(2));
+    var btnContaNext = document.getElementById('btnContaNext');
+    if (btnContaNext) {
+      btnContaNext.addEventListener('click', function(ev) {
+        try {
+          ev.preventDefault();
+          goStep(2);
+          try { openAcc('title'); } catch (e) {}
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao continuar: ' + (err.message || err));
+        }
+      });
+    }
     document.getElementById('btnToImages').addEventListener('click', () => {
       if (state.model === 'dinamico') {
         var _items = getDynItems();

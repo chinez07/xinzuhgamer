@@ -130,30 +130,37 @@
         if (!p && uid && typeof fsGetSellerPublic === 'function') {
           p = await fsGetSellerPublic(uid);
         }
+        // se sou eu e não tem perfil (ou incompleto), cria/atualiza
+        if (me && uid === me && firebase.auth().currentUser) {
+          try {
+            var u = firebase.auth().currentUser;
+            var created = Date.now();
+            if (u.metadata && u.metadata.creationTime) {
+              created = new Date(u.metadata.creationTime).getTime() || created;
+            }
+            var existingSince = (p && (p.memberSinceMs || p.createdAtMs)) || null;
+            await firebase.firestore().collection('profiles').doc(uid).set({
+              memberSinceMs: existingSince || created,
+              lastSeenMs: Date.now(),
+              online: true,
+              updatedAtMs: Date.now(),
+              displayName: (p && (p.displayName || p.name)) || name || u.displayName || (u.email ? u.email.split('@')[0] : '') || 'Vendedor',
+              email: u.email || ''
+            }, { merge: true });
+            // relê
+            if (typeof fsGetProfile === 'function') {
+              p = await fsGetProfile(uid);
+            } else {
+              var doc2 = await firebase.firestore().collection('profiles').doc(uid).get();
+              p = doc2.exists ? Object.assign({ uid: uid }, doc2.data()) : p;
+            }
+          } catch (e) { console.warn('ensure profile', e); }
+        }
         if (p) {
           if (p.displayName || p.name) name = p.displayName || p.name;
           photo = p.photo || p.photoURL || '';
           var since = p.memberSinceMs || p.createdAtMs || null;
           var seen = p.lastSeenMs || p.updatedAtMs || 0;
-          // se perfil antigo sem memberSince, e sou eu, grava agora
-          if (!since && me && uid === me && firebase.auth().currentUser) {
-            try {
-              var created = Date.now();
-              var u = firebase.auth().currentUser;
-              if (u.metadata && u.metadata.creationTime) {
-                created = new Date(u.metadata.creationTime).getTime() || created;
-              }
-              await firebase.firestore().collection('profiles').doc(uid).set({
-                memberSinceMs: created,
-                lastSeenMs: Date.now(),
-                online: true,
-                displayName: name || u.displayName || '',
-                email: u.email || ''
-              }, { merge: true });
-              since = created;
-              seen = Date.now();
-            } catch (e) { console.warn(e); }
-          }
           window.__perfilMeta = {
             memberSince: since ? new Date(since).toLocaleDateString('pt-BR') : '—',
             lastAccess: (function(){
