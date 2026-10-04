@@ -1082,18 +1082,21 @@ window.isUserOnline = isUserOnline;
 
 async function fsTouchPresence() {
   try {
+    if (typeof firebase === 'undefined' || !firebase.auth || !firebase.firestore) return;
     var u = firebase.auth().currentUser;
     if (!u) return;
-    var ref = getDb().collection('profiles').doc(u.uid);
+    var dbx = firebase.firestore();
+    var ref = dbx.collection('profiles').doc(u.uid);
     var snap = await ref.get();
     var patch = {
       lastSeenMs: Date.now(),
       online: true,
       updatedAtMs: Date.now(),
       email: u.email || '',
-      displayName: u.displayName || ''
+      displayName: u.displayName || (u.email ? u.email.split('@')[0] : '')
     };
-    if (!snap.exists || !(snap.data() && snap.data().memberSinceMs)) {
+    var data = snap.exists ? (snap.data() || {}) : {};
+    if (!data.memberSinceMs) {
       var created = Date.now();
       try {
         if (u.metadata && u.metadata.creationTime) {
