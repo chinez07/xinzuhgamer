@@ -120,7 +120,7 @@
       });
     }
     async function main() {
-      try { await waitForAuth(4000); } catch (e) {}
+      try { await waitForAuth(1500); } catch (e) {}
       try { if (firebase.auth().currentUser && typeof fsTouchPresence === 'function') await fsTouchPresence(); } catch (e) {}
 
       const params = new URLSearchParams(location.search);

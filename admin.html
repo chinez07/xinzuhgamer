@@ -54,6 +54,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
   var tab = 'orders';
   var loading = false;
 
+  var adminOk = false;
   function isAdmin(u) {
     var emails = (window.BLOXZUH_ADMIN_EMAILS || []).map(function (e) { return String(e).toLowerCase(); });
     var uids = window.BLOXZUH_ADMIN_UIDS || [];
@@ -168,9 +169,11 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
     panel.innerHTML = html;
 
     document.querySelectorAll('[data-pause]').forEach(function (btn) {
+      if (!adminOk) return;
       btn.addEventListener('click', async function () {
         btn.disabled = true;
         try {
+          if (!adminOk) { alert('Acesso negado'); return; }
           await firebase.firestore().collection('ads').doc(btn.getAttribute('data-pause')).update({ status: 'pausado' });
           await load();
         } catch (e) {
@@ -182,6 +185,10 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
   }
 
   async function load() {
+    if (!adminOk) {
+      panel.innerHTML = '<div class="err">Acesso negado.</div>';
+      return;
+    }
     if (loading) return;
     loading = true;
     panel.innerHTML = '<p class="loading">Carregando ' + (tab === 'orders' ? 'pedidos' : tab === 'withdrawals' ? 'saques' : 'anuncios') + '...</p>';
@@ -203,12 +210,15 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
       location.href = 'login.html?redirect=admin.html';
       return;
     }
-    if (!isAdmin(u)) {
-      document.getElementById('who').textContent = 'Acesso negado. Ajuste js/admin-config.js';
-      panel.innerHTML = '';
+    adminOk = isAdmin(u);
+    if (!adminOk) {
+      document.getElementById('who').textContent = 'Acesso negado. Só o admin pode usar este painel.';
+      panel.innerHTML = '<div class="err"><strong>Acesso negado</strong><br>Entre com a conta admin cadastrada em js/admin-config.js.<br>Conta atual: ' + esc(u.email || u.uid) + '</div>';
+      document.querySelectorAll('.tabs button').forEach(function (b) { b.disabled = true; b.style.opacity = '0.4'; });
       return;
     }
     document.getElementById('who').textContent = 'Admin: ' + (u.email || u.uid);
+    document.querySelectorAll('.tabs button').forEach(function (b) { b.disabled = false; b.style.opacity = '1'; });
     load();
   });
 })();
