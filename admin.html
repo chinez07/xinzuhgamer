@@ -213,7 +213,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
     adminOk = isAdmin(u);
     if (!adminOk) {
       document.getElementById('who').textContent = 'Acesso negado. Só o admin pode usar este painel.';
-      panel.innerHTML = '<div class="err"><strong>Acesso negado</strong><br>Entre com a conta admin cadastrada em js/admin-config.js.<br>Conta atual: ' + esc(u.email || u.uid) + '</div>';
+      panel.innerHTML = '<div class="err"><strong>Acesso negado</strong><br>Entre com a conta admin.<br>Conta atual: ' + esc(u.email || u.uid) + '</div>';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.disabled = true; b.style.opacity = '0.4'; });
       return;
     }
