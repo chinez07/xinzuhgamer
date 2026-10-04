@@ -49,13 +49,20 @@
     }
     .cover img { width: 100%; height: 100%; object-fit: cover; }
     .cover-carousel { position: relative; width: 100%; border-radius: 16px; overflow: hidden; background: #1e1b4b; aspect-ratio: 16/10; }
-    .cover-carousel .slides { display: flex; height: 100%; transition: transform .3s ease; }
-    .cover-carousel .slides .slide { min-width: 100%; height: 100%; }
+    .cover-carousel .slides {
+      display: flex; width: 100%; height: 100%;
+      transition: transform .28s ease; will-change: transform;
+    }
+    .cover-carousel .slides .slide {
+      flex: 0 0 100%; width: 100%; height: 100%; position: relative;
+    }
     .cover-carousel .slides .slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .cover-carousel .nav {
       position: absolute; top: 50%; transform: translateY(-50%);
-      width: 36px; height: 36px; border-radius: 50%; border: none;
-      background: rgba(0,0,0,.55); color: #fff; font-size: 1.1rem; cursor: pointer; z-index: 2;
+      width: 40px; height: 40px; border-radius: 50%; border: none;
+      background: rgba(0,0,0,.6); color: #fff; font-size: 1.4rem; cursor: pointer; z-index: 5;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+      -webkit-tap-highlight-color: transparent; user-select: none;
     }
     .cover-carousel .nav.prev { left: 8px; }
     .cover-carousel .nav.next { right: 8px; }
@@ -409,7 +416,62 @@
         '</div></div>' +
         '<div class="section"><div class="card guarantee"><i class="fas fa-shield-alt"></i><h3>Entrega garantida</h3><p style="color:var(--muted);font-size:0.9rem;margin-top:6px">Ou o seu dinheiro de volta (quando o pagamento protegido estiver ativo).</p></div></div>';
 
-      
+      // Galeria: setas / bolinhas / swipe
+      (function initAdGallery() {
+        var root = document.getElementById('adGallery');
+        var slides = document.getElementById('adGallerySlides');
+        if (!root || !slides) return;
+        var n = slides.children.length;
+        if (n < 2) return;
+        var i = 0;
+        function go(x) {
+          i = ((x % n) + n) % n;
+          slides.style.transform = 'translate3d(' + (-i * 100) + '%,0,0)';
+          var dots = root.querySelectorAll('.dots span');
+          for (var d = 0; d < dots.length; d++) {
+            if (d === i) dots[d].classList.add('on');
+            else dots[d].classList.remove('on');
+          }
+        }
+        var prev = document.getElementById('galPrev');
+        var next = document.getElementById('galNext');
+        if (prev) {
+          prev.onclick = function (e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            go(i - 1);
+            return false;
+          };
+        }
+        if (next) {
+          next.onclick = function (e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            go(i + 1);
+            return false;
+          };
+        }
+        var dots = root.querySelectorAll('.dots span');
+        for (var di = 0; di < dots.length; di++) {
+          (function (idx) {
+            dots[idx].onclick = function (e) {
+              if (e) { e.preventDefault(); e.stopPropagation(); }
+              go(idx);
+            };
+          })(di);
+        }
+        var x0 = null;
+        root.addEventListener('touchstart', function (e) {
+          x0 = e.touches[0].clientX;
+        }, { passive: true });
+        root.addEventListener('touchend', function (e) {
+          if (x0 == null) return;
+          var dx = e.changedTouches[0].clientX - x0;
+          if (dx < -35) go(i + 1);
+          else if (dx > 35) go(i - 1);
+          x0 = null;
+        }, { passive: true });
+        go(0);
+      })();
+
       (async function(){
         try {
           var badge = document.getElementById('sellerOnBadge');

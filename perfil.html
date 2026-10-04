@@ -106,7 +106,23 @@
     function money(n) {
       return 'R$ ' + (Number(n) || 0).toFixed(2).replace('.', ',');
     }
+    function waitForAuth(ms) {
+      return new Promise(function(resolve) {
+        if (firebase.auth().currentUser) return resolve(firebase.auth().currentUser);
+        var done = false;
+        var t = setTimeout(function(){ if (!done) { done = true; resolve(null); } }, ms || 4000);
+        firebase.auth().onAuthStateChanged(function(u) {
+          if (done) return;
+          done = true;
+          clearTimeout(t);
+          resolve(u || null);
+        });
+      });
+    }
     async function main() {
+      try { await waitForAuth(4000); } catch (e) {}
+      try { if (firebase.auth().currentUser && typeof fsTouchPresence === 'function') await fsTouchPresence(); } catch (e) {}
+
       const params = new URLSearchParams(location.search);
       const uid = (params.get('uid') || '').trim();
       let name = params.get('name') || 'Vendedor';
