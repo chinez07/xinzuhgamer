@@ -472,7 +472,7 @@
         go(0);
       })();
 
-      (async function updateSellerOnline(){
+      (function updateSellerOnline(){
         var badge = document.getElementById('sellerOnBadge');
         if (!badge || !sellerUid) return;
         function paint(on) {
@@ -487,44 +487,35 @@
           badge.style.marginLeft = '6px';
           badge.style.display = 'inline-block';
         }
-        async function readPresence() {
-          var lastSeen = 0;
-          // 1) leitura direta no Firestore (mesma fonte do perfil)
-          try {
-            if (firebase.firestore) {
-              var doc = await firebase.firestore().collection('profiles').doc(sellerUid).get();
-              if (doc.exists) {
-                var d = doc.data() || {};
-                lastSeen = Number(d.lastSeenMs) || 0;
-                if (!lastSeen && d.lastSeenMs && d.lastSeenMs.toMillis) lastSeen = d.lastSeenMs.toMillis();
-              }
-            }
-          } catch (e) { console.warn('presence direct', e); }
-          // 2) fallback helpers
-          if (!lastSeen) {
-            try {
-              var pr = null;
-              if (typeof fsGetSellerPublic === 'function') pr = await fsGetSellerPublic(sellerUid);
-              else if (typeof fsGetProfile === 'function') pr = await fsGetProfile(sellerUid);
-              if (pr) {
-                lastSeen = Number(pr.lastSeenMs) || 0;
-                if (!lastSeen && pr.lastSeenMs && pr.lastSeenMs.toMillis) lastSeen = pr.lastSeenMs.toMillis();
-              }
-            } catch (e2) { console.warn('presence helper', e2); }
+        function fromData(d) {
+          if (!d) return paint(false);
+          var lastSeen = Number(d.lastSeenMs) || 0;
+          if (!lastSeen && d.lastSeenMs && typeof d.lastSeenMs.toMillis === 'function') {
+            lastSeen = d.lastSeenMs.toMillis();
           }
           var on = lastSeen > 0 && (Date.now() - lastSeen) < 180000;
           if (typeof isUserOnline === 'function' && lastSeen) {
             on = isUserOnline({ lastSeenMs: lastSeen });
           }
           paint(on);
-          return on;
         }
         try {
-          await readPresence();
-          // re-checa (perfil pode ter acabado de atualizar)
-          setTimeout(function(){ readPresence(); }, 1500);
-          setTimeout(function(){ readPresence(); }, 4000);
-        } catch (e) { console.warn(e); paint(false); }
+          if (!firebase.firestore) { paint(false); return; }
+          // tempo real: atualiza na hora (sem esperar 2–5s)
+          firebase.firestore().collection('profiles').doc(sellerUid)
+            .onSnapshot(function (snap) {
+              fromData(snap.exists ? snap.data() : null);
+            }, function (err) {
+              console.warn('presence snap', err);
+              // fallback one-shot
+              firebase.firestore().collection('profiles').doc(sellerUid).get()
+                .then(function (doc) { fromData(doc.exists ? doc.data() : null); })
+                .catch(function () { paint(false); });
+            });
+        } catch (e) {
+          console.warn(e);
+          paint(false);
+        }
       })();
 
       // Fotos nas perguntas + vendedor
