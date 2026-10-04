@@ -470,6 +470,10 @@ async function fsGetSellerPublic(uid) {
       profile.name = p.displayName || p.name || profile.name;
       profile.photo = p.photo || p.photoURL || p.avatar || '';
       profile.bio = p.bio || '';
+      profile.memberSinceMs = p.memberSinceMs || p.createdAtMs || null;
+      profile.lastSeenMs = p.lastSeenMs || null;
+      profile.online = p.online;
+      profile.createdAtMs = p.createdAtMs || null;
     }
   } catch (e) {}
   return profile;
@@ -483,8 +487,24 @@ async function fsSaveProfile(data) {
     photo: data.photo || '',
     bio: data.bio || '',
     email: u.email || '',
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAtMs: Date.now(),
+    lastSeenMs: Date.now(),
+    online: true
   };
+  // memberSinceMs só na primeira vez
+  try {
+    var prev = await getDb().collection('profiles').doc(u.uid).get();
+    if (!prev.exists || !prev.data().memberSinceMs) {
+      var created = Date.now();
+      try {
+        if (u.metadata && u.metadata.creationTime) {
+          created = new Date(u.metadata.creationTime).getTime() || created;
+        }
+      } catch (e) {}
+      payload.memberSinceMs = created;
+    }
+  } catch (e) {}
   // Firestore doc limit ~1MB — keep photo small
   if (payload.photo && payload.photo.length > 900000) {
     throw new Error('Foto muito grande. Use uma imagem menor que 1 MB.');
@@ -1046,6 +1066,96 @@ window.fsGetAdsBySeller = fsGetAdsBySeller;
 window.fsGetSellerPublic = fsGetSellerPublic;
 window.fsSaveProfile = fsSaveProfile;
 window.fsGetProfile = fsGetProfile;
+
+/** Presença online: ativo se lastSeenMs < 2 min */
+function isUserOnline(profileOrMs) {
+  var ms = 0;
+  if (profileOrMs && typeof profileOrMs === 'object') {
+    ms = Number(profileOrMs.lastSeenMs) || 0;
+  } else {
+    ms = Number(profileOrMs) || 0;
+  }
+  if (!ms) return false;
+  return (Date.now() - ms) < 120000;
+}
+window.isUserOnline = isUserOnline;
+
+async function fsTouchPresence() {
+  try {
+    var u = firebase.auth().currentUser;
+    if (!u) return;
+    var ref = getDb().collection('profiles').doc(u.uid);
+    var snap = await ref.get();
+    var patch = {
+      lastSeenMs: Date.now(),
+      online: true,
+      updatedAtMs: Date.now(),
+      email: u.email || '',
+      displayName: u.displayName || ''
+    };
+    if (!snap.exists || !(snap.data() && snap.data().memberSinceMs)) {
+      var created = Date.now();
+      try {
+        if (u.metadata && u.metadata.creationTime) {
+          created = new Date(u.metadata.creationTime).getTime() || created;
+        }
+      } catch (e) {}
+      patch.memberSinceMs = created;
+    }
+    await ref.set(patch, { merge: true });
+  } catch (e) { console.warn('presence', e); }
+}
+window.fsTouchPresence = fsTouchPresence;
+
+async function fsSetOffline() {
+  try {
+    var u = firebase.auth().currentUser;
+    if (!u) return;
+    await getDb().collection('profiles').doc(u.uid).set({
+      online: false,
+      lastSeenMs: Date.now() - 180000,
+      updatedAtMs: Date.now()
+    }, { merge: true });
+  } catch (e) {}
+}
+window.fsSetOffline = fsSetOffline;
+
+(function startPresenceLoop() {
+  function tick() {
+    if (typeof fsTouchPresence === 'function' && firebase.auth && firebase.auth().currentUser) {
+      fsTouchPresence();
+    }
+  }
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged(function (u) {
+      if (u) {
+        tick();
+        if (!window.__bzPresenceTimer) {
+          window.__bzPresenceTimer = setInterval(tick, 45000);
+        }
+      } else if (window.__bzPresenceTimer) {
+        clearInterval(window.__bzPresenceTimer);
+        window.__bzPresenceTimer = null;
+      }
+    });
+  }
+  window.addEventListener('beforeunload', function () {
+    try {
+      var u = firebase.auth().currentUser;
+      if (!u || !firebase.firestore) return;
+      // best-effort offline
+      firebase.firestore().collection('profiles').doc(u.uid).set({
+        online: false,
+        lastSeenMs: Date.now() - 180000,
+        updatedAtMs: Date.now()
+      }, { merge: true });
+    } catch (e) {}
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') tick();
+  });
+})();
+
 window.fsGetWallet = fsGetWallet;
 console.log('[Bloxzuh] firestore-db carregado, fsCreateOrder=', typeof fsCreateOrder);
 
