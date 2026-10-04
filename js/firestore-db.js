@@ -1122,16 +1122,22 @@ window.fsSetOffline = fsSetOffline;
 
 (function startPresenceLoop() {
   function tick() {
-    if (typeof fsTouchPresence === 'function' && firebase.auth && firebase.auth().currentUser) {
-      fsTouchPresence();
-    }
+    try {
+      if (typeof firebase === 'undefined' || !firebase.auth) return;
+      if (!firebase.auth().currentUser) return;
+      if (typeof fsTouchPresence === 'function') fsTouchPresence();
+    } catch (e) {}
   }
-  if (typeof firebase !== 'undefined' && firebase.auth) {
+  function bind() {
+    if (typeof firebase === 'undefined' || !firebase.auth) {
+      setTimeout(bind, 400);
+      return;
+    }
     firebase.auth().onAuthStateChanged(function (u) {
       if (u) {
         tick();
         if (!window.__bzPresenceTimer) {
-          window.__bzPresenceTimer = setInterval(tick, 45000);
+          window.__bzPresenceTimer = setInterval(tick, 30000);
         }
       } else if (window.__bzPresenceTimer) {
         clearInterval(window.__bzPresenceTimer);
@@ -1139,11 +1145,11 @@ window.fsSetOffline = fsSetOffline;
       }
     });
   }
+  bind();
   window.addEventListener('beforeunload', function () {
     try {
       var u = firebase.auth().currentUser;
       if (!u || !firebase.firestore) return;
-      // best-effort offline
       firebase.firestore().collection('profiles').doc(u.uid).set({
         online: false,
         lastSeenMs: Date.now() - 180000,
@@ -1154,6 +1160,9 @@ window.fsSetOffline = fsSetOffline;
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') tick();
   });
+  // primeiro tick atrasado (firebase pronto)
+  setTimeout(tick, 1500);
+  setTimeout(tick, 4000);
 })();
 
 window.fsGetWallet = fsGetWallet;
