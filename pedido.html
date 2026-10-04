@@ -115,7 +115,8 @@
       senderUid: currentUser.uid,
       senderName: currentUser.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
       senderPhoto: myPhoto || '',
-      createdAtMs: Date.now()
+      createdAtMs: Date.now(),
+      read: false
     });
     await firebase.firestore().collection('orders').doc(orderId).update({
       messages: messages,
@@ -133,10 +134,38 @@
       var av = photo
         ? '<img class="chat-av" src="' + esc(photo) + '" alt="">'
         : '<span class="chat-av letter">' + letter + '</span>';
+      var ticks = '';
+      if (me) {
+        if (m.read) {
+          ticks = ' <span style="color:#60a5fa;letter-spacing:-2px;font-size:0.75rem">✓✓</span>';
+        } else {
+          ticks = ' <span style="color:#a8a29e;letter-spacing:-1px;font-size:0.75rem">✓</span>';
+        }
+      }
       return '<div class="bubble-row ' + (me ? 'me' : 'them') + '">' + av +
         '<div class="bubble ' + (me ? 'me' : 'them') + '">' + esc(m.text) +
-        '<div class="t">' + esc(m.senderName) + ' · ' + timeAgo(m.createdAtMs) + '</div></div></div>';
+        '<div class="t">' + esc(m.senderName) + ' · ' + timeAgo(m.createdAtMs) + ticks + '</div></div></div>';
     }).join('') + '</div>';
+  }
+
+  async function markMessagesRead(){
+    try {
+      if (!order || !currentUser) return;
+      var msgs = Array.isArray(order.messages) ? order.messages.slice() : [];
+      var changed = false;
+      for (var i = 0; i < msgs.length; i++) {
+        if (msgs[i].senderUid && msgs[i].senderUid !== currentUser.uid && !msgs[i].read) {
+          msgs[i] = Object.assign({}, msgs[i], { read: true, readAtMs: Date.now() });
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      await firebase.firestore().collection('orders').doc(orderId).update({
+        messages: msgs,
+        updatedAtMs: Date.now()
+      });
+      order.messages = msgs;
+    } catch (e) { console.warn('mark read', e); }
   }
 
   async function reload(){
@@ -194,7 +223,7 @@
       '</div>' +
       (o.paymentMethod ? '<div class="box"><h1>Pagamento</h1><div class="row"><span>Método</span><span>Pix</span></div><div class="row"><span>Status</span><span>' + (o.status === 'pago' || o.status === 'em_entrega' || o.status === 'concluido' ? 'Aprovado' : (o.status === 'expirado' ? 'Expirado' : 'Pendente')) + '</span></div></div>' : '') +
       (canChat
-        ? ('<div class="box"><h1><span style="color:#4ade80">●</span> Chat com o ' + (isBuyer ? 'vendedor' : 'comprador') + '</h1>' +
+        ? ('<div class="box"><h1><span id="chatPresenceDot" style="color:#6b7280">●</span> Chat com o ' + (isBuyer ? 'vendedor' : 'comprador') + '</h1>' +
            renderChat() +
            '<div class="send"><input id="msgIn" placeholder="Digite sua mensagem..."><button type="button" class="btn" id="btnSend"><i class="fas fa-paper-plane"></i></button></div></div>')
         : '<div class="box"><p class="muted">O chat libera após o pagamento ser aprovado. ' +
@@ -331,6 +360,24 @@
       } catch (e) { console.warn(e); }
       await reload();
     };
+    
+    // presença + lidas
+    (async function(){
+      try {
+        if (typeof markMessagesRead === 'function') await markMessagesRead();
+      } catch (e) {}
+      try {
+        var otherUid = isBuyer ? order.sellerUid : order.buyerUid;
+        var dot = document.getElementById('chatPresenceDot');
+        if (dot && otherUid && typeof fsGetProfile === 'function') {
+          var op = await fsGetProfile(otherUid);
+          var on = (typeof isUserOnline === 'function') ? isUserOnline(op) : false;
+          dot.style.color = on ? '#4ade80' : '#ef4444';
+          dot.title = on ? 'Online' : 'Offline';
+        }
+      } catch (e) {}
+    })();
+
     if ((b = document.getElementById('btnSend'))) b.onclick = async function(){
       var t = (document.getElementById('msgIn').value || '').trim();
       if (!t) return;

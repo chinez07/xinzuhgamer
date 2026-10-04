@@ -283,13 +283,13 @@
               (q.replyPhoto
                 ? '<span class="avatar" style="width:22px;height:22px;padding:0;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:50%"><img src="' + esc(q.replyPhoto) + '" style="width:100%;height:100%;object-fit:cover"></span>'
                 : '<span class="avatar bz-seller-av" data-uid="' + esc(sellerUid) + '" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-right:6px;font-size:0.7rem">' + esc((sellerName||'V').charAt(0).toUpperCase()) + '</span>') +
-              '<strong>' + esc(q.replyName || sellerName) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(q.reply) + '</div></div>';
+              '<a href="perfil.html?uid=' + encodeURIComponent(q.replyUid || sellerUid) + '&name=' + encodeURIComponent(q.replyName || sellerName) + '" style="color:inherit;font-weight:700;text-decoration:none">' + esc(q.replyName || sellerName) + '</a> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(q.reply) + '</div></div>';
           } else if (isOwner) {
             replyHtml = '<div class="q-reply"><textarea data-reply="' + idx + '" placeholder="Escreva sua resposta..." style="width:100%;min-height:60px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px"></textarea>' +
               '<button type="button" class="btn-primary" style="margin-top:8px" data-send-reply="' + idx + '">Responder</button></div>';
           }
           return '<div class="q-item"><div class="q-user"><div class="avatar bz-q-av" data-uid="' + esc(q.userUid || q.userId || '') + '" data-photo="' + esc(q.userPhoto || '') + '" data-name="' + esc(q.user || '') + '">' + (q.userPhoto ? ('<img src="' + esc(q.userPhoto) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">') : esc((q.user || '?').charAt(0).toUpperCase())) + '</div><div>' +
-            '<div class="q-meta"><strong>' + esc(q.user) + '</strong> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.createdAtMs || q.time) : (q.time||'')) + '</div>' +
+            '<div class="q-meta"><a href="perfil.html?uid=' + encodeURIComponent(q.userUid || q.userId || '') + '&name=' + encodeURIComponent(q.user || '') + '" style="color:inherit;font-weight:700;text-decoration:none">' + esc(q.user) + '</a> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.createdAtMs || q.time) : (q.time||'')) + '</div>' +
             '<div class="q-text">' + esc(q.text) + '</div>' + replyHtml +
             '</div></div></div>';
         }).join('');
@@ -360,7 +360,7 @@
         '<div class="section"><div class="card seller-card">' +
           '<div class="big-av" id="sellerAv">' + initial + '</div>' +
           '<div><a class="name" href="perfil.html?uid=' + encodeURIComponent(sellerUid) + '&name=' + encodeURIComponent(sellerName) + '">' + esc(sellerName) + '</a>' +
-          '<span class="on">ON</span></div>' +
+          '<span class="on" id="sellerOnBadge">…</span></div>' +
           '<div class="seller-meta">Toque no nome para ver o perfil completo do vendedor</div>' +
           '<a class="btn-primary" style="display:inline-block;margin-top:14px;text-decoration:none" href="perfil.html?uid=' + encodeURIComponent(sellerUid) + '&name=' + encodeURIComponent(sellerName) + '">Ver perfil</a>' +
         '</div></div>' +
@@ -369,6 +369,24 @@
           '<div class="verify-row"><span>Login</span><span>Verificado</span></div>' +
         '</div></div>' +
         '<div class="section"><div class="card guarantee"><i class="fas fa-shield-alt"></i><h3>Entrega garantida</h3><p style="color:var(--muted);font-size:0.9rem;margin-top:6px">Ou o seu dinheiro de volta (quando o pagamento protegido estiver ativo).</p></div></div>';
+
+      
+      (async function(){
+        try {
+          var badge = document.getElementById('sellerOnBadge');
+          if (!badge || !sellerUid) return;
+          var pr = typeof fsGetProfile === 'function' ? await fsGetProfile(sellerUid) : null;
+          var on = pr && typeof isUserOnline === 'function' ? isUserOnline(pr) : false;
+          badge.textContent = on ? 'ON' : 'OFF';
+          badge.style.background = on ? '#22c55e' : '#6b7280';
+          badge.style.color = '#fff';
+          badge.style.fontSize = '0.65rem';
+          badge.style.fontWeight = '800';
+          badge.style.padding = '2px 6px';
+          badge.style.borderRadius = '999px';
+          badge.style.marginLeft = '6px';
+        } catch (e) {}
+      })();
 
       // Fotos nas perguntas + vendedor
       (async function () {
