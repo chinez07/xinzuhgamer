@@ -56,7 +56,24 @@
     .empty { text-align: center; color: var(--muted); padding: 24px; font-size: 0.9rem; }
     h2 { font-size: 1rem; margin-bottom: 12px; }
     a.back { color: var(--muted); text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 12px; }
-  </style>
+  
+    .perfil-slide-wrap { overflow: hidden; touch-action: pan-y; }
+    .perfil-slides { display: flex; transition: transform .28s ease; }
+    .perfil-slide { min-width: 100%; flex-shrink: 0; }
+    .perfil-dots { display: flex; justify-content: center; gap: 6px; margin-top: 12px; }
+    .perfil-dots span {
+      width: 8px; height: 8px; border-radius: 50%; background: #4b5563; cursor: pointer;
+    }
+    .perfil-dots span.on { background: var(--primary); }
+    .info-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+    .info-pair .box { background: var(--bg); border-radius: 12px; padding: 14px; }
+    .info-pair .k { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+    .info-pair .v { font-weight: 700; font-size: 0.95rem; }
+    .rep-grid .box { cursor: pointer; border: 1px solid transparent; transition: border-color .15s, background .15s; }
+    .rep-grid .box.is-on { border-color: var(--primary); background: rgba(124,58,237,.12); }
+    .rep-grid .box:active { transform: scale(.98); }
+    .pct-pos { color: var(--ok); font-weight: 700; }
+</style>
 </head>
 <body>
   <div class="top">
@@ -94,7 +111,23 @@
         if (uid && typeof fsGetSellerPublic === 'function') {
           const p = await fsGetSellerPublic(uid);
           if (p.name) name = p.name;
-          photo = p.photo || '';
+          photo = p.photo || p.photoURL || '';
+          try {
+            var ms = p.createdAtMs || p.memberSinceMs || null;
+            var la = p.lastAccessMs || p.updatedAtMs || Date.now();
+            if (p.createdAt && p.createdAt.toMillis) ms = p.createdAt.toMillis();
+            window.__perfilMeta = {
+              memberSince: ms ? new Date(ms).toLocaleDateString('pt-BR') : '—',
+              lastAccess: (function(){
+                var d = Date.now() - (la || Date.now());
+                if (d < 60000) return 'agora';
+                if (d < 3600000) return 'há ' + Math.floor(d/60000) + ' min';
+                if (d < 86400000) return 'há ' + Math.floor(d/3600000) + ' h';
+                if (d < 604800000) return 'há ' + Math.floor(d/86400000) + ' dias';
+                return new Date(la).toLocaleDateString('pt-BR');
+              })()
+            };
+          } catch (e2) { window.__perfilMeta = { memberSince: '—', lastAccess: '—' }; }
         }
       } catch (e) {}
       // local fallback only if cloud empty
@@ -147,9 +180,9 @@
         reviews.forEach(function(r){
           var s = Number(r.stars)||0;
           sum += s;
-          if (s >= 4) pos++;
-          else if (s === 3) neu++;
-          else neg++;
+          if (s === 5) pos++;
+          else if (s === 3 || s === 4) neu++;
+          else if (s === 1 || s === 2) neg++;
         });
         avg = Math.round((sum / reviews.length) * 10) / 10;
       }
@@ -164,29 +197,66 @@
         return Math.floor(d/604800000) + ' sem';
       }
 
+      var pctPos = reviews.length ? Math.round((pos / reviews.length) * 100) : 0;
+      var memberSince = '—';
+      var lastAccess = 'agora';
+      try {
+        if (typeof fsGetProfile === 'function' && uid) {
+          /* already may have profile */ 
+        }
+      } catch (e) {}
+      // datas do perfil (se vierem no p)
+      try {
+        if (window.__perfilMeta) {
+          if (window.__perfilMeta.memberSince) memberSince = window.__perfilMeta.memberSince;
+          if (window.__perfilMeta.lastAccess) lastAccess = window.__perfilMeta.lastAccess;
+        }
+      } catch (e) {}
+
+      function reviewItemHtml(r) {
+        var st = Math.min(5, Math.max(0, Number(r.stars)||0));
+        var nm = r.buyerName || r.fromName || 'Comprador';
+        var ph = r.buyerPhoto || r.fromPhoto || '';
+        var buid = r.buyerUid || r.fromUid || '';
+        var av2 = ph
+          ? ('<img src="'+esc(ph)+'" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover">')
+          : ('<span style="width:36px;height:36px;border-radius:50%;background:#7c3aed;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700">'+esc((nm||'?').charAt(0).toUpperCase())+'</span>');
+        var nameH = buid
+          ? ('<a href="perfil.html?uid='+encodeURIComponent(buid)+'" style="color:inherit;font-weight:700;text-decoration:none">'+esc(nm)+'</a>')
+          : ('<strong>'+esc(nm)+'</strong>');
+        return '<div class="rev-item" data-stars="'+st+'" style="border-top:1px solid var(--border);padding:12px 0;display:flex;gap:10px">' + av2 +
+          '<div style="flex:1"><div style="display:flex;justify-content:space-between;gap:8px">' + nameH +
+          '<span style="color:var(--muted);font-size:0.8rem">'+rel(r.createdAtMs)+'</span></div>' +
+          '<div style="color:#fbbf24">'+'★'.repeat(st)+'☆'.repeat(5-st)+'</div>' +
+          (r.comment ? ('<div style="color:var(--muted);font-size:0.9rem;margin-top:4px">'+esc(r.comment)+'</div>') : '') +
+          '</div></div>';
+      }
+
       var reviewsHtml = '';
       if (!reviews.length) {
-        reviewsHtml = '<p style="color:var(--muted);font-size:0.9rem;text-align:center">Ainda sem avaliações.</p>';
+        reviewsHtml = '<p id="reviewsEmpty" style="color:var(--muted);font-size:0.9rem;text-align:center">Ainda sem avaliações.</p><div id="reviewsFiltered"></div>';
       } else {
-        reviewsHtml = reviews.map(function(r){
-          var st = Math.min(5, Math.max(0, Number(r.stars)||0));
-          var nm = r.buyerName || r.fromName || 'Comprador';
-          var ph = r.buyerPhoto || r.fromPhoto || '';
-          var buid = r.buyerUid || r.fromUid || '';
-          var av2 = ph
-            ? ('<img src="'+esc(ph)+'" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover">')
-            : ('<span style="width:36px;height:36px;border-radius:50%;background:#7c3aed;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700">'+esc((nm||'?').charAt(0).toUpperCase())+'</span>');
-          var nameH = buid
-            ? ('<a href="perfil.html?uid='+encodeURIComponent(buid)+'" style="color:inherit;font-weight:700;text-decoration:none">'+esc(nm)+'</a>')
-            : ('<strong>'+esc(nm)+'</strong>');
-          return '<div style="border-top:1px solid var(--border);padding:12px 0;display:flex;gap:10px">' + av2 +
-            '<div style="flex:1"><div style="display:flex;justify-content:space-between;gap:8px">' + nameH +
-            '<span style="color:var(--muted);font-size:0.8rem">'+rel(r.createdAtMs)+'</span></div>' +
-            '<div style="color:#fbbf24">'+'★'.repeat(st)+'☆'.repeat(5-st)+'</div>' +
-            (r.comment ? ('<div style="color:var(--muted);font-size:0.9rem;margin-top:4px">'+esc(r.comment)+'</div>') : '') +
-            '</div></div>';
-        }).join('');
+        reviewsHtml = '<div id="reviewsFiltered">' + reviews.map(reviewItemHtml).join('') + '</div>';
       }
+
+      var ratingSlide =
+        '<div class="perfil-slide rating-box">' +
+          '<div class="n">' + avg.toFixed(1) + '</div>' +
+          '<div class="stars">' + '★'.repeat(Math.max(0, Math.min(5, Math.round(avg)))) + '☆'.repeat(Math.max(0, 5-Math.round(avg))) + '</div>' +
+          '<div style="color:var(--muted);font-size:0.85rem">' +
+            (reviews.length
+              ? (reviews.length + ' avaliação' + (reviews.length!==1?'ões':'') + ' · <span class="pct-pos">' + pctPos + '% positivas</span>')
+              : (ads.length + ' anúncio(s) ativo(s)')) +
+          '</div>' +
+        '</div>';
+
+      var infoSlide =
+        '<div class="perfil-slide">' +
+          '<div class="info-pair">' +
+            '<div class="box"><div class="k">Membro desde</div><div class="v">' + esc(memberSince) + '</div></div>' +
+            '<div class="box"><div class="k">Último acesso</div><div class="v">' + esc(lastAccess) + '</div></div>' +
+          '</div>' +
+        '</div>';
 
       page.innerHTML =
         '<a class="back" href="javascript:history.back()">← Voltar</a>' +
@@ -195,19 +265,19 @@
           '<div><div style="font-size:1.2rem;font-weight:800">' + esc(name) + ' <span class="on">ON</span></div>' +
           '<div class="level">Vendedor Bloxzuh</div></div>' +
         '</div>' +
-        '<div class="card rating-box">' +
-          '<div class="n">' + avg.toFixed(1) + '</div><div class="stars">' + '★'.repeat(Math.round(avg)) + '☆'.repeat(5-Math.round(avg)) + '</div>' +
-          '<div style="color:var(--muted);font-size:0.85rem">' + (reviews.length ? (reviews.length + ' avaliação(ões)') : (ads.length + ' anúncio(s) ativo(s)')) + '</div>' +
+        '<div class="card perfil-slide-wrap" id="perfilCarousel">' +
+          '<div class="perfil-slides" id="perfilSlides">' + ratingSlide + infoSlide + '</div>' +
+          '<div class="perfil-dots"><span class="on" data-dot="0"></span><span data-dot="1"></span></div>' +
         '</div>' +
         '<div class="card"><h2>Verificações</h2><div class="chips">' +
           '<span class="chip"><i class="fas fa-check"></i> Email</span>' +
           '<span class="chip"><i class="fas fa-check"></i> Conta Bloxzuh</span>' +
         '</div></div>' +
         '<div class="card"><h2>Reputação</h2><div class="rep-grid">' +
-          '<div class="box"><div class="n" style="color:var(--ok)">' + pos + '</div><div class="k">Positivas</div></div>' +
-          '<div class="box"><div class="n">' + neu + '</div><div class="k">Neutras</div></div>' +
-          '<div class="box"><div class="n" style="color:#ef4444">' + neg + '</div><div class="k">Negativas</div></div>' +
-        '</div></div>' +
+          '<div class="box" data-filter="pos" role="button"><div class="n" style="color:var(--ok)">' + pos + '</div><div class="k">Positivas</div></div>' +
+          '<div class="box" data-filter="neu" role="button"><div class="n">' + neu + '</div><div class="k">Neutras</div></div>' +
+          '<div class="box" data-filter="neg" role="button"><div class="n" style="color:#ef4444">' + neg + '</div><div class="k">Negativas</div></div>' +
+        '</div><p style="color:var(--muted);font-size:0.8rem;text-align:center;margin-top:10px">Toque para filtrar as avaliações</p></div>' +
         '<div class="card"><h2>Avaliações dos clientes</h2>' + reviewsHtml + '</div>' +
         '<div class="card"><h2>Anúncios ativos</h2>' +
         (ads.length
@@ -221,6 +291,83 @@
             }).join('') + '</div>'
           : '<div class="empty"><i class="fas fa-bullhorn" style="font-size:1.5rem;opacity:.4"></i><p style="margin-top:8px">Nenhum anúncio disponível.</p><p style="font-size:0.85rem">Este vendedor ainda não possui anúncios ativos.</p></div>') +
         '</div>';
+
+      // carrossel (deslizar)
+      (function(){
+        var slides = document.getElementById('perfilSlides');
+        var wrap = document.getElementById('perfilCarousel');
+        if (!slides || !wrap) return;
+        var idx = 0;
+        function go(i){
+          idx = Math.max(0, Math.min(1, i));
+          slides.style.transform = 'translateX(' + (-idx * 100) + '%)';
+          wrap.querySelectorAll('.perfil-dots span').forEach(function(d, j){
+            d.classList.toggle('on', j === idx);
+          });
+        }
+        wrap.querySelectorAll('.perfil-dots span').forEach(function(d){
+          d.onclick = function(){ go(+d.getAttribute('data-dot')); };
+        });
+        var x0 = null;
+        wrap.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; }, {passive:true});
+        wrap.addEventListener('touchend', function(e){
+          if (x0 == null) return;
+          var dx = e.changedTouches[0].clientX - x0;
+          if (dx < -40) go(idx + 1);
+          else if (dx > 40) go(idx - 1);
+          x0 = null;
+        }, {passive:true});
+      })();
+
+      // filtros de reputação
+      (function(){
+        var filter = 'all';
+        function apply(){
+          var items = document.querySelectorAll('#reviewsFiltered .rev-item');
+          var shown = 0;
+          items.forEach(function(el){
+            var st = +el.getAttribute('data-stars');
+            var ok = true;
+            if (filter === 'pos') ok = st === 5;
+            else if (filter === 'neu') ok = st === 3 || st === 4;
+            else if (filter === 'neg') ok = st === 1 || st === 2;
+            el.style.display = ok ? 'flex' : 'none';
+            if (ok) shown++;
+          });
+          var empty = document.getElementById('reviewsEmptyFilter');
+          var box = document.getElementById('reviewsFiltered');
+          if (box) {
+            var msg = box.querySelector('.filter-empty');
+            if (!shown && items.length) {
+              if (!msg) {
+                msg = document.createElement('p');
+                msg.className = 'filter-empty';
+                msg.style.cssText = 'color:var(--muted);font-size:0.9rem;text-align:center;padding:12px 0';
+                box.appendChild(msg);
+              }
+              msg.textContent = 'Nenhuma avaliação neste filtro.';
+              msg.style.display = 'block';
+            } else if (msg) {
+              msg.style.display = 'none';
+            }
+          }
+          document.querySelectorAll('.rep-grid .box[data-filter]').forEach(function(b){
+            b.classList.toggle('is-on', b.getAttribute('data-filter') === filter);
+          });
+        }
+        document.querySelectorAll('.rep-grid .box[data-filter]').forEach(function(b){
+          b.onclick = function(){
+            var f = b.getAttribute('data-filter');
+            filter = (filter === f) ? 'all' : f; // toque de novo = mostrar todas
+            apply();
+            var card = document.querySelector('.card h2');
+            // scroll até avaliações
+            var revCard = document.getElementById('reviewsFiltered');
+            if (revCard) revCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          };
+        });
+      })();
+
     }
     main();
   })();
