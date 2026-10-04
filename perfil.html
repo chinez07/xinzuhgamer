@@ -73,6 +73,14 @@
     .rep-grid .box.is-on { border-color: var(--primary); background: rgba(124,58,237,.12); }
     .rep-grid .box:active { transform: scale(.98); }
     .pct-pos { color: var(--ok); font-weight: 700; }
+    .rep-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .rep-head h2 { margin:0; font-size:1.05rem; }
+    .recebido-select {
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px 12px; font-size: 0.85rem; font-weight: 600;
+    }
+    .recebido-label { font-size: 0.7rem; color: var(--muted); display:block; margin-bottom: 2px; text-align: right; }
+
 </style>
 </head>
 <body>
@@ -160,32 +168,53 @@
         : initial;
 
       // carrega avaliações do vendedor
-      var reviews = [];
+      var reviewsAsSeller = [];
+      var reviewsAsBuyer = [];
       try {
         if (uid && typeof fsGetSellerReviews === 'function') {
-          reviews = await fsGetSellerReviews(uid, 40);
+          reviewsAsSeller = await fsGetSellerReviews(uid, 50);
         } else if (uid) {
-          var snapR = await firebase.firestore().collection('reviews').where('sellerUid','==',uid).limit(40).get();
-          snapR.forEach(function(d){ var r=Object.assign({id:d.id},d.data()); if(r.type!=='buyer') reviews.push(r); });
-          reviews.sort(function(a,b){ return (b.createdAtMs||0)-(a.createdAtMs||0); });
+          var snapR = await firebase.firestore().collection('reviews').where('sellerUid','==',uid).limit(50).get();
+          snapR.forEach(function(d){ var r=Object.assign({id:d.id},d.data()); if(r.type!=='buyer') reviewsAsSeller.push(r); });
+          reviewsAsSeller.sort(function(a,b){ return (b.createdAtMs||0)-(a.createdAtMs||0); });
+        }
+        // avaliações que vendedores deram a este usuário como comprador
+        if (uid) {
+          try {
+            var snapB = await firebase.firestore().collection('reviews').where('buyerUid','==',uid).limit(50).get();
+            snapB.forEach(function(d){
+              var r = Object.assign({ id: d.id }, d.data());
+              if (r.type === 'buyer') reviewsAsBuyer.push(r);
+            });
+            reviewsAsBuyer.sort(function(a,b){ return (b.createdAtMs||0)-(a.createdAtMs||0); });
+          } catch (e2) { console.warn('buyer reviews', e2); }
         }
         if (typeof attachReviewerPhotos === 'function') {
-          try { reviews = await attachReviewerPhotos(reviews); } catch(e){}
+          try { reviewsAsSeller = await attachReviewerPhotos(reviewsAsSeller); } catch(e){}
+          try { reviewsAsBuyer = await attachReviewerPhotos(reviewsAsBuyer); } catch(e){}
         }
       } catch (e) { console.warn(e); }
 
-      var avg = 5.0, pos = 0, neu = 0, neg = 0;
-      if (reviews.length) {
-        var sum = 0;
-        reviews.forEach(function(r){
+      function statsOf(list) {
+        var avg = 5.0, pos = 0, neu = 0, neg = 0, sum = 0;
+        if (!list.length) return { avg: avg, pos: 0, neu: 0, neg: 0, pct: 0 };
+        list.forEach(function(r){
           var s = Number(r.stars)||0;
           sum += s;
           if (s === 5) pos++;
           else if (s === 3 || s === 4) neu++;
           else if (s === 1 || s === 2) neg++;
         });
-        avg = Math.round((sum / reviews.length) * 10) / 10;
+        avg = Math.round((sum / list.length) * 10) / 10;
+        var pct = Math.round((pos / list.length) * 100);
+        return { avg: avg, pos: pos, neu: neu, neg: neg, pct: pct };
       }
+
+      // padrão: recebido como vendedor
+      var reviews = reviewsAsSeller.slice();
+      var st0 = statsOf(reviews);
+      var avg = st0.avg, pos = st0.pos, neu = st0.neu, neg = st0.neg;
+      var pctPos = st0.pct;
 
       function rel(ms){
         if (!ms) return '';
@@ -197,7 +226,6 @@
         return Math.floor(d/604800000) + ' sem';
       }
 
-      var pctPos = reviews.length ? Math.round((pos / reviews.length) * 100) : 0;
       var memberSince = '—';
       var lastAccess = 'agora';
       try {
@@ -215,9 +243,11 @@
 
       function reviewItemHtml(r) {
         var st = Math.min(5, Math.max(0, Number(r.stars)||0));
-        var nm = r.buyerName || r.fromName || 'Comprador';
-        var ph = r.buyerPhoto || r.fromPhoto || '';
-        var buid = r.buyerUid || r.fromUid || '';
+        // se for avaliação do vendedor sobre o comprador, quem avalia é o vendedor (from*)
+        var isBuyerRev = r.type === 'buyer';
+        var nm = isBuyerRev ? (r.fromName || r.sellerName || 'Vendedor') : (r.buyerName || r.fromName || 'Comprador');
+        var ph = isBuyerRev ? (r.fromPhoto || '') : (r.buyerPhoto || r.fromPhoto || '');
+        var buid = isBuyerRev ? (r.fromUid || r.sellerUid || '') : (r.buyerUid || r.fromUid || '');
         var av2 = ph
           ? ('<img src="'+esc(ph)+'" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover">')
           : ('<span style="width:36px;height:36px;border-radius:50%;background:#7c3aed;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:700">'+esc((nm||'?').charAt(0).toUpperCase())+'</span>');
@@ -273,12 +303,21 @@
           '<span class="chip"><i class="fas fa-check"></i> Email</span>' +
           '<span class="chip"><i class="fas fa-check"></i> Conta Bloxzuh</span>' +
         '</div></div>' +
-        '<div class="card"><h2>Reputação</h2><div class="rep-grid">' +
-          '<div class="box" data-filter="pos" role="button"><div class="n" style="color:var(--ok)">' + pos + '</div><div class="k">Positivas</div></div>' +
-          '<div class="box" data-filter="neu" role="button"><div class="n">' + neu + '</div><div class="k">Neutras</div></div>' +
-          '<div class="box" data-filter="neg" role="button"><div class="n" style="color:#ef4444">' + neg + '</div><div class="k">Negativas</div></div>' +
+        '<div class="card" id="repCard">' +
+          '<div class="rep-head">' +
+            '<h2>Reputação</h2>' +
+            '<div><span class="recebido-label">RECEBIDO COMO</span>' +
+            '<select id="recebidoComo" class="recebido-select">' +
+              '<option value="vendedor">Vendedor</option>' +
+              '<option value="comprador">Comprador</option>' +
+            '</select></div>' +
+          '</div>' +
+          '<div class="rep-grid">' +
+          '<div class="box" data-filter="pos" role="button"><div class="n" id="repPos" style="color:var(--ok)">' + pos + '</div><div class="k">Positivas</div></div>' +
+          '<div class="box" data-filter="neu" role="button"><div class="n" id="repNeu">' + neu + '</div><div class="k">Neutras</div></div>' +
+          '<div class="box" data-filter="neg" role="button"><div class="n" id="repNeg" style="color:#ef4444">' + neg + '</div><div class="k">Negativas</div></div>' +
         '</div><p style="color:var(--muted);font-size:0.8rem;text-align:center;margin-top:10px">Toque para filtrar as avaliações</p></div>' +
-        '<div class="card"><h2>Avaliações dos clientes</h2>' + reviewsHtml + '</div>' +
+        '<div class="card"><h2 id="reviewsTitle">Avaliações recebidas como vendedor</h2>' + reviewsHtml + '</div>' +
         '<div class="card"><h2>Anúncios ativos</h2>' +
         (ads.length
           ? '<div class="grid">' + ads.map(function (a) {
@@ -367,6 +406,73 @@
           };
         });
       })();
+      // Recebido como: Vendedor | Comprador
+      (function(){
+        var sel = document.getElementById('recebidoComo');
+        if (!sel) return;
+        var starFilter = 'all';
+        function currentList() {
+          return sel.value === 'comprador' ? reviewsAsBuyer : reviewsAsSeller;
+        }
+        function paintList(list) {
+          var box = document.getElementById('reviewsFiltered');
+          var title = document.getElementById('reviewsTitle');
+          if (title) title.textContent = sel.value === 'comprador'
+            ? 'Avaliações recebidas como comprador'
+            : 'Avaliações recebidas como vendedor';
+          if (!box) return;
+          if (!list.length) {
+            box.innerHTML = '<p style="color:var(--muted);font-size:0.9rem;text-align:center">Ainda sem avaliações neste modo.</p>';
+          } else {
+            box.innerHTML = list.map(reviewItemHtml).join('');
+          }
+          var st = statsOf(list);
+          var elp = document.getElementById('repPos');
+          var eln = document.getElementById('repNeu');
+          var elg = document.getElementById('repNeg');
+          if (elp) elp.textContent = st.pos;
+          if (eln) eln.textContent = st.neu;
+          if (elg) elg.textContent = st.neg;
+          // atualiza card de nota do carrossel se existir
+          var nEl = document.querySelector('#perfilSlides .rating-box .n');
+          var sub = document.querySelector('#perfilSlides .rating-box div[style*="muted"]');
+          if (nEl && list.length) nEl.textContent = st.avg.toFixed(1);
+          if (sub && list.length) {
+            sub.innerHTML = list.length + ' avaliação' + (list.length!==1?'ões':'') +
+              ' · <span class="pct-pos">' + st.pct + '% positivas</span>';
+          }
+          applyStarFilter();
+        }
+        function applyStarFilter() {
+          var items = document.querySelectorAll('#reviewsFiltered .rev-item');
+          var shown = 0;
+          items.forEach(function(el){
+            var st = +el.getAttribute('data-stars');
+            var ok = true;
+            if (starFilter === 'pos') ok = st === 5;
+            else if (starFilter === 'neu') ok = st === 3 || st === 4;
+            else if (starFilter === 'neg') ok = st === 1 || st === 2;
+            el.style.display = ok ? 'flex' : 'none';
+            if (ok) shown++;
+          });
+          document.querySelectorAll('.rep-grid .box[data-filter]').forEach(function(b){
+            b.classList.toggle('is-on', b.getAttribute('data-filter') === starFilter);
+          });
+        }
+        sel.onchange = function(){
+          starFilter = 'all';
+          paintList(currentList());
+        };
+        // sobrescreve filtros de estrela para usar lista atual
+        document.querySelectorAll('.rep-grid .box[data-filter]').forEach(function(b){
+          b.onclick = function(){
+            var f = b.getAttribute('data-filter');
+            starFilter = (starFilter === f) ? 'all' : f;
+            applyStarFilter();
+          };
+        });
+      })();
+
 
     }
     main();
