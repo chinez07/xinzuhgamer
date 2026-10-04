@@ -274,7 +274,7 @@
         <div class="acc-body">
           <div class="warn">Não coloque WhatsApp, Discord ou contatos pessoais na descrição — o anúncio pode ser reprovado.</div>
           <label>Descreva o anúncio</label>
-          <textarea id="desc" placeholder="Detalhes do produto, entrega, o que está incluso…"></textarea>
+          <textarea id="desc" placeholder="Descrição obrigatória — detalhes do produto, entrega, o que está incluso…"></textarea>
           <button type="button" class="btn btn-primary" data-next-acc="faq">Continuar</button>
         </div>
       </div>
@@ -324,7 +324,7 @@
         <div class="warn">Por segurança, evite mostrar nome da conta ou do personagem nas imagens.</div>
         <label>Galeria (opcional)</label>
         <div class="upload-zone" id="galZone" style="padding:18px">
-          <p>Toque para adicionar fotos da galeria (máx. 1 MB cada)</p>
+          <p>Toque para adicionar fotos da galeria (até 6 · máx. 1 MB cada)</p>
         </div>
         <input type="file" id="galInput" accept="image/*" multiple hidden>
         <div id="galPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
@@ -368,7 +368,7 @@
       plan: 'none',
       cover: '',
       coverFile: null,
-      gallery: [],
+      gallery: (state.gallery || []).slice(0, 6),
       galleryFiles: [],
       faq: []
     };
@@ -456,6 +456,12 @@
         var acc = document.getElementById('accountInfo');
         if (origin && !origin.value) { alert('Selecione a Procedência.'); return false; }
         if (acc && !acc.value) { alert('Selecione as Informações da conta.'); return false; }
+        return true;
+      }
+      if (name === 'desc') {
+        var d = (document.getElementById('desc') && document.getElementById('desc').value || '').trim();
+        if (!d) { alert('A descrição do anúncio é obrigatória.'); document.getElementById('desc').focus(); return false; }
+        if (d.length < 10) { alert('Escreva uma descrição um pouco mais completa (mín. 10 caracteres).'); document.getElementById('desc').focus(); return false; }
         return true;
       }
       return true;
@@ -721,7 +727,7 @@
     galInput.addEventListener('change', async () => {
       const files = [...galInput.files].slice(0, 4);
       for (const f of files) {
-        if (state.gallery.length >= 2) break;
+        if (state.gallery.length >= 6) break;
         if (!f.type.startsWith('image/')) continue;
         if (!checkImageSize(f)) continue;
         try {
@@ -777,6 +783,8 @@
     }
 
     document.getElementById('btnPublish').addEventListener('click', async () => {
+      var descVal = (document.getElementById('desc') && document.getElementById('desc').value || '').trim();
+      if (!descVal) { showMsg('A descrição do anúncio é obrigatória.', 'err'); try { openAcc('desc'); } catch(e){} return; }
       if (!document.getElementById('terms').checked) { showMsg('Aceite os Termos de uso.', 'err'); return; }
       const btn = document.getElementById('btnPublish');
       btn.disabled = true;
@@ -852,6 +860,7 @@
             updatedAtMs: Date.now()
           };
           if (state.cover) patch.cover = state.cover;
+          if (state.gallery && state.gallery.length) patch.gallery = state.gallery.slice(0, 6);
           console.log('[Bloxzuh] atualizando ad', editAdId, patch);
           if (typeof fsUpdateAd === 'function') {
             await fsUpdateAd(editAdId, patch);
@@ -894,7 +903,7 @@
           plan: state.plan,
           feePercent: fee,
           cover: cover,
-          gallery: []
+          gallery: (state.gallery || []).slice(0, 6)
         });
         showMsg('Anúncio publicado com sucesso!', 'ok');
         setTimeout(() => { window.location.href = 'painel.html'; }, 1200);

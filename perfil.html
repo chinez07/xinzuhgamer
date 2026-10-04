@@ -116,35 +116,60 @@
         return;
       }
       let photo = '';
+      window.__perfilMeta = { memberSince: '—', lastAccess: '—', online: false };
       try {
-        if (uid && typeof fsGetSellerPublic === 'function') {
-          const p = await fsGetSellerPublic(uid);
-          if (p.name) name = p.name;
-          photo = p.photo || p.photoURL || '';
-          try {
-            var ms = p.createdAtMs || p.memberSinceMs || null;
-            var la = p.lastAccessMs || p.updatedAtMs || Date.now();
-            if (p.createdAt && p.createdAt.toMillis) ms = p.createdAt.toMillis();
-            window.__perfilMeta = {
-              memberSince: (p.memberSinceMs || p.createdAtMs)
-                ? new Date(p.memberSinceMs || p.createdAtMs).toLocaleDateString('pt-BR')
-                : '—',
-              lastAccess: (function(){
-                var la = p.lastSeenMs || p.lastAccessMs || p.updatedAtMs || 0;
-                if (!la) return '—';
-                var d = Date.now() - la;
-                if (d < 120000 && (typeof isUserOnline !== 'function' || isUserOnline(p))) return 'agora';
-                if (d < 3600000) return 'há ' + Math.floor(d/60000) + ' min';
-                if (d < 86400000) return 'há ' + Math.floor(d/3600000) + ' h';
-                if (d < 604800000) return 'há ' + Math.floor(d/86400000) + ' dias';
-                return new Date(la).toLocaleDateString('pt-BR');
-              })(),
-              online: (typeof isUserOnline === 'function') ? isUserOnline(p) : false,
-              profile: p
-            };
-          } catch (e2) { window.__perfilMeta = { memberSince: '—', lastAccess: '—', online: false }; }
+        // se sou eu, atualiza presença antes de ler
+        var me = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
+        if (uid && me && uid === me && typeof fsTouchPresence === 'function') {
+          try { await fsTouchPresence(); } catch (e) {}
         }
-      } catch (e) {}
+        var p = null;
+        if (uid && typeof fsGetProfile === 'function') {
+          try { p = await fsGetProfile(uid); } catch (e) {}
+        }
+        if (!p && uid && typeof fsGetSellerPublic === 'function') {
+          p = await fsGetSellerPublic(uid);
+        }
+        if (p) {
+          if (p.displayName || p.name) name = p.displayName || p.name;
+          photo = p.photo || p.photoURL || '';
+          var since = p.memberSinceMs || p.createdAtMs || null;
+          var seen = p.lastSeenMs || p.updatedAtMs || 0;
+          // se perfil antigo sem memberSince, e sou eu, grava agora
+          if (!since && me && uid === me && firebase.auth().currentUser) {
+            try {
+              var created = Date.now();
+              var u = firebase.auth().currentUser;
+              if (u.metadata && u.metadata.creationTime) {
+                created = new Date(u.metadata.creationTime).getTime() || created;
+              }
+              await firebase.firestore().collection('profiles').doc(uid).set({
+                memberSinceMs: created,
+                lastSeenMs: Date.now(),
+                online: true,
+                displayName: name || u.displayName || '',
+                email: u.email || ''
+              }, { merge: true });
+              since = created;
+              seen = Date.now();
+            } catch (e) { console.warn(e); }
+          }
+          window.__perfilMeta = {
+            memberSince: since ? new Date(since).toLocaleDateString('pt-BR') : '—',
+            lastAccess: (function(){
+              if (!seen) return '—';
+              var d = Date.now() - seen;
+              if (d < 120000) return 'agora';
+              if (d < 3600000) return 'há ' + Math.floor(d/60000) + ' min';
+              if (d < 86400000) return 'há ' + Math.floor(d/3600000) + ' h';
+              if (d < 604800000) return 'há ' + Math.floor(d/86400000) + ' dias';
+              return new Date(seen).toLocaleDateString('pt-BR');
+            })(),
+            online: (typeof isUserOnline === 'function') ? isUserOnline({ lastSeenMs: seen }) : (seen && (Date.now()-seen) < 120000),
+            profile: p
+          };
+        }
+      } catch (e) { console.warn(e); }
       // local fallback only if cloud empty
       try {
         if (!photo && uid) {

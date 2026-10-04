@@ -48,6 +48,25 @@
       aspect-ratio: 16/10; display:flex; align-items:center; justify-content:center;
     }
     .cover img { width: 100%; height: 100%; object-fit: cover; }
+    .cover-carousel { position: relative; width: 100%; border-radius: 16px; overflow: hidden; background: #1e1b4b; aspect-ratio: 16/10; }
+    .cover-carousel .slides { display: flex; height: 100%; transition: transform .3s ease; }
+    .cover-carousel .slides .slide { min-width: 100%; height: 100%; }
+    .cover-carousel .slides .slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cover-carousel .nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 36px; height: 36px; border-radius: 50%; border: none;
+      background: rgba(0,0,0,.55); color: #fff; font-size: 1.1rem; cursor: pointer; z-index: 2;
+    }
+    .cover-carousel .nav.prev { left: 8px; }
+    .cover-carousel .nav.next { right: 8px; }
+    .cover-carousel .dots {
+      position: absolute; bottom: 10px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 6px; z-index: 2;
+    }
+    .cover-carousel .dots span {
+      width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.4); cursor: pointer;
+    }
+    .cover-carousel .dots span.on { background: #fff; }
     .title-row { margin: 16px 0 8px; }
     .title-row h1 { font-size: 1.25rem; line-height: 1.35; }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -242,9 +261,29 @@
       const isOwner = !!(sellerUid && currentUid && sellerUid === currentUid);
       const initial = sellerName.charAt(0).toUpperCase();
       const favOn = typeof isFav === 'function' && isFav(ad.id);
-      const cover = ad.cover
-        ? '<img src="' + ad.cover + '" alt="">'
-        : '<i class="fas fa-gamepad" style="font-size:3rem;color:#fff;opacity:.5"></i>';
+      var galleryImgs = [];
+      if (ad.cover) galleryImgs.push(ad.cover);
+      var gal = (raw.gallery && raw.gallery.length) ? raw.gallery : (ad.gallery || []);
+      if (Array.isArray(gal)) {
+        gal.forEach(function(src){
+          if (src && galleryImgs.indexOf(src) < 0) galleryImgs.push(src);
+        });
+      }
+      var cover;
+      if (!galleryImgs.length) {
+        cover = '<div class="cover"><i class="fas fa-gamepad" style="font-size:3rem;color:#fff;opacity:.5"></i></div>';
+      } else if (galleryImgs.length === 1) {
+        cover = '<div class="cover"><img src="' + galleryImgs[0] + '" alt=""></div>';
+      } else {
+        cover = '<div class="cover-carousel" id="adGallery">' +
+          '<div class="slides" id="adGallerySlides">' +
+          galleryImgs.map(function(src){ return '<div class="slide"><img src="' + src + '" alt=""></div>'; }).join('') +
+          '</div>' +
+          '<button type="button" class="nav prev" id="galPrev" aria-label="Anterior">‹</button>' +
+          '<button type="button" class="nav next" id="galNext" aria-label="Próxima">›</button>' +
+          '<div class="dots">' + galleryImgs.map(function(_,i){ return '<span data-i="'+i+'" class="'+(i===0?'on':'')+'"></span>'; }).join('') + '</div>' +
+          '</div>';
+      }
 
       const chars = [
         ['Tipo do Anúncio', ad.productType || raw.productType || 'Conta'],
@@ -297,7 +336,7 @@
 
       page.innerHTML =
         '<a class="back" href="anuncios.html">← Voltar para anúncios</a>' +
-        '<div class="cover">' + cover + '</div>' +
+        cover +
         '<div class="title-row">' +
           '<button type="button" class="fav-float' + (favOn ? ' is-fav' : '') + '" id="favBtn" data-id="' + esc(ad.id) + '"><i class="' + (favOn ? 'fas' : 'far') + ' fa-heart"></i></button>' +
           '<h1>' + esc(ad.title) + '</h1>' +
