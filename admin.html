@@ -88,13 +88,39 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
     });
   });
 
-  async function loadOrders() {
-    var snap = await firebase.firestore().collection('orders').limit(80).get();
-    var list = [];
-    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
-    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+  var cacheOrders = [];
+  var cacheWithdrawals = [];
+  var cacheAds = [];
+  var qOrders = '';
+  var qWithdrawals = '';
+  var qAds = '';
 
-    var html = '<div class="box"><h1>Pedidos (' + list.length + ')</h1>';
+  function matchQ(item, q, fields) {
+    q = String(q || '').trim().toLowerCase();
+    if (!q) return true;
+    for (var i = 0; i < fields.length; i++) {
+      var v = item[fields[i]];
+      if (v != null && String(v).toLowerCase().indexOf(q) >= 0) return true;
+    }
+    return false;
+  }
+
+  function searchBox(id, placeholder, value) {
+    return '<input type="search" class="search" id="' + id + '" placeholder="' + esc(placeholder) + '" value="' + esc(value || '') + '" autocomplete="off">';
+  }
+
+  async function loadOrders() {
+    if (!cacheOrders.length) {
+      var snap = await firebase.firestore().collection('orders').limit(120).get();
+      cacheOrders = [];
+      snap.forEach(function (d) { cacheOrders.push(Object.assign({ id: d.id }, d.data())); });
+      cacheOrders.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+    }
+    var list = cacheOrders.filter(function (o) {
+      return matchQ(o, qOrders, ['id', 'code', 'adTitle', 'buyerName', 'buyerUid', 'sellerName', 'sellerUid', 'status']);
+    });
+    var html = '<div class="box"><h1>Pedidos (' + list.length + (qOrders ? ' filtrados' : '') + ')</h1>' +
+      searchBox('qOrders', 'Pesquisar pedido por código, título, comprador, vendedor...', qOrders);
     if (!list.length) html += '<p class="muted">Nenhum pedido encontrado.</p>';
     list.forEach(function (o) {
       html += '<div class="row"><div><strong>#' + esc(o.code || o.id) + '</strong> ' + esc(o.adTitle || '') +
@@ -104,45 +130,97 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
     });
     html += '</div>';
     panel.innerHTML = html;
+    var inp = document.getElementById('qOrders');
+    if (inp) {
+      inp.addEventListener('input', function () {
+        qOrders = inp.value;
+        loadOrders();
+      });
+      try { inp.focus(); var v = inp.value; inp.value = ''; inp.value = v; } catch (e) {}
+    }
   }
 
   async function loadWithdrawals() {
-    var snap = await firebase.firestore().collection('withdrawals').limit(80).get();
-    var list = [];
-    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
-    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
-
-    var html = '<div class="box"><h1>Saques (' + list.length + ')</h1>' +
-      '<p class="muted" style="margin-bottom:12px">Depois de enviar o Pix, clique em <strong>Marcar pago</strong>.</p>';
+    if (!cacheWithdrawals.length) {
+      var snap = await firebase.firestore().collection('withdrawals').limit(120).get();
+      cacheWithdrawals = [];
+      snap.forEach(function (d) { cacheWithdrawals.push(Object.assign({ id: d.id }, d.data())); });
+      cacheWithdrawals.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+    }
+    var list = cacheWithdrawals.filter(function (w) {
+      return matchQ(w, qWithdrawals, ['id', 'userId', 'userName', 'userEmail', 'pixKey', 'nome', 'cpf', 'status', 'mode']);
+    });
+    var html = '<div class="box"><h1>Saques (' + list.length + (qWithdrawals ? ' filtrados' : '') + ')</h1>' +
+      searchBox('qWithdrawals', 'Pesquisar saque por código, Pix, nome, usuário...', qWithdrawals) +
+      '<p class="muted" style="margin-bottom:12px">Defina <strong>Normal</strong> ou <strong>Turbo</strong>. Depois de enviar o Pix, clique em <strong>Marcar pago</strong>.</p>';
     if (!list.length) html += '<p class="muted">Nenhum saque ainda.</p>';
     list.forEach(function (w) {
       var st = String(w.status || 'processando');
+      var mode = (w.mode === 'turbo') ? 'turbo' : 'normal';
       var canPay = st === 'pendente' || st === 'processando' || st === 'aprovado';
       html += '<div class="row"><div><strong>' + esc(w.id) + '</strong> · ' + money(w.amount) +
-        (w.fee ? (' (taxa ' + money(w.fee) + ')') : '') +
-        '<div class="muted">Pix: ' + esc(w.pixKey) + (w.holderName ? (' · ' + esc(w.holderName)) : '') + '</div>' +
-        '<div class="muted">' + esc(w.userEmail || w.userName || w.userId) +
-        (w.mode ? (' · ' + (w.mode === 'turbo' ? 'Turbo' : 'Normal')) : '') + '</div></div>' +
-        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-        '<span class="' + badgeClass(st) + '">' + esc(st) + '</span>' +
-        (canPay ? '<button type="button" class="btn" data-pay="' + esc(w.id) + '">Marcar pago</button>' : '') +
+        (w.fee ? ' <span class="muted">(taxa ' + money(w.fee) + ')</span>' : '') +
+        '<div class="muted">' + esc(w.userName || w.userEmail || w.userId || '') +
+        (w.pixKey ? ' · Pix: ' + esc(w.pixKey) : '') +
+        (w.nome ? ' · ' + esc(w.nome) : '') +
+        '</div>' +
+        '<div style="margin-top:8px">' +
+          '<button type="button" class="mode-btn' + (mode === 'normal' ? ' on' : '') + '" data-mode="normal" data-wid="' + esc(w.id) + '">Normal</button>' +
+          '<button type="button" class="mode-btn turbo' + (mode === 'turbo' ? ' on' : '') + '" data-mode="turbo" data-wid="' + esc(w.id) + '">Turbo</button>' +
+        '</div></div><div style="text-align:right">' +
+        '<span class="' + badgeClass(st) + '">' + esc(st) + ' · ' + (mode === 'turbo' ? 'Turbo' : 'Normal') + '</span>' +
+        (canPay ? '<br><button type="button" class="btn" style="margin-top:8px" data-pay="' + esc(w.id) + '">Marcar pago</button>' : '') +
         '</div></div>';
     });
     html += '</div>';
     panel.innerHTML = html;
 
+    var inp = document.getElementById('qWithdrawals');
+    if (inp) {
+      inp.addEventListener('input', function () {
+        qWithdrawals = inp.value;
+        loadWithdrawals();
+      });
+    }
+
+    document.querySelectorAll('[data-mode][data-wid]').forEach(function (btn) {
+      if (!adminOk) return;
+      btn.addEventListener('click', async function () {
+        var wid = btn.getAttribute('data-wid');
+        var mode = btn.getAttribute('data-mode') === 'turbo' ? 'turbo' : 'normal';
+        btn.disabled = true;
+        try {
+          var fee = mode === 'turbo' ? 2 : 0;
+          await firebase.firestore().collection('withdrawals').doc(wid).update({
+            mode: mode,
+            fee: fee,
+            updatedAtMs: Date.now()
+          });
+          // atualiza cache local
+          cacheWithdrawals.forEach(function (w) {
+            if (w.id === wid) { w.mode = mode; w.fee = fee; }
+          });
+          await loadWithdrawals();
+        } catch (e) {
+          alert(e.message || 'Erro ao mudar tipo de saque');
+          btn.disabled = false;
+        }
+      });
+    });
+
     document.querySelectorAll('[data-pay]').forEach(function (btn) {
+      if (!adminOk) return;
       btn.addEventListener('click', async function () {
         btn.disabled = true;
         try {
           await firebase.firestore().collection('withdrawals').doc(btn.getAttribute('data-pay')).update({
             status: 'pago',
-            paidAtMs: Date.now(),
-            updatedAtMs: Date.now()
+            paidAtMs: Date.now()
           });
+          cacheWithdrawals = []; // força reload
           await load();
         } catch (e) {
-          alert(e.message || 'Erro ao marcar pago');
+          alert(e.message || 'Erro');
           btn.disabled = false;
         }
       });
@@ -150,23 +228,43 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
   }
 
   async function loadAds() {
-    var snap = await firebase.firestore().collection('ads').limit(80).get();
-    var list = [];
-    snap.forEach(function (d) { list.push(Object.assign({ id: d.id }, d.data())); });
-    list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
-
-    var html = '<div class="box"><h1>Anuncios (' + list.length + ')</h1>';
-    if (!list.length) html += '<p class="muted">Nenhum anuncio.</p>';
+    if (!cacheAds.length) {
+      var snap = await firebase.firestore().collection('ads').limit(120).get();
+      cacheAds = [];
+      snap.forEach(function (d) { cacheAds.push(Object.assign({ id: d.id }, d.data())); });
+      cacheAds.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+    }
+    var list = cacheAds.filter(function (a) {
+      return matchQ(a, qAds, ['id', 'title', 'sellerName', 'sellerUid', 'status', 'category', 'subcategory']);
+    });
+    var html = '<div class="box"><h1>Anúncios (' + list.length + (qAds ? ' filtrados' : '') + ')</h1>' +
+      searchBox('qAds', 'Pesquisar anúncio por código, título, vendedor...', qAds);
+    if (!list.length) html += '<p class="muted">Nenhum anúncio encontrado.</p>';
     list.forEach(function (a) {
-      html += '<div class="row"><div><strong>' + esc(a.title) + '</strong>' +
-        '<div class="muted">' + esc(a.id) + ' · stock ' + (a.stock || 0) + ' · ' + esc(a.sellerName || a.sellerUid) + '</div></div>' +
-        '<div style="display:flex;gap:8px;align-items:center">' +
+      var stock = a.stock;
+      if (a.items && a.items.length) {
+        stock = 0;
+        a.items.forEach(function (it) { stock += Number(it.stock) || 0; });
+      }
+      html += '<div class="row"><div><strong>' + esc(a.title || 'Anúncio') + '</strong>' +
+        '<div class="muted">' + esc(a.id) + ' · stock ' + esc(stock) + ' · ' + esc(a.sellerName || a.sellerUid || '') + '</div></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
         '<span class="' + badgeClass(a.status) + '">' + esc(a.status || 'ativo') + '</span>' +
-        (a.status !== 'pausado' ? '<button type="button" class="btn btn-ghost" data-pause="' + esc(a.id) + '">Pausar</button>' : '') +
+        (a.status !== 'pausado'
+          ? '<button type="button" class="btn btn-ghost" data-pause="' + esc(a.id) + '">Pausar</button>'
+          : '<button type="button" class="btn btn-ghost" data-activate="' + esc(a.id) + '">Ativar</button>') +
         '</div></div>';
     });
     html += '</div>';
     panel.innerHTML = html;
+
+    var inp = document.getElementById('qAds');
+    if (inp) {
+      inp.addEventListener('input', function () {
+        qAds = inp.value;
+        loadAds();
+      });
+    }
 
     document.querySelectorAll('[data-pause]').forEach(function (btn) {
       if (!adminOk) return;
@@ -175,6 +273,21 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
         try {
           if (!adminOk) { alert('Acesso negado'); return; }
           await firebase.firestore().collection('ads').doc(btn.getAttribute('data-pause')).update({ status: 'pausado' });
+          cacheAds = [];
+          await load();
+        } catch (e) {
+          alert(e.message || 'Erro');
+          btn.disabled = false;
+        }
+      });
+    });
+    document.querySelectorAll('[data-activate]').forEach(function (btn) {
+      if (!adminOk) return;
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+          await firebase.firestore().collection('ads').doc(btn.getAttribute('data-activate')).update({ status: 'ativo' });
+          cacheAds = [];
           await load();
         } catch (e) {
           alert(e.message || 'Erro');
@@ -213,7 +326,7 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text)}
     adminOk = isAdmin(u);
     if (!adminOk) {
       document.getElementById('who').textContent = 'Acesso negado. Só o admin pode usar este painel.';
-      panel.innerHTML = '<div class="err"><strong>Acesso negado</strong><br>Entre com a conta admin.<br>Conta atual: ' + esc(u.email || u.uid) + '</div>';
+      panel.innerHTML = '<div class="err"><strong>Acesso negado</strong><br>Entre com a conta admin cadastrada em js/admin-config.js.<br>Conta atual: ' + esc(u.email || u.uid) + '</div>';
       document.querySelectorAll('.tabs button').forEach(function (b) { b.disabled = true; b.style.opacity = '0.4'; });
       return;
     }
