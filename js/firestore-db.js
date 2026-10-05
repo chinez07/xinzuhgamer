@@ -1120,16 +1120,19 @@ window.fsSaveProfile = fsSaveProfile;
 window.fsGetProfile = fsGetProfile;
 
 
-/** Presença online: ativo se lastSeenMs nos últimos 3 minutos */
+/** Presença online: ativo se lastSeenMs nos últimos 4 minutos */
 function isUserOnline(profileOrMs) {
   var ms = 0;
   if (profileOrMs && typeof profileOrMs === 'object') {
     ms = Number(profileOrMs.lastSeenMs) || 0;
+    if (!ms && profileOrMs.lastSeenMs && typeof profileOrMs.lastSeenMs.toMillis === 'function') {
+      try { ms = profileOrMs.lastSeenMs.toMillis(); } catch (e) {}
+    }
   } else {
     ms = Number(profileOrMs) || 0;
   }
   if (!ms) return false;
-  return (Date.now() - ms) < 180000;
+  return (Date.now() - ms) < 240000;
 }
 window.isUserOnline = isUserOnline;
 
@@ -1183,10 +1186,13 @@ window.fsSetOffline = fsSetOffline;
 
 (function startPresenceLoop() {
   var started = false;
+  var hideTimer = null;
   function tick() {
     try {
       if (typeof firebase === 'undefined' || !firebase.auth) return;
       if (!firebase.auth().currentUser) return;
+      // só atualiza se a aba estiver visível
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
       fsTouchPresence();
     } catch (e) {}
   }
@@ -1201,7 +1207,8 @@ window.fsSetOffline = fsSetOffline;
       if (u) {
         tick();
         if (!window.__bzPresenceTimer) {
-          window.__bzPresenceTimer = setInterval(tick, 25000);
+          // a cada 20s enquanto o site estiver aberto
+          window.__bzPresenceTimer = setInterval(tick, 20000);
         }
       } else if (window.__bzPresenceTimer) {
         clearInterval(window.__bzPresenceTimer);
@@ -1210,27 +1217,19 @@ window.fsSetOffline = fsSetOffline;
     });
   }
   bind();
-  setTimeout(tick, 800);
-  setTimeout(tick, 2500);
-  setTimeout(tick, 6000);
+  setTimeout(tick, 600);
+  setTimeout(tick, 2000);
+  setTimeout(tick, 5000);
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') tick();
-    else if (typeof fsSetOffline === 'function') {
-      // marca offline só se ficar escondido por um tempo — evita OFF ao trocar de aba rápido
+    if (document.visibilityState === 'visible') {
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      tick();
     }
+    // NÃO marca offline ao minimizar/trocar app no celular.
+    // Offline = lastSeenMs parou de atualizar por ~3 min (isUserOnline).
   });
-  window.addEventListener('pagehide', function () {
-    try {
-      var u = firebase.auth().currentUser;
-      if (!u || !firebase.firestore) return;
-      // sendBeacon não funciona bem com Firestore; best-effort
-      firebase.firestore().collection('profiles').doc(u.uid).set({
-        online: false,
-        lastSeenMs: Date.now() - 200000,
-        updatedAtMs: Date.now()
-      }, { merge: true });
-    } catch (e) {}
-  });
+  // pagehide no mobile dispara ao trocar de app — não forçar offline
+  // (o timeout de 3 min do isUserOnline já resolve)
 })();
 
 
