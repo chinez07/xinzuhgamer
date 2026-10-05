@@ -385,12 +385,29 @@ function normalizeAd(id, data) {
 }
 
 async function fsGetPublicAds(limit) {
-  const snap = await getDb().collection('ads').where('status', '==', 'ativo').limit(limit || 40).get();
-  const list = [];
-  snap.forEach(function (doc) {
-    list.push(normalizeAd(doc.id, doc.data()));
+  var list = [];
+  try {
+    var snap = await getDb().collection('ads').where('status', '==', 'ativo').limit(limit || 80).get();
+    snap.forEach(function (doc) {
+      list.push(normalizeAd(doc.id, doc.data()));
+    });
+  } catch (e1) {
+    console.warn('fsGetPublicAds where status', e1);
+    try {
+      var snap2 = await getDb().collection('ads').limit(limit || 80).get();
+      snap2.forEach(function (doc) {
+        var d = doc.data() || {};
+        var st = d.status || 'ativo';
+        if (st === 'ativo' || st === 'active') list.push(normalizeAd(doc.id, d));
+      });
+    } catch (e2) {
+      console.warn('fsGetPublicAds fallback', e2);
+    }
+  }
+  if (typeof bloxzuhSortByVisibility === 'function') list = bloxzuhSortByVisibility(list);
+  else list.sort(function (a, b) {
+    return ((b.raw && b.raw.createdAtMs) || 0) - ((a.raw && a.raw.createdAtMs) || 0);
   });
-  list = bloxzuhSortByVisibility(list);
   return list;
 }
 
