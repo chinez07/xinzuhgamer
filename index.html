@@ -1811,19 +1811,27 @@ async function loadFirestoreAdsHome() {
     var dynTitle = document.getElementById('dynamicCatTitle');
     if (dynTitle) dynTitle.textContent = CAT_LABELS[focusCat] || 'Categoria';
 
-    const featured = live.slice(0, 12);
-    const catAds = live.filter(function (a) {
+    // Destaque home: Ouro + Diamante (Prata NÃO entra)
+    var featured = live.filter(function (a) {
+      return (typeof bloxzuhIsHomeFeatured === 'function')
+        ? bloxzuhIsHomeFeatured(a)
+        : (a.visibility === 'diamante' || a.visibility === 'ouro');
+    });
+    if (typeof bloxzuhSortByVisibility === 'function') featured = bloxzuhSortByVisibility(featured);
+    featured = featured.slice(0, 12);
+
+    // Seção de categoria: todos os planos, ordenados Diamante > Ouro > Prata
+    var catAds = live.filter(function (a) {
       var c = (a.category || '').toLowerCase();
-      if (focusCat === 'premium') {
-        return c === 'premium' || a.visibility === 'diamante' || a.visibility === 'ouro';
-      }
+      if (focusCat === 'premium') return c === 'premium';
       return c === focusCat || c.indexOf(focusCat) !== -1;
     });
+    if (typeof bloxzuhSortByVisibility === 'function') catAds = bloxzuhSortByVisibility(catAds);
 
     if (featuredScroll) {
       featuredScroll.innerHTML = featured.length
         ? featured.map(createProductCard).join('')
-        : '<p style="padding:16px;color:var(--text-muted)">Nenhum anúncio em destaque ainda.</p>';
+        : '<p style="padding:16px;color:var(--text-muted)">Nenhum anúncio em destaque ainda. Anúncios Ouro e Diamante aparecem aqui.</p>';
     }
     if (premiumScroll) {
       premiumScroll.innerHTML = catAds.length
