@@ -315,6 +315,41 @@ async function fsGetLegacySales() {
 
 
 
+
+/** Planos de visibilidade
+ *  prata    = só categorias (sem destaque home/busca)
+ *  ouro     = destaque na página principal + prioridade nas categorias (sem destaque na busca)
+ *  diamante = home + busca + máxima prioridade
+ */
+function bloxzuhVisRank(v) {
+  v = String(v || 'prata').toLowerCase();
+  if (v === 'diamante') return 3;
+  if (v === 'ouro') return 2;
+  return 1;
+}
+function bloxzuhIsHomeFeatured(ad) {
+  var v = String((ad && (ad.visibility || (ad.raw && ad.raw.visibility))) || 'prata').toLowerCase();
+  return v === 'diamante' || v === 'ouro';
+}
+function bloxzuhIsSearchFeatured(ad) {
+  var v = String((ad && (ad.visibility || (ad.raw && ad.raw.visibility))) || 'prata').toLowerCase();
+  return v === 'diamante';
+}
+function bloxzuhSortByVisibility(list, secondary) {
+  secondary = secondary || function (a, b) {
+    return ((b.raw && b.raw.createdAtMs) || b.createdAtMs || 0) - ((a.raw && a.raw.createdAtMs) || a.createdAtMs || 0);
+  };
+  return (list || []).slice().sort(function (a, b) {
+    var d = bloxzuhVisRank(b.visibility || (b.raw && b.raw.visibility)) - bloxzuhVisRank(a.visibility || (a.raw && a.raw.visibility));
+    if (d) return d;
+    return secondary(a, b);
+  });
+}
+window.bloxzuhVisRank = bloxzuhVisRank;
+window.bloxzuhIsHomeFeatured = bloxzuhIsHomeFeatured;
+window.bloxzuhIsSearchFeatured = bloxzuhIsSearchFeatured;
+window.bloxzuhSortByVisibility = bloxzuhSortByVisibility;
+
 function normalizeAd(id, data) {
   const cat = (data.subcategory || data.category || 'outros').toLowerCase().replace(/\s+/g, '');
   const map = {
@@ -355,7 +390,7 @@ async function fsGetPublicAds(limit) {
   snap.forEach(function (doc) {
     list.push(normalizeAd(doc.id, doc.data()));
   });
-  list.sort(function (a, b) { return (b.raw && b.raw.createdAtMs || 0) - (a.raw && a.raw.createdAtMs || 0); });
+  list = bloxzuhSortByVisibility(list);
   return list;
 }
 
