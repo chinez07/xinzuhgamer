@@ -1391,7 +1391,7 @@ img { max-width: 100%; display: block; }
           <div class="form-group">
             <label>Tipo de saque</label>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-              <button type="button" class="btn btn-outline saque-mode on" data-mode="normal" style="flex:1;text-align:left">Normal · grátis<br><small>Até 10 dias</small></button>
+              <button type="button" class="btn btn-outline saque-mode on" data-mode="normal" style="flex:1;text-align:left">Normal · grátis<br><small>Até 3 dias</small></button>
               <button type="button" class="btn btn-outline saque-mode" data-mode="turbo" style="flex:1;text-align:left">Turbo · R$ 2,00<br><small>Até 30 minutos</small></button>
             </div>
           </div>
@@ -1420,7 +1420,7 @@ img { max-width: 100%; display: block; }
             <label>CPF do favorecido</label>
             <input type="text" id="saqueCpf" placeholder="000.000.000-00">
           </div>
-          <p class="sub" id="saqueHint">Saque <strong>Normal</strong>: processado em até <strong>10 dias</strong>.</p>
+          <p class="sub" id="saqueHint">Saque <strong>Normal</strong>: processado em até <strong>3 dias</strong>.</p>
           <button type="button" class="btn btn-primary btn-block" id="btnSaque"><i class="fas fa-money-bill-wave"></i> Solicitar saque</button>
         </div>
         <div style="margin-top:20px">
@@ -1918,7 +1918,7 @@ img { max-width: 100%; display: block; }
         var h = document.getElementById('saqueHint');
         if (h) h.innerHTML = saqueMode === 'turbo'
           ? 'Saque <strong>Turbo</strong>: processado em até <strong>30 minutos</strong> · taxa <strong>R$ 2,00</strong>.'
-          : 'Saque <strong>Normal</strong>: processado em até <strong>10 dias</strong>.';
+          : 'Saque <strong>Normal</strong>: processado em até <strong>3 dias</strong>.';
       });
     });
 
@@ -1968,7 +1968,7 @@ img { max-width: 100%; display: block; }
         if (!pixKey) throw new Error('Informe a chave Pix.');
         var mode = opts.mode === 'turbo' ? 'turbo' : 'normal';
         var fee = mode === 'turbo' ? 2 : 0;
-        var delayMs = mode === 'turbo' ? (30 * 60 * 1000) : (10 * 24 * 60 * 60 * 1000);
+        var delayMs = mode === 'turbo' ? (30 * 60 * 1000) : (3 * 24 * 60 * 60 * 1000);
         var total = Math.round((amount + fee) * 100) / 100;
         var wref = firebase.firestore().collection('wallets').doc(u.uid);
         var wdoc = await wref.get();
@@ -2029,7 +2029,7 @@ img { max-width: 100%; display: block; }
         if (typeof fsRequestWithdraw !== 'function') throw new Error('Sistema de saque nao carregou. Atualize a pagina.');
         var res = await fsRequestWithdraw(val, pix, { mode: saqueMode, holderName: nome, cpf: cpf, pixType: pixType });
         var id = res && res.id ? res.id : res;
-        msg('Saque ' + id + ' solicitado! ' + (saqueMode==='turbo' ? 'Turbo: até 30 minutos.' : 'Normal: até 10 dias.'), 'ok');
+        msg('Saque ' + id + ' solicitado! ' + (saqueMode==='turbo' ? 'Turbo: até 30 minutos.' : 'Normal: até 3 dias.'), 'ok');
         document.getElementById('saqueValor').value = '';
         if (typeof loadAll === 'function') await loadAll();
         await renderSaqueHistorico();
