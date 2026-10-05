@@ -2,23 +2,23 @@
  * Versão experimental + escolher fundo (por conta)
  */
 (function () {
-  var BG_MOBILE = [
+    var BG_MOBILE = [
     'assets/fundos/mobile1.jpg',
     'assets/fundos/mobile2.jpg',
     'assets/fundos/mobile3.jpg',
     'assets/fundos/mobile4.jpg',
-    'assets/fundos/mobile5.jpg',
-    'assets/fundos/mobile6.jpg',
-    'assets/fundos/mobile7.jpg',
-    'assets/fundos/mobile8.jpg'
+    'assets/fundos/mobile5.png',
+    'assets/fundos/mobile6.png',
+    'assets/fundos/mobile7.png',
+    'assets/fundos/mobile8.png'
   ];
   var BG_PC = [
     'assets/fundos/pc1.jpg',
     'assets/fundos/pc2.jpg',
     'assets/fundos/pc3.jpg',
-    'assets/fundos/pc4.jpg',
-    'assets/fundos/pc5.jpg',
-    'assets/fundos/pc6.jpg'
+    'assets/fundos/pc4.png',
+    'assets/fundos/pc5.png',
+    'assets/fundos/pc6.png'
   ];
 
   function currentUser() {
