@@ -104,7 +104,7 @@ async function fsDeleteAd(adId) {
 /** Tempo até liberar saldo: 10 dias */
 window.BLOXZUH_RELEASE_MS = 10 * 24 * 60 * 60 * 1000; // 10 dias
 window.BLOXZUH_SAQUE_TURBO_FEE = 2.00;
-window.BLOXZUH_SAQUE_NORMAL_MS = 10 * 24 * 60 * 60 * 1000; // 10 dias
+window.BLOXZUH_SAQUE_NORMAL_MS = 3 * 24 * 60 * 60 * 1000; // 3 dias
 window.BLOXZUH_SAQUE_TURBO_MS = 30 * 60 * 1000; // 30 minutos
 
 function round2(n) {
@@ -979,8 +979,8 @@ async function fsRequestWithdraw(amount, pixKey, opts) {
   pixKey = String(pixKey || '').trim();
   if (!pixKey) throw new Error('Informe a chave Pix.');
   var mode = (opts.mode === 'turbo') ? 'turbo' : 'normal';
-  // Normal: 10 dias | Turbo: 30 min
-  var NORMAL_MS = (typeof window.BLOXZUH_SAQUE_NORMAL_MS === 'number') ? window.BLOXZUH_SAQUE_NORMAL_MS : (10 * 24 * 60 * 60 * 1000);
+  // Normal: 3 dias | Turbo: 30 min
+  var NORMAL_MS = (typeof window.BLOXZUH_SAQUE_NORMAL_MS === 'number') ? window.BLOXZUH_SAQUE_NORMAL_MS : (3 * 24 * 60 * 60 * 1000);
   var TURBO_MS = (typeof window.BLOXZUH_SAQUE_TURBO_MS === 'number') ? window.BLOXZUH_SAQUE_TURBO_MS : (30 * 60 * 1000);
   var TURBO_FEE = (typeof window.BLOXZUH_SAQUE_TURBO_FEE === 'number') ? window.BLOXZUH_SAQUE_TURBO_FEE : 2.00;
   var fee = mode === 'turbo' ? TURBO_FEE : 0;
