@@ -87,6 +87,7 @@
       var list = cache;
       if (filter === 'anuncio') list = cache.filter(function (n) { return n.type === 'anuncio' || n.type === 'resposta' || n.type === 'pergunta'; });
       if (filter === 'venda') list = cache.filter(function (n) { return n.type === 'venda' || n.type === 'compra'; });
+      if (typeof updateNotifBadge === 'function') updateNotifBadge();
       document.getElementById('countLabel').textContent = list.length + ' notificação(ões)';
       var el = document.getElementById('list');
       if (!list.length) {
@@ -115,6 +116,8 @@
     document.getElementById('btnReadAll').onclick = async function () {
       await fsMarkAllNotifsRead();
       cache.forEach(function (n) { n.read = true; });
+        if (typeof updateNotifBadge === 'function') updateNotifBadge();
+        else if (typeof setBadgeCount === 'function') setBadgeCount(0);
       render();
     };
     firebase.auth().onAuthStateChanged(async function (user) {

@@ -1052,7 +1052,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
 
 
 .header { z-index: 200; position: sticky; top: 0; }
-.notif-wrap { position: relative; z-index: 250; }
+.notif-wrap { position: relative; z-index: 250; overflow: visible !important; }
 .header-icon-btn { position: relative; }
 .header-icon-btn .badge-count {
   position: absolute; top: 0; right: 0; min-width: 18px; height: 18px;
@@ -1127,6 +1127,9 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   pointer-events: none !important;
   box-sizing: border-box !important;
 }
+
+#notifBellBtn { position: relative !important; overflow: visible !important; }
+#notifBadge.show { display: flex !important; }
 </style>
 </head>
 <body>
