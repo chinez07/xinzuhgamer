@@ -6,12 +6,19 @@
     'assets/fundos/mobile1.jpg',
     'assets/fundos/mobile2.jpg',
     'assets/fundos/mobile3.jpg',
-    'assets/fundos/mobile4.jpg'
+    'assets/fundos/mobile4.jpg',
+    'assets/fundos/mobile5.jpg',
+    'assets/fundos/mobile6.jpg',
+    'assets/fundos/mobile7.jpg',
+    'assets/fundos/mobile8.jpg'
   ];
   var BG_PC = [
     'assets/fundos/pc1.jpg',
     'assets/fundos/pc2.jpg',
-    'assets/fundos/pc3.jpg'
+    'assets/fundos/pc3.jpg',
+    'assets/fundos/pc4.jpg',
+    'assets/fundos/pc5.jpg',
+    'assets/fundos/pc6.jpg'
   ];
 
   function currentUser() {
