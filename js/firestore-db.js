@@ -102,10 +102,10 @@ async function fsDeleteAd(adId) {
 }
 
 /** Tempo até liberar saldo: 10 dias */
-window.BLOXZUH_RELEASE_MS = 2 * 60 * 1000; // teste: 2 min (prod: 10 dias)
+window.BLOXZUH_RELEASE_MS = 10 * 24 * 60 * 60 * 1000; // 10 dias
 window.BLOXZUH_SAQUE_TURBO_FEE = 2.00;
-window.BLOXZUH_SAQUE_NORMAL_MS = 2 * 60 * 1000;
-window.BLOXZUH_SAQUE_TURBO_MS = 30 * 1000;
+window.BLOXZUH_SAQUE_NORMAL_MS = 10 * 24 * 60 * 60 * 1000; // 10 dias
+window.BLOXZUH_SAQUE_TURBO_MS = 30 * 60 * 1000; // 30 minutos
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -181,7 +181,7 @@ async function fsSetWallet(saldo, pending) {
 /** Aplica estoque/vendas dos pedidos pagos ainda não processados + sincroniza carteira */
 async function fsSyncSellerSalesAndWallet() {
   const u = requireUser();
-  const releaseMs = window.BLOXZUH_RELEASE_MS || (2 * 60 * 1000);
+  const releaseMs = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
   let snap;
   try {
     snap = await getDb().collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
@@ -232,7 +232,7 @@ async function fsSyncSellerSalesAndWallet() {
 
 async function fsSyncSellerWallet() {
   const u = requireUser();
-  const releaseMs = window.BLOXZUH_RELEASE_MS || (2 * 60 * 1000);
+  const releaseMs = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
   const snap = await getDb().collection('orders')
     .where('sellerUid', '==', u.uid)
     .limit(50)
@@ -979,9 +979,9 @@ async function fsRequestWithdraw(amount, pixKey, opts) {
   pixKey = String(pixKey || '').trim();
   if (!pixKey) throw new Error('Informe a chave Pix.');
   var mode = (opts.mode === 'turbo') ? 'turbo' : 'normal';
-  // TESTE: normal 2 min, turbo 30s. Producao: normal ~2 dias uteis, turbo 30 min
-  var NORMAL_MS = (typeof window.BLOXZUH_SAQUE_NORMAL_MS === 'number') ? window.BLOXZUH_SAQUE_NORMAL_MS : (2 * 60 * 1000);
-  var TURBO_MS = (typeof window.BLOXZUH_SAQUE_TURBO_MS === 'number') ? window.BLOXZUH_SAQUE_TURBO_MS : (30 * 1000);
+  // Normal: 10 dias | Turbo: 30 min
+  var NORMAL_MS = (typeof window.BLOXZUH_SAQUE_NORMAL_MS === 'number') ? window.BLOXZUH_SAQUE_NORMAL_MS : (10 * 24 * 60 * 60 * 1000);
+  var TURBO_MS = (typeof window.BLOXZUH_SAQUE_TURBO_MS === 'number') ? window.BLOXZUH_SAQUE_TURBO_MS : (30 * 60 * 1000);
   var TURBO_FEE = (typeof window.BLOXZUH_SAQUE_TURBO_FEE === 'number') ? window.BLOXZUH_SAQUE_TURBO_FEE : 2.00;
   var fee = mode === 'turbo' ? TURBO_FEE : 0;
   var delayMs = mode === 'turbo' ? TURBO_MS : NORMAL_MS;

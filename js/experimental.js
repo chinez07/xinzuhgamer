@@ -10,7 +10,7 @@ function isExperimental() {
 function setExperimental(on) {
   var logged = localStorage.getItem('xinzuh-logged') === 'true';
   if (!logged) {
-    alert('Entre na sua conta para usar a versão experimental.');
+    if (typeof showToast==='function') showToast('Entre na sua conta para usar a versão experimental.'); else console.log('Entre na conta');
     var t = document.getElementById('expToggle');
     if (t) t.checked = false;
     return;
