@@ -118,24 +118,77 @@ async function fsMarkAllNotifsRead() {
 
 function setBadgeCount(count) {
   var badge = document.getElementById('notifBadge');
+  if (!badge) {
+    var btn = document.getElementById('notifBellBtn');
+    if (btn) {
+      badge = document.createElement('span');
+      badge.className = 'badge-count';
+      badge.id = 'notifBadge';
+      btn.appendChild(badge);
+    }
+  }
   if (!badge) return;
+  count = Number(count) || 0;
   if (count > 0) {
     badge.style.display = 'flex';
+    badge.style.visibility = 'visible';
+    badge.style.opacity = '1';
     badge.textContent = count > 99 ? '99+' : String(count);
+    badge.setAttribute('aria-label', count + ' notificações');
   } else {
     badge.style.display = 'none';
     badge.textContent = '';
   }
 }
 
+var _notifUnsub = null;
+function startNotifRealtime(uid) {
+  if (_notifUnsub) { try { _notifUnsub(); } catch (e) {} _notifUnsub = null; }
+  if (!uid || !firebase.firestore) {
+    setBadgeCount(getLocalNotifs(uid).filter(function (n) { return !n.read; }).length);
+    return;
+  }
+  try {
+    _notifUnsub = firebase.firestore().collection('notifications')
+      .where('userId', '==', uid)
+      .onSnapshot(function (snap) {
+        var unread = 0;
+        snap.forEach(function (doc) {
+          var d = doc.data() || {};
+          if (!d.read) unread++;
+        });
+        // merge local
+        getLocalNotifs(uid).forEach(function (n) {
+          if (!n.read && !snap.docs.some(function (x) { return x.id === n.id; })) unread++;
+        });
+        setBadgeCount(unread);
+      }, function (err) {
+        console.warn('[Bloxzuh] notif realtime', err);
+        fsGetMyNotifications(50).then(function (list) {
+          setBadgeCount(list.filter(function (n) { return !n.read; }).length);
+        }).catch(function () {});
+      });
+  } catch (e) {
+    console.warn(e);
+    updateNotifBadgeOnce(uid);
+  }
+}
+
+function updateNotifBadgeOnce(uid) {
+  setBadgeCount(getLocalNotifs(uid).filter(function (n) { return !n.read; }).length);
+  if (!uid) return;
+  fsGetMyNotifications(50).then(function (list) {
+    setBadgeCount(list.filter(function (n) { return !n.read; }).length);
+  }).catch(function () {});
+}
+
 function updateNotifBadge() {
   var u = null;
   try { u = firebase.auth && firebase.auth().currentUser; } catch (e) {}
-  setBadgeCount(getLocalNotifs(u && u.uid).filter(function (n) { return !n.read; }).length);
-  if (u) {
-    fsGetMyNotifications(50).then(function (list) {
-      setBadgeCount(list.filter(function (n) { return !n.read; }).length);
-    }).catch(function () {});
+  if (u) startNotifRealtime(u.uid);
+  else {
+    if (_notifUnsub) { try { _notifUnsub(); } catch (e) {} _notifUnsub = null; }
+    setBadgeCount(0);
   }
 }
 
@@ -143,23 +196,38 @@ function updateNotifBadge() {
 function setupNotifBell() {
   var btn = document.getElementById('notifBellBtn');
   if (!btn) return;
-  if (btn.dataset.bound === '1') return;
+  if (!document.getElementById('notifBadge')) {
+    var b = document.createElement('span');
+    b.className = 'badge-count';
+    b.id = 'notifBadge';
+    b.style.display = 'none';
+    btn.appendChild(b);
+  }
+  if (btn.dataset.bound === '1') {
+    updateNotifBadge();
+    return;
+  }
   btn.dataset.bound = '1';
   btn.addEventListener('click', function (e) {
     e.preventDefault();
     e.stopPropagation();
     window.location.href = 'notificacoes.html';
   });
-  // remove empty panel if exists
   var panel = document.getElementById('notifPanel');
   if (panel) panel.remove();
   var ov = document.getElementById('notifOverlay');
   if (ov) ov.remove();
   updateNotifBadge();
   try {
-    firebase.auth().onAuthStateChanged(function () { updateNotifBadge(); });
+    firebase.auth().onAuthStateChanged(function (user) {
+      if (user) startNotifRealtime(user.uid);
+      else {
+        if (_notifUnsub) { try { _notifUnsub(); } catch (e) {} _notifUnsub = null; }
+        setBadgeCount(0);
+      }
+    });
   } catch (e) {}
-  setTimeout(updateNotifBadge, 1500);
+  setTimeout(updateNotifBadge, 800);
 }
 
 window.timeAgo = timeAgo;
