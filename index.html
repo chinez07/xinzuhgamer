@@ -1810,41 +1810,65 @@ if (typeof renderUserMenu === 'function') {
 }
 
 async function loadFirestoreAdsHome() {
+  var premiumScroll = document.getElementById('premiumScroll');
+  var featuredScroll = document.getElementById('featuredScroll');
+  var emptyHtml = '<p style="padding:20px;color:var(--text-muted);text-align:center;width:100%">Nenhum anúncio publicado ainda. Seja o primeiro a <a href="anunciar.html" style="color:var(--primary);font-weight:700">anunciar</a>!</p>';
+  var errHtml = '<p style="padding:16px;color:var(--text-muted)">Não foi possível carregar os anúncios. <a href="javascript:location.reload()" style="color:var(--primary);font-weight:700">Tentar de novo</a></p>';
+
+  function renderEmpty() {
+    if (premiumScroll) premiumScroll.innerHTML = emptyHtml;
+    if (featuredScroll) featuredScroll.innerHTML = emptyHtml;
+  }
+  function renderErr() {
+    if (premiumScroll) premiumScroll.innerHTML = errHtml;
+    if (featuredScroll) featuredScroll.innerHTML = errHtml;
+  }
+
   try {
-    if (typeof fsGetPublicAds !== 'function') return;
+    // espera fsGetPublicAds ficar disponível (scripts async / cache)
+    var tries = 0;
+    while (typeof fsGetPublicAds !== 'function' && tries < 25) {
+      await new Promise(function (r) { setTimeout(r, 200); });
+      tries++;
+    }
+    if (typeof fsGetPublicAds !== 'function') {
+      console.warn('fsGetPublicAds indisponível');
+      renderErr();
+      return;
+    }
+
     var live = await fsGetPublicAds(40);
-    live = live.filter(function(a){
+    live = (live || []).filter(function (a) {
       var st = (a.raw && a.raw.status) || a.status || 'ativo';
       return st === 'ativo';
     });
-    /* photos */;
-    const premiumScroll = document.getElementById('premiumScroll');
-    const featuredScroll = document.getElementById('featuredScroll');
-    const emptyHtml = '<p style="padding:20px;color:var(--text-muted);text-align:center;width:100%">Nenhum anúncio publicado ainda. Seja o primeiro a <a href="anunciar.html" style="color:var(--primary);font-weight:700">anunciar</a>!</p>';
     if (!live.length) {
-      if (premiumScroll) premiumScroll.innerHTML = emptyHtml;
-      if (featuredScroll) featuredScroll.innerHTML = emptyHtml;
+      renderEmpty();
       return;
     }
     window.adsDataLive = live;
-    if (window.BloxzuhPhotos) await BloxzuhPhotos.attachToAds(live); else await attachSellerPhotos(live);
-    const CAT_LABELS = {
-      freefire: 'Free Fire',
-      roblox: 'Roblox',
-      valorant: 'Valorant',
-      lol: 'League of Legends',
-      fortnite: 'Fortnite',
-      genshin: 'Genshin Impact',
-      cs2: 'CS2',
-      premium: 'Assinaturas e Premium'
+
+    // fotos: não pode travar a home
+    try {
+      var photoPromise = (window.BloxzuhPhotos && BloxzuhPhotos.attachToAds)
+        ? BloxzuhPhotos.attachToAds(live)
+        : (typeof attachSellerPhotos === 'function' ? attachSellerPhotos(live) : Promise.resolve());
+      await Promise.race([
+        Promise.resolve(photoPromise).catch(function () {}),
+        new Promise(function (r) { setTimeout(r, 2500); })
+      ]);
+    } catch (e) { console.warn('fotos home', e); }
+
+    var CAT_LABELS = {
+      freefire: 'Free Fire', roblox: 'Roblox', valorant: 'Valorant',
+      lol: 'League of Legends', fortnite: 'Fortnite', genshin: 'Genshin Impact',
+      cs2: 'CS2', premium: 'Assinaturas e Premium'
     };
-    // Categoria em foco: última que o usuário abriu (localStorage) ou premium
     var focusCat = (localStorage.getItem('bloxzuh-focus-cat') || 'premium').toLowerCase();
     if (!CAT_LABELS[focusCat]) focusCat = 'premium';
     var dynTitle = document.getElementById('dynamicCatTitle');
     if (dynTitle) dynTitle.textContent = CAT_LABELS[focusCat] || 'Categoria';
 
-    // Destaque home: Ouro + Diamante (Prata NÃO entra)
     var featured = live.filter(function (a) {
       return (typeof bloxzuhIsHomeFeatured === 'function')
         ? bloxzuhIsHomeFeatured(a)
@@ -1853,7 +1877,6 @@ async function loadFirestoreAdsHome() {
     if (typeof bloxzuhSortByVisibility === 'function') featured = bloxzuhSortByVisibility(featured);
     featured = featured.slice(0, 12);
 
-    // Seção de categoria: todos os planos, ordenados Diamante > Ouro > Prata
     var catAds = live.filter(function (a) {
       var c = (a.category || '').toLowerCase();
       if (focusCat === 'premium') return c === 'premium';
@@ -1861,10 +1884,13 @@ async function loadFirestoreAdsHome() {
     });
     if (typeof bloxzuhSortByVisibility === 'function') catAds = bloxzuhSortByVisibility(catAds);
 
+    // se não houver ouro/diamante, mostra os mais recentes na home (não fica vazio eterno)
+    if (!featured.length) featured = live.slice(0, 12);
+
     if (featuredScroll) {
       featuredScroll.innerHTML = featured.length
         ? featured.map(createProductCard).join('')
-        : '<p style="padding:16px;color:var(--text-muted)">Nenhum anúncio em destaque ainda. Anúncios Ouro e Diamante aparecem aqui.</p>';
+        : '<p style="padding:16px;color:var(--text-muted)">Nenhum anúncio em destaque ainda.</p>';
     }
     if (premiumScroll) {
       premiumScroll.innerHTML = catAds.length
@@ -1873,9 +1899,19 @@ async function loadFirestoreAdsHome() {
     }
   } catch (e) {
     console.warn('Firestore home', e);
+    renderErr();
   }
 }
-loadFirestoreAdsHome().then(function(){ if (typeof syncFavButtonsIn==="function") syncFavButtonsIn(document); });
+loadFirestoreAdsHome().then(function () {
+  if (typeof syncFavButtonsIn === 'function') syncFavButtonsIn(document);
+}).catch(function (e) {
+  console.warn(e);
+  var premiumScroll = document.getElementById('premiumScroll');
+  var featuredScroll = document.getElementById('featuredScroll');
+  var errHtml = '<p style="padding:16px;color:var(--text-muted)">Não foi possível carregar. <a href="javascript:location.reload()" style="color:var(--primary)">Recarregar</a></p>';
+  if (premiumScroll) premiumScroll.innerHTML = errHtml;
+  if (featuredScroll) featuredScroll.innerHTML = errHtml;
+});
 (function(){
   var hs = document.getElementById('homeSearch');
   if (hs) hs.addEventListener('keydown', function(e){
