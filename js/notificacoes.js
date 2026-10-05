@@ -117,68 +117,82 @@ async function fsMarkAllNotifsRead() {
 }
 
 function setBadgeCount(count) {
+  var btn = document.getElementById('notifBellBtn');
   var badge = document.getElementById('notifBadge');
-  if (!badge) {
-    var btn = document.getElementById('notifBellBtn');
-    if (btn) {
-      badge = document.createElement('span');
-      badge.className = 'badge-count';
-      badge.id = 'notifBadge';
-      btn.appendChild(badge);
-    }
+  if (!badge && btn) {
+    badge = document.createElement('span');
+    badge.className = 'badge-count';
+    badge.id = 'notifBadge';
+    btn.appendChild(badge);
   }
   if (!badge) return;
   count = Number(count) || 0;
   if (count > 0) {
-    badge.style.display = 'flex';
-    badge.style.visibility = 'visible';
-    badge.style.opacity = '1';
+    badge.classList.add('show');
+    badge.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;line-height:16px;border-radius:999px;align-items:center;justify-content:center;border:2px solid #12121a;z-index:30;pointer-events:none;box-sizing:border-box;';
     badge.textContent = count > 99 ? '99+' : String(count);
     badge.setAttribute('aria-label', count + ' notificações');
   } else {
-    badge.style.display = 'none';
+    badge.classList.remove('show');
+    badge.style.cssText = 'display:none!important';
     badge.textContent = '';
   }
 }
 
 var _notifUnsub = null;
+var _notifPoll = null;
+function countUnreadFromSnap(snap, uid) {
+  var unread = 0;
+  var ids = {};
+  snap.forEach(function (doc) {
+    ids[doc.id] = true;
+    var d = doc.data() || {};
+    if (d.read !== true) unread++;
+  });
+  getLocalNotifs(uid).forEach(function (n) {
+    if (n.read !== true && !ids[n.id]) unread++;
+  });
+  return unread;
+}
 function startNotifRealtime(uid) {
   if (_notifUnsub) { try { _notifUnsub(); } catch (e) {} _notifUnsub = null; }
-  if (!uid || !firebase.firestore) {
-    setBadgeCount(getLocalNotifs(uid).filter(function (n) { return !n.read; }).length);
+  if (_notifPoll) { clearInterval(_notifPoll); _notifPoll = null; }
+  if (!uid) {
+    setBadgeCount(0);
     return;
   }
+  if (!firebase.firestore) {
+    setBadgeCount(getLocalNotifs(uid).filter(function (n) { return n.read !== true; }).length);
+    return;
+  }
+  // poll backup a cada 12s
+  function poll() {
+    fsGetMyNotifications(80).then(function (list) {
+      setBadgeCount(list.filter(function (n) { return n.read !== true; }).length);
+    }).catch(function () {});
+  }
+  poll();
+  _notifPoll = setInterval(poll, 12000);
   try {
     _notifUnsub = firebase.firestore().collection('notifications')
       .where('userId', '==', uid)
       .onSnapshot(function (snap) {
-        var unread = 0;
-        snap.forEach(function (doc) {
-          var d = doc.data() || {};
-          if (!d.read) unread++;
-        });
-        // merge local
-        getLocalNotifs(uid).forEach(function (n) {
-          if (!n.read && !snap.docs.some(function (x) { return x.id === n.id; })) unread++;
-        });
-        setBadgeCount(unread);
+        setBadgeCount(countUnreadFromSnap(snap, uid));
       }, function (err) {
         console.warn('[Bloxzuh] notif realtime', err);
-        fsGetMyNotifications(50).then(function (list) {
-          setBadgeCount(list.filter(function (n) { return !n.read; }).length);
-        }).catch(function () {});
+        poll();
       });
   } catch (e) {
     console.warn(e);
-    updateNotifBadgeOnce(uid);
+    poll();
   }
 }
 
 function updateNotifBadgeOnce(uid) {
-  setBadgeCount(getLocalNotifs(uid).filter(function (n) { return !n.read; }).length);
+  setBadgeCount(getLocalNotifs(uid).filter(function (n) { return n.read !== true; }).length);
   if (!uid) return;
   fsGetMyNotifications(50).then(function (list) {
-    setBadgeCount(list.filter(function (n) { return !n.read; }).length);
+    setBadgeCount(list.filter(function (n) { return n.read !== true; }).length);
   }).catch(function () {});
 }
 
