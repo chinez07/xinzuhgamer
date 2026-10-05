@@ -416,8 +416,8 @@
     function validateAcc(name) {
       if (name === 'title') {
         var t = (document.getElementById('title').value || '').trim();
-        if (!t) { alert('Preencha o título do anúncio.'); document.getElementById('title').focus(); return false; }
-        if (!state.model) { alert('Selecione o modelo do anúncio (Normal ou Dinâmico).'); return false; }
+        if (!t) { showMsg('Preencha o título do anúncio.', 'err'); document.getElementById('title').focus(); return false; }
+        if (!state.model) { showMsg('Selecione o modelo do anúncio (Normal ou Dinâmico).', 'err'); return false; }
         return true;
       }
       if (name === 'price') {
@@ -425,7 +425,7 @@
           markDynErrors();
           var items = getDynItems();
           if (items.length < 1) {
-            alert('No modelo Dinâmico, preencha pelo menos 1 item (título e preço).');
+            showMsg('No modelo Dinâmico, preencha pelo menos 1 item (título e preço).', 'err');
             return false;
           }
           state.items = items;
@@ -435,11 +435,11 @@
             var pRaw = String(cards[i].querySelector('.dyn-price').value || '').replace(',', '.');
             var p = parseFloat(pRaw);
             if (!n && !(p > 0)) continue; // vazio ok
-            if (n && !(p > 0)) { alert('Item #' + (i+1) + ': informe o preço.'); return false; }
-            if (!n && p > 0) { alert('Item #' + (i+1) + ': informe o título.'); return false; }
+            if (n && !(p > 0)) { showMsg('Item #' + (i+1) + ': informe o preço.', 'err'); return false; }
+            if (!n && p > 0) { showMsg('Item #' + (i+1) + ': informe o título.', 'err'); return false; }
           }
           if (items.length < 1) {
-            alert('Preencha pelo menos 1 item completo (título e preço).');
+            showMsg('Preencha pelo menos 1 item completo (título e preço).', 'err');
             return false;
           }
           // confirma quantidade
@@ -448,23 +448,23 @@
         }
         var price = parseFloat(document.getElementById('price').value);
         var stock = parseInt(document.getElementById('stock').value, 10);
-        if (!(price > 0)) { alert('Informe o valor do anúncio.'); document.getElementById('price').focus(); return false; }
-        if (!(stock >= 1)) { alert('Informe a quantidade em estoque (mínimo 1).'); document.getElementById('stock').focus(); return false; }
+        if (!(price > 0)) { showMsg('Informe o valor do anúncio.', 'err'); document.getElementById('price').focus(); return false; }
+        if (!(stock >= 1)) { showMsg('Informe a quantidade em estoque (mínimo 1).', 'err'); document.getElementById('stock').focus(); return false; }
         return true;
       }
       if (name === 'cat') {
-        if (!document.getElementById('category').value) { alert('Selecione a categoria.'); return false; }
-        if (!document.getElementById('subcategory').value) { alert('Selecione a subcategoria.'); return false; }
+        if (!document.getElementById('category').value) { showMsg('Selecione a categoria.', 'err'); return false; }
+        if (!document.getElementById('subcategory').value) { showMsg('Selecione a subcategoria.', 'err'); return false; }
         var origin = document.getElementById('origin');
         var acc = document.getElementById('accountInfo');
-        if (origin && !origin.value) { alert('Selecione a Procedência.'); return false; }
-        if (acc && !acc.value) { alert('Selecione as Informações da conta.'); return false; }
+        if (origin && !origin.value) { showMsg('Selecione a Procedência.', 'err'); return false; }
+        if (acc && !acc.value) { showMsg('Selecione as Informações da conta.', 'err'); return false; }
         return true;
       }
       if (name === 'desc') {
         var d = (document.getElementById('desc') && document.getElementById('desc').value || '').trim();
-        if (!d) { alert('A descrição do anúncio é obrigatória.'); document.getElementById('desc').focus(); return false; }
-        if (d.length < 10) { alert('Escreva uma descrição um pouco mais completa (mín. 10 caracteres).'); document.getElementById('desc').focus(); return false; }
+        if (!d) { showMsg('A descrição do anúncio é obrigatória.', 'err'); document.getElementById('desc').focus(); return false; }
+        if (d.length < 10) { showMsg('Escreva uma descrição um pouco mais completa (mín. 10 caracteres).', 'err'); document.getElementById('desc').focus(); return false; }
         return true;
       }
       return true;
@@ -495,7 +495,7 @@
             if (i === 0 || order[i] === 'title') {
               if (!validateAcc(order[i])) { ev.stopImmediatePropagation(); return; }
             } else {
-              alert('Complete a etapa anterior antes de continuar.');
+              showMsg('Complete a etapa anterior antes de continuar.', 'err');
               openAcc(order[i]);
               ev.stopImmediatePropagation();
               return;
@@ -560,7 +560,7 @@
       box.appendChild(card);
       card.querySelector('.dyn-del').onclick = function(){
         if (document.querySelectorAll('#dynItems .dyn-card').length <= 1) {
-          alert('Precisa ter pelo menos 1 item no anúncio dinâmico.');
+          showMsg('Precisa ter pelo menos 1 item no anúncio dinâmico.', 'err');
           return;
         }
         card.remove();
@@ -758,14 +758,14 @@
           try { openAcc('title'); } catch (e) {}
         } catch (err) {
           console.error(err);
-          alert('Erro ao continuar: ' + (err.message || err));
+          showMsg('Erro ao continuar: ' + (err.message || err, 'err'));
         }
       });
     }
     document.getElementById('btnToImages').addEventListener('click', () => {
       if (state.model === 'dinamico') {
         var _items = getDynItems();
-        if (!_items.length) { alert('No modelo Dinâmico, adicione pelo menos 1 item com nome e preço.'); return; }
+        if (!_items.length) { showMsg('No modelo Dinâmico, adicione pelo menos 1 item com nome e preço.', 'err'); return; }
         state.items = _items;
         var minP = _items[0].price, sumS = 0;
         _items.forEach(function(it){ if (it.price < minP) minP = it.price; sumS += (Number(it.stock)||0); });
@@ -826,7 +826,7 @@
             listItems = getDynItems();
             if ((!listItems || !listItems.length) && state.items && state.items.length) listItems = state.items;
             if (!listItems.length) {
-              alert('Anúncio dinâmico precisa de pelo menos 1 item com título e preço.');
+              showMsg('Anúncio dinâmico precisa de pelo menos 1 item com título e preço.', 'err');
               openAcc('price');
               btn.disabled = false;
               return;
@@ -843,13 +843,13 @@
           var sectionEl = document.getElementById('section');
           var typeEl = document.getElementById('productType');
           if (originEl && !originEl.value) {
-            alert('Selecione a Procedência.');
+            showMsg('Selecione a Procedência.', 'err');
             openAcc('cat');
             btn.disabled = false;
             return;
           }
           if (accEl && !accEl.value) {
-            alert('Selecione as Informações da conta.');
+            showMsg('Selecione as Informações da conta.', 'err');
             openAcc('cat');
             btn.disabled = false;
             return;

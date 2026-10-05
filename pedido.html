@@ -285,10 +285,10 @@
           var fn = typeof fsAddReview === 'function' ? fsAddReview : window.fsAddReview;
           if (typeof fn !== 'function') throw new Error('Sistema de avaliação indisponível. Atualize a página.');
           await fn(order, picked, (document.getElementById('revComment').value||'').trim());
-          alert('Avaliação enviada! Obrigado.');
+          bloxzuhMsg('Avaliação enviada! Obrigado.', 'ok');
           await reload();
         } catch(e) {
-          alert(e.message||'Erro ao avaliar');
+          bloxzuhMsg(e.message||'Erro ao avaliar', 'err');
           this.disabled = false;
           this.textContent = 'Enviar avaliação';
         }
@@ -336,9 +336,9 @@
           var fn = typeof fsAddBuyerReview === 'function' ? fsAddBuyerReview : window.fsAddBuyerReview;
           if (typeof fn !== 'function') throw new Error('Função indisponível. Atualize a página.');
           await fn(order, pickedB, (document.getElementById('revCommentBuyer').value||'').trim());
-          alert('Avaliação do comprador enviada!');
+          bloxzuhMsg('Avaliação do comprador enviada!', 'ok');
           await reload();
-        } catch(e) { alert(e.message||'Erro'); this.disabled = false; }
+        } catch(e) { bloxzuhMsg(e.message||'Erro', 'err'); this.disabled = false; }
       };
     }
 
@@ -383,7 +383,7 @@
       if (!t) return;
       b.disabled = true;
       try { await sendMsg(t); await reload(); }
-      catch (e) { alert(e.message || 'Erro ao enviar'); b.disabled = false; }
+      catch (e) { bloxzuhMsg(e.message || 'Erro ao enviar', 'err'); b.disabled = false; }
     };
   }
 
@@ -416,5 +416,18 @@
     }
   });
   </script>
+<div id="siteMsg" style="display:none;position:fixed;left:12px;right:12px;bottom:18px;z-index:9999;padding:12px 14px;border-radius:12px;font-weight:700;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35)"></div>
+<script>
+window.bloxzuhMsg = function(t, type) {
+  var el = document.getElementById('siteMsg');
+  if (!el) { console.log(t); return; }
+  el.textContent = t;
+  el.style.display = 'block';
+  el.style.background = type === 'err' ? '#7f1d1d' : '#14532d';
+  el.style.color = '#fff';
+  clearTimeout(window.__bzMsgT);
+  window.__bzMsgT = setTimeout(function(){ el.style.display = 'none'; }, 3500);
+};
+</script>
 </body>
 </html>
