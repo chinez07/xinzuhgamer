@@ -493,7 +493,7 @@
           if (!lastSeen && d.lastSeenMs && typeof d.lastSeenMs.toMillis === 'function') {
             lastSeen = d.lastSeenMs.toMillis();
           }
-          var on = lastSeen > 0 && (Date.now() - lastSeen) < 180000;
+          var on = lastSeen > 0 && (Date.now() - lastSeen) < 240000;
           if (typeof isUserOnline === 'function' && lastSeen) {
             on = isUserOnline({ lastSeenMs: lastSeen });
           }
