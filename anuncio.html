@@ -222,7 +222,7 @@
       try { return JSON.parse(localStorage.getItem(qKey(adId)) || '[]'); } catch (e) { return []; }
     }
     function saveQuestions(adId, list) {
-      localStorage.setItem(qKey(adId), JSON.stringify(list));
+      try { localStorage.setItem(qKey(adId), JSON.stringify(list)); } catch (e) {}
     }
 
     async function main() {
@@ -302,6 +302,15 @@
       ];
 
       let questions = getQuestions(ad.id);
+      try {
+        if (typeof fsGetAdQuestions === 'function') {
+          var fromFs = await fsGetAdQuestions(ad.id);
+          if (fromFs && fromFs.length) {
+            questions = fromFs;
+            saveQuestions(ad.id, questions);
+          }
+        }
+      } catch (eQ) { console.warn(eQ); }
       // normalize old questions without timestamp
       questions = questions.map(function (q, i) {
         if (!q.createdAtMs) {
@@ -720,43 +729,58 @@
           location.href = q;
         };
       }
+
+      function refreshQList() {
+        var ql = document.getElementById('qList');
+        if (ql) { ql.innerHTML = renderQuestions(); bindReplyButtons(); }
+        try {
+          if (window.BloxzuhPhotos && typeof BloxzuhPhotos.hydrate === 'function') BloxzuhPhotos.hydrate(ql || document);
+        } catch (e) {}
+      }
       function bindReplyButtons() {
         document.querySelectorAll('[data-send-reply]').forEach(function (btn) {
-          btn.onclick = function () {
+          btn.onclick = async function () {
             var idx = parseInt(btn.getAttribute('data-send-reply'), 10);
             var ta = document.querySelector('textarea[data-reply="' + idx + '"]');
             var text = (ta && ta.value || '').trim();
             if (!text) { alert('Digite a resposta.'); return; }
-            questions[idx].reply = text;
-            questions[idx].repliedAtMs = Date.now();
-            questions[idx].replyName = sellerName;
-            questions[idx].replyUid = sellerUid;
+            if (!questions[idx]) return;
+            var qid = questions[idx].id;
+            var replyPhoto = '';
             try {
-              questions[idx].replyPhoto = (window.BloxzuhPhotos && sellerUid)
+              replyPhoto = (window.BloxzuhPhotos && sellerUid)
                 ? (BloxzuhPhotos.cache[sellerUid] || BloxzuhPhotos.getLocal(sellerUid) || '')
                 : '';
-            } catch (e1) { questions[idx].replyPhoto = ''; }
-            // tenta buscar foto async e atualizar depois
-            if (window.BloxzuhPhotos && sellerUid) {
-              BloxzuhPhotos.fetch(sellerUid).then(function(ph) {
-                if (ph) {
-                  questions[idx].replyPhoto = ph;
-                  saveQuestions(ad.id, questions);
-                }
-              });
+            } catch (e1) {}
+            btn.disabled = true;
+            try {
+              if (typeof fsReplyAdQuestion === 'function' && qid) {
+                await fsReplyAdQuestion(qid, {
+                  reply: text,
+                  replyName: sellerName,
+                  replyPhoto: replyPhoto
+                });
+              }
+              questions[idx].reply = text;
+              questions[idx].repliedAtMs = Date.now();
+              questions[idx].replyName = sellerName;
+              questions[idx].replyUid = sellerUid;
+              questions[idx].replyPhoto = replyPhoto;
+              saveQuestions(ad.id, questions);
+              if (questions[idx].userId && typeof fsAddNotification === 'function') {
+                fsAddNotification(questions[idx].userId, {
+                  type: 'resposta',
+                  title: 'Resposta no anúncio',
+                  body: sellerName + ': ' + text.slice(0, 120),
+                  link: 'anuncio.html?id=' + encodeURIComponent(ad.id),
+                  createdAtMs: Date.now()
+                });
+              }
+              refreshQList();
+            } catch (e) {
+              alert((e && e.message) || 'Erro ao responder');
+              btn.disabled = false;
             }
-            saveQuestions(ad.id, questions);
-            if (questions[idx].userId && typeof fsAddNotification === 'function') {
-              fsAddNotification(questions[idx].userId, {
-                type: 'resposta',
-                title: 'O vendedor te respondeu no anúncio',
-                body: ad.title + ': ' + text.slice(0, 120),
-                link: 'anuncio.html?id=' + encodeURIComponent(ad.id),
-                createdAtMs: Date.now()
-              });
-            }
-            document.getElementById('qList').innerHTML = renderQuestions();
-            bindReplyButtons();
           };
         });
       }
@@ -764,46 +788,72 @@
 
       var btnAsk = document.getElementById('btnAsk');
       if (btnAsk) {
-        btnAsk.onclick = function () {
+        btnAsk.onclick = async function () {
           if (isOwner) { alert('O vendedor só pode responder perguntas.'); return; }
-          const logged = localStorage.getItem('xinzuh-logged') === 'true';
-          if (!logged) { alert('Entre na sua conta para perguntar.'); location.href = 'login.html'; return; }
+          var fu = null;
+          try { fu = firebase.auth().currentUser; } catch (e) {}
+          if (!fu) { alert('Entre na sua conta para perguntar.'); location.href = 'login.html'; return; }
           const text = (document.getElementById('qInput').value || '').trim();
           if (!text) { alert('Digite a pergunta.'); return; }
           if (/whatsapp|discord|instagram|@gmail|http/i.test(text)) {
             alert('Não é permitido enviar contatos externos.');
             return;
           }
-          const user = localStorage.getItem('xinzuh-username') || 'Usuário';
-          var askerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
+          const user = fu.displayName || localStorage.getItem('xinzuh-username') || (fu.email ? fu.email.split('@')[0] : 'Usuário');
+          var askerUid = fu.uid;
           var askerPhoto = '';
           try {
-            askerPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(askerUid)) || localStorage.getItem('xinzuh-photo') || '';
+            askerPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(askerUid)) || localStorage.getItem('xinzuh-photo') || fu.photoURL || '';
           } catch (e0) {}
-          questions.unshift({
-            id: Date.now(),
-            user: user,
-            userUid: askerUid,
-            userId: askerUid,
-            userPhoto: askerPhoto,
-            text: text,
-            reply: '',
-            createdAtMs: Date.now()
-          });
-          if (sellerUid && typeof fsAddNotification === 'function') {
-            fsAddNotification(sellerUid, {
-              type: 'pergunta',
-              title: 'Nova pergunta no anúncio',
-              body: user + ': ' + text.slice(0, 120),
-              link: 'anuncio.html?id=' + encodeURIComponent(ad.id),
-              createdAtMs: Date.now()
-            });
+          btnAsk.disabled = true;
+          try {
+            var created = null;
+            if (typeof fsAddAdQuestion === 'function') {
+              created = await fsAddAdQuestion(ad.id, {
+                sellerUid: sellerUid,
+                user: user,
+                userPhoto: askerPhoto,
+                text: text
+              });
+            }
+            if (created) {
+              questions.unshift(created);
+            } else {
+              questions.unshift({
+                id: 'local' + Date.now(),
+                user: user, userUid: askerUid, userId: askerUid, userPhoto: askerPhoto,
+                text: text, reply: '', createdAtMs: Date.now()
+              });
+            }
+            if (sellerUid && typeof fsAddNotification === 'function') {
+              fsAddNotification(sellerUid, {
+                type: 'pergunta',
+                title: 'Nova pergunta no anúncio',
+                body: user + ': ' + text.slice(0, 120),
+                link: 'anuncio.html?id=' + encodeURIComponent(ad.id),
+                createdAtMs: Date.now()
+              });
+            }
+            saveQuestions(ad.id, questions);
+            document.getElementById('qInput').value = '';
+            refreshQList();
+          } catch (e) {
+            alert((e && e.message) || 'Erro ao enviar pergunta');
           }
-          saveQuestions(ad.id, questions);
-          document.getElementById('qInput').value = '';
-          document.getElementById('qList').innerHTML = renderQuestions();
-          bindReplyButtons();
+          btnAsk.disabled = false;
         };
+      }
+
+      // Tempo real: novas perguntas/respostas
+      if (typeof fsListenAdQuestions === 'function') {
+        try {
+          fsListenAdQuestions(ad.id, function (list) {
+            if (!list) return;
+            questions = list;
+            saveQuestions(ad.id, questions);
+            refreshQList();
+          });
+        } catch (eL) { console.warn(eL); }
       }
 
       // Wait for auth to refine isOwner if page loaded before auth ready
