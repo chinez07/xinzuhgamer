@@ -80,7 +80,24 @@
     document.body.style.backgroundRepeat = '';
   }
 
+  function isPainelPage() {
+    try {
+      var p = (location.pathname || '').toLowerCase();
+      return p.indexOf('painel') !== -1;
+    } catch (e) { return false; }
+  }
+
   function applyExperimentalBackground() {
+    // Painel do vendedor: fundo escuro fixo (sem experimental)
+    if (isPainelPage()) {
+      try {
+        clearBgLayer();
+        var btn0 = document.getElementById('bgChangeBtn');
+        if (btn0) btn0.classList.remove('show');
+        if (btn0) btn0.style.display = 'none';
+      } catch (e) {}
+      return;
+    }
     var btn = document.getElementById('bgChangeBtn');
     var on = isExperimental() && isLogged();
     if (btn) btn.classList.toggle('show', !!on);
