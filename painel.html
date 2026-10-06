@@ -1553,15 +1553,37 @@ img { max-width: 100%; display: block; }
         marked.push(ord.id);
       }
 
-      
-      // Só recalcula se o prazo antigo for longo (> 1h). Nao reinicia o timer a cada reload.
+
+      // NUNCA reinicia o prazo. releaseAtMs só é definido na criação do item.
+      // Se faltar releaseAtMs (dado antigo), usa paidAt/createdAt + 10 dias uma única vez.
+      // Se o timer foi "resetado" por bug antigo (releaseAt ≈ now+10d), corrige 1x pelo paidAt do pedido.
+      var orderPaid = {};
+      orders.forEach(function (o) {
+        orderPaid[o.id] = Number(o.paidAtMs) || Number(o.updatedAtMs) || Number(o.createdAtMs) || 0;
+      });
       items = items.map(function (it) {
         if (it.released) return it;
-        var left = (Number(it.releaseAtMs) || 0) - now;
-        if (!it.releaseAtMs || left > 60 * 60 * 1000) {
-          return Object.assign({}, it, { releaseAtMs: now + releaseMs, releaseFixed: true });
+        var rel = Number(it.releaseAtMs) || 0;
+        var paid = Number(it.paidAtMs) || orderPaid[it.orderId] || Number(it.createdAtMs) || 0;
+        // se não tem prazo, cria a partir do pagamento
+        if (!rel) {
+          var base = paid || now;
+          return Object.assign({}, it, { releaseAtMs: base + releaseMs, paidAtMs: paid || base });
         }
-        return it;
+        // se o prazo parece ter sido reiniciado (falta quase 10 dias de novo), e temos paidAt real
+        if (paid > 0 && !it.releaseLocked) {
+          var correct = paid + releaseMs;
+          var almostFull = (rel - now) > (releaseMs - 2 * 60 * 60 * 1000); // falta > 10d - 2h
+          var paidWasAgo = (now - paid) > 5 * 60 * 1000; // pagamento há mais de 5 min
+          if (almostFull && paidWasAgo) {
+            return Object.assign({}, it, {
+              releaseAtMs: correct,
+              paidAtMs: paid,
+              releaseLocked: true
+            });
+          }
+        }
+        return Object.assign({}, it, { releaseLocked: true });
       });
 
       // liberar vencidos
