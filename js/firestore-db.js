@@ -1120,6 +1120,103 @@ window.fsSaveProfile = fsSaveProfile;
 window.fsGetProfile = fsGetProfile;
 
 
+
+/** Perguntas do anúncio (Firestore — sincroniza entre celulares) */
+async function fsGetAdQuestions(adId) {
+  if (!adId) return [];
+  var list = [];
+  try {
+    var snap = await getDb().collection('adQuestions').where('adId', '==', String(adId)).limit(100).get();
+    snap.forEach(function (doc) {
+      var d = doc.data() || {};
+      list.push({
+        id: doc.id,
+        user: d.user || 'Usuário',
+        userUid: d.userUid || d.userId || '',
+        userId: d.userId || d.userUid || '',
+        userPhoto: d.userPhoto || '',
+        text: d.text || '',
+        reply: d.reply || '',
+        replyName: d.replyName || '',
+        replyUid: d.replyUid || '',
+        replyPhoto: d.replyPhoto || '',
+        createdAtMs: d.createdAtMs || 0,
+        repliedAtMs: d.repliedAtMs || 0
+      });
+    });
+  } catch (e) { console.warn('fsGetAdQuestions', e); }
+  list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+  return list;
+}
+window.fsGetAdQuestions = fsGetAdQuestions;
+
+async function fsAddAdQuestion(adId, data) {
+  var u = requireUser();
+  adId = String(adId);
+  var qid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('AQ') : ('AQ' + Date.now().toString(36).toUpperCase());
+  var row = {
+    adId: adId,
+    sellerUid: data.sellerUid || '',
+    user: data.user || (u.displayName || 'Usuário'),
+    userUid: u.uid,
+    userId: u.uid,
+    userPhoto: data.userPhoto || '',
+    text: String(data.text || '').slice(0, 1000),
+    reply: '',
+    createdAtMs: Date.now(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  await getDb().collection('adQuestions').doc(qid).set(row);
+  return Object.assign({ id: qid }, row);
+}
+window.fsAddAdQuestion = fsAddAdQuestion;
+
+async function fsReplyAdQuestion(qid, data) {
+  var u = requireUser();
+  if (!qid) throw new Error('Pergunta inválida');
+  await getDb().collection('adQuestions').doc(String(qid)).set({
+    reply: String(data.reply || '').slice(0, 2000),
+    replyName: data.replyName || u.displayName || 'Vendedor',
+    replyUid: u.uid,
+    replyPhoto: data.replyPhoto || '',
+    repliedAtMs: Date.now()
+  }, { merge: true });
+}
+window.fsReplyAdQuestion = fsReplyAdQuestion;
+
+function fsListenAdQuestions(adId, onChange) {
+  if (!adId || typeof onChange !== 'function') return function () {};
+  try {
+    return getDb().collection('adQuestions').where('adId', '==', String(adId))
+      .onSnapshot(function (snap) {
+        var list = [];
+        snap.forEach(function (doc) {
+          var d = doc.data() || {};
+          list.push({
+            id: doc.id,
+            user: d.user || 'Usuário',
+            userUid: d.userUid || d.userId || '',
+            userId: d.userId || d.userUid || '',
+            userPhoto: d.userPhoto || '',
+            text: d.text || '',
+            reply: d.reply || '',
+            replyName: d.replyName || '',
+            replyUid: d.replyUid || '',
+            replyPhoto: d.replyPhoto || '',
+            createdAtMs: d.createdAtMs || 0,
+            repliedAtMs: d.repliedAtMs || 0
+          });
+        });
+        list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
+        onChange(list);
+      }, function (err) { console.warn('listen questions', err); });
+  } catch (e) {
+    console.warn(e);
+    return function () {};
+  }
+}
+window.fsListenAdQuestions = fsListenAdQuestions;
+
 /** Presença online: ativo se lastSeenMs nos últimos 4 minutos */
 function isUserOnline(profileOrMs) {
   var ms = 0;
