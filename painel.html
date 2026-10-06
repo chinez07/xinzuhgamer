@@ -80,11 +80,41 @@
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: none;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
 }
+body.exp-bg {
+  background-color: transparent !important;
+  background-image: var(--exp-bg-image) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-attachment: fixed !important;
+  background-repeat: no-repeat !important;
+}
+body.exp-bg .stat-card,
+body.exp-bg .dash-card,
+body.exp-bg table,
+body.exp-bg .table-wrap,
+body.exp-bg .ad-table,
+body.exp-bg .painel-panel.active,
+body.exp-bg .card-box {
+  background: rgba(22, 22, 31, 0.78) !important;
+  backdrop-filter: blur(10px);
+}
+body.exp-bg .header,
+body.exp-bg header.header,
+body.exp-bg .painel-top {
+  background: rgba(15, 15, 20, 0.88) !important;
+  backdrop-filter: blur(12px);
+}
+
 
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
@@ -1014,6 +1044,38 @@ body.exp-bg #painelNav,
 body.exp-bg .painel-nav {
   background: rgba(20,20,28,.9) !important;
 }
+
+#bzBgLayer {
+  display: none;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+body.exp-bg {
+  background-color: transparent !important;
+}
+body.exp-bg .container,
+body.exp-bg main,
+body.exp-bg .painel-main,
+body.exp-bg .wrap {
+  position: relative;
+  z-index: 1;
+}
+body.exp-bg .stat-card,
+body.exp-bg .dash-card,
+body.exp-bg .table-wrap,
+body.exp-bg table,
+body.exp-bg .ad-table,
+body.exp-bg .painel-panel,
+body.exp-bg .painel-panel.active {
+  background: rgba(22, 22, 31, 0.72) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
 </style>
 
   <style>
@@ -1353,6 +1415,38 @@ body.exp-bg [class*="panel"] {
 body.exp-bg #painelNav,
 body.exp-bg .painel-nav {
   background: rgba(20,20,28,.9) !important;
+}
+
+#bzBgLayer {
+  display: none;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+body.exp-bg {
+  background-color: transparent !important;
+}
+body.exp-bg .container,
+body.exp-bg main,
+body.exp-bg .painel-main,
+body.exp-bg .wrap {
+  position: relative;
+  z-index: 1;
+}
+body.exp-bg .stat-card,
+body.exp-bg .dash-card,
+body.exp-bg .table-wrap,
+body.exp-bg table,
+body.exp-bg .ad-table,
+body.exp-bg .painel-panel,
+body.exp-bg .painel-panel.active {
+  background: rgba(22, 22, 31, 0.72) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 </style>
 
@@ -2175,6 +2269,21 @@ body.exp-bg .painel-nav {
         }).catch(function () {});
       }, 8000);
     });
+  // aplica fundo experimental no painel
+  function __bzApplyPainelBg() {
+    try {
+      if (typeof applyExperimentalBackground === 'function') applyExperimentalBackground();
+      else if (typeof loadFromProfileThenApply === 'function') {}
+    } catch (e) {}
+  }
+  setTimeout(__bzApplyPainelBg, 500);
+  setTimeout(__bzApplyPainelBg, 1500);
+  setTimeout(__bzApplyPainelBg, 3000);
+  try {
+    if (firebase && firebase.auth) {
+      firebase.auth().onAuthStateChanged(function () { setTimeout(__bzApplyPainelBg, 300); });
+    }
+  } catch (e) {}
   })();
   </script>
 </body>
