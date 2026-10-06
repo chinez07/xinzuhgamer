@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-mode="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1131,7 +1131,9 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
 #notifBellBtn { position: relative !important; overflow: visible !important; }
 #notifBadge.show { display: flex !important; }
 </style>
-</head>
+<script>
+(function(){document.documentElement.setAttribute('data-mode','dark');localStorage.setItem('xinzuh-mode','dark');})();
+</script></head>
 <body>
   <!-- Header -->
   <header class="header">
@@ -1381,9 +1383,9 @@ const modeToggle = document.getElementById('modeToggle');
 const modeToggleMenu = document.getElementById('modeToggleMenu');
 
 const savedTheme = localStorage.getItem('xinzuh-theme') || 'purple';
-const savedMode = localStorage.getItem('xinzuh-mode') || 'light';
+const savedMode = 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
-document.documentElement.setAttribute('data-mode', savedMode);
+document.documentElement.setAttribute('data-mode', 'dark');
 updateActiveTheme(savedTheme);
 
 if (themeToggle) {
@@ -1411,13 +1413,7 @@ function updateActiveTheme(theme) {
   });
 }
 
-function toggleMode() {
-  const current = document.documentElement.getAttribute('data-mode');
-  const next = current === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-mode', next);
-  localStorage.setItem('xinzuh-mode', next);
-  updateModeLabels(next);
-}
+function toggleMode(){ document.documentElement.setAttribute('data-mode','dark'); localStorage.setItem('xinzuh-mode','dark'); }
 
 function updateModeLabels(mode) {
   document.querySelectorAll('[data-mode-label]').forEach(el => {
@@ -1438,7 +1434,7 @@ function renderUserMenu() {
   if (!dropdown) return;
   const isLoggedIn = localStorage.getItem('xinzuh-logged') === 'true';
   const userName = localStorage.getItem('xinzuh-username') || 'Jogador';
-  const mode = document.documentElement.getAttribute('data-mode') || localStorage.getItem('xinzuh-mode') || 'light';
+  const mode = document.documentElement.getAttribute('data-mode') || 'dark';
   const modeIcon = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   const modeLabel = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
 
@@ -1650,7 +1646,7 @@ renderUserMenu = function () {
 
 window.doLogin = doLogin;
 window.doLogout = doLogout;
-window.toggleMode = toggleMode;
+window.toggleMode = function(){ document.documentElement.setAttribute('data-mode','dark'); localStorage.setItem('xinzuh-mode','dark'); };
 
 renderUserMenu();
 (function syncExpToggle(){

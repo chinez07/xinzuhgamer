@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-mode="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -951,7 +951,7 @@ img { max-width: 100%; display: block; }
 .fav:not(.is-fav) i { color: #fff; opacity: 0.95; }
 
 </style>
-</head>
+<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script></head>
 <body>
   <header class="header">
     <div class="container header-content">
@@ -1081,7 +1081,7 @@ const modeToggle = document.getElementById('modeToggle');
 const modeToggleMenu = document.getElementById('modeToggleMenu');
 
 const savedTheme = localStorage.getItem('xinzuh-theme') || 'purple';
-const savedMode = localStorage.getItem('xinzuh-mode') || 'light';
+const savedMode = localStorage.getItem('xinzuh-mode') || 'dark';
 document.documentElement.setAttribute('data-theme', savedTheme);
 document.documentElement.setAttribute('data-mode', savedMode);
 updateActiveTheme(savedTheme);
@@ -1138,7 +1138,7 @@ function renderUserMenu() {
   if (!dropdown) return;
   const isLoggedIn = localStorage.getItem('xinzuh-logged') === 'true';
   const userName = localStorage.getItem('xinzuh-username') || 'Jogador';
-  const mode = document.documentElement.getAttribute('data-mode') || localStorage.getItem('xinzuh-mode') || 'light';
+  const mode = document.documentElement.getAttribute('data-mode') || localStorage.getItem('xinzuh-mode') || 'dark';
   const modeIcon = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   const modeLabel = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
 

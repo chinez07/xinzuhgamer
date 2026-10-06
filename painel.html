@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-mode="dark" data-theme="purple">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,12 +12,12 @@
   --primary-hover: #6d28d9;
   --primary-light: #ede9fe;
   --primary-soft: rgba(124, 58, 237, 0.12);
-  --bg: #f8f7fc;
-  --bg-card: #ffffff;
-  --bg-header: #ffffff;
-  --text: #1a1a2e;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
+  --bg: #0f0f14;
+  --bg-card: #16161f;
+  --bg-header: #14141c;
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --border: #2a2a36;
   --shadow: 0 2px 12px rgba(0,0,0,0.06);
   --shadow-hover: 0 8px 24px rgba(124, 58, 237, 0.15);
   --radius: 14px;
@@ -971,8 +971,8 @@ img { max-width: 100%; display: block; }
 
 .saque-mode { text-align:left; line-height:1.3; padding:12px; }
 .saque-mode small { font-weight:400; opacity:.8; }
-.saque-mode.on { border-color:#7c3aed !important; background:#f5f3ff !important; color:#5b21b6 !important; }
-.wd-item { border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #7c3aed; background:#fff; }
+.saque-mode.on { border-color:#7c3aed !important; background:rgba(124,58,237,.2) !important; color:#c4b5fd !important; }
+.wd-item { border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #7c3aed; background:var(--bg-card); }
 .wd-item .st { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.75rem; font-weight:700; }
 .wd-item .st-ok { background:#dcfce7; color:#166534; }
 .wd-item .st-wait { background:#fef3c7; color:#92400e; }
@@ -1273,13 +1273,21 @@ img { max-width: 100%; display: block; }
 
 .saque-mode { text-align:left; line-height:1.3; padding:12px; }
 .saque-mode small { font-weight:400; opacity:.8; }
-.saque-mode.on { border-color:#7c3aed !important; background:#f5f3ff !important; color:#5b21b6 !important; }
-.wd-item { border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #7c3aed; background:#fff; }
+.saque-mode.on { border-color:#7c3aed !important; background:rgba(124,58,237,.2) !important; color:#c4b5fd !important; }
+.wd-item { border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px; border-left:4px solid #7c3aed; background:var(--bg-card); }
 .wd-item .st { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.75rem; font-weight:700; }
 .wd-item .st-ok { background:#dcfce7; color:#166534; }
 .wd-item .st-wait { background:#fef3c7; color:#92400e; }
 </style>
 
+<script>
+/* bloxzuh-force-dark */
+(function(){
+  document.documentElement.setAttribute('data-mode','dark');
+  document.documentElement.setAttribute('data-theme', localStorage.getItem('xinzuh-theme')||'purple');
+  localStorage.setItem('xinzuh-mode','dark');
+})();
+</script>
 </head>
 <body>
   <header class="header">
@@ -1386,7 +1394,7 @@ img { max-width: 100%; display: block; }
           <div class="stat-card"><div class="label">Disponível</div><div class="value" id="walletSaldo">R$ 0,00</div></div>
           <div class="stat-card"><div class="label">A liberar</div><div class="value" id="walletPending">R$ 0,00</div></div>
         </div>
-        <div id="walletPendingList" style="margin:12px 0 18px;font-size:0.9rem;color:#6b7280"></div>
+        <div id="walletPendingList" style="margin:12px 0 18px;font-size:0.9rem;color:var(--text-muted)"></div>
         <div class="form-card">
           <div class="form-group">
             <label>Tipo de saque</label>
@@ -1767,10 +1775,10 @@ img { max-width: 100%; display: block; }
         });
         return;
       }
-      listEl.innerHTML = '<strong style="color:#374151">Valores a liberar</strong>' +
+      listEl.innerHTML = '<strong style="color:var(--text)">Valores a liberar</strong>' +
         pending.map(function (it) {
           var at = Number(it.releaseAtMs) || 0;
-          return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #e5e7eb">' +
+          return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">' +
             '<span>#' + escapeHtml(it.code || it.orderId || '') + ' · ' + money(it.amount) + '</span>' +
             '<span data-release-at="' + at + '" style="font-variant-numeric:tabular-nums;white-space:nowrap">em ' + releaseCountdown(at) + '</span></div>';
         }).join('');
@@ -1835,13 +1843,13 @@ img { max-width: 100%; display: block; }
         var orderLink = r.orderId
           ? ('pedido.html?id='+encodeURIComponent(r.orderId))
           : '#';
-        return '<a class="sale-item" href="'+orderLink+'" style="display:flex;gap:12px;align-items:flex-start;text-decoration:none;color:inherit;padding:12px;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:10px;background:#fff">' +
+        return '<a class="sale-item" href="'+orderLink+'" style="display:flex;gap:12px;align-items:flex-start;text-decoration:none;color:inherit;padding:12px;border:1px solid var(--border);border-radius:12px;margin-bottom:10px;background:var(--bg-card)">' +
           av +
           '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;justify-content:space-between;gap:8px">' + nameLink +
           '<span style="color:#f59e0b">' + '★'.repeat(st) + '☆'.repeat(5-st) + '</span></div>' +
-          (r.comment ? ('<div style="color:#6b7280;font-size:0.9rem;margin-top:4px">' + escapeHtml(r.comment) + '</div>') : '') +
-          '<div style="color:#9ca3af;font-size:0.8rem;margin-top:4px">' + escapeHtml(r.adTitle || r.itemName || 'Pedido') +
+          (r.comment ? ('<div style="color:var(--text-muted);font-size:0.9rem;margin-top:4px">' + escapeHtml(r.comment) + '</div>') : '') +
+          '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px">' + escapeHtml(r.adTitle || r.itemName || 'Pedido') +
           (r.orderId ? ' · Abrir chat' : '') + '</div>' +
           '</div></a>';
       }).join('');
@@ -1979,9 +1987,9 @@ img { max-width: 100%; display: block; }
           return '<div class="wd-item"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
             '<strong>#' + (w.id||'') + '</strong> <span class="st ' + stClass + '">' + stLabel + '</span></div>' +
             '<div style="margin-top:6px;font-size:0.9rem">Retirada Pix (' + (w.mode==='turbo'?'Turbo':'Normal') + ')</div>' +
-            '<div style="font-size:0.85rem;color:#6b7280;margin-top:4px">Para: ' + (w.pixKey||'') + ' · Valor: R$ ' + (Number(w.amount)||0).toFixed(2).replace('.',',') +
+            '<div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px">Para: ' + (w.pixKey||'') + ' · Valor: R$ ' + (Number(w.amount)||0).toFixed(2).replace('.',',') +
             (w.fee ? (' · Taxa: R$ ' + Number(w.fee).toFixed(2).replace('.',',')) : '') + '</div>' +
-            '<div style="font-size:0.8rem;color:#9ca3af;margin-top:4px">Solicitado em ' + when + (left ? (' · ' + left) : '') + '</div></div>';
+            '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">Solicitado em ' + when + (left ? (' · ' + left) : '') + '</div></div>';
         }).join('');
       } catch (e) {
         el.innerHTML = '<p class="sub">Nao foi possivel carregar o historico.</p>';
