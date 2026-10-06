@@ -1700,64 +1700,76 @@ img { max-width: 100%; display: block; }
       });
     }
 
-        function releaseCountdown(ms) {
+    function releaseCountdown(ms) {
       var left = Math.max(0, (ms || 0) - Date.now());
       if (left <= 0) return 'liberando…';
-      var s = Math.ceil(left / 1000);
+      var s = Math.floor(left / 1000);
       var d = Math.floor(s / 86400);
       s = s % 86400;
       var h = Math.floor(s / 3600);
       s = s % 3600;
       var m = Math.floor(s / 60);
       s = s % 60;
-      if (d > 0) return d + 'd ' + h + 'h';
-      if (h > 0) return h + 'h ' + m + 'm';
+      // sempre mostra o máximo de detalhe possível para o usuário ver mexer
+      if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
+      if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
       if (m > 0) return m + 'm ' + s + 's';
       return s + 's';
     }
 
-    function renderWallet() {
-      document.getElementById('walletSaldo').textContent = money(cacheWallet.saldo);
-      document.getElementById('walletPending').textContent = money(cacheWallet.pending);
-
-    if (window.walletCountdownTimer) clearInterval(window.walletCountdownTimer);
-    window.walletCountdownTimer = setInterval(function () {
+    function paintPendingCountdowns() {
       var listEl = document.getElementById('walletPendingList');
       if (!listEl || !cacheWallet || !Array.isArray(cacheWallet.pendingItems)) return;
       var pending = cacheWallet.pendingItems.filter(function (it) { return !it.released; });
-      if (!pending.length) return;
-      // se algum venceu, recarrega carteira
-      var now = Date.now();
-      var expired = pending.some(function (it) { return it.releaseAtMs && it.releaseAtMs <= now; });
-      if (expired) {
-        if (typeof loadAll === 'function') loadAll();
-        else if (typeof syncSellerEverything === 'function') syncSellerEverything().then(function(){ if (typeof renderWallet==='function') renderWallet(); });
-        return;
-      }
-      // so atualiza textos de countdown
-      var html = '<div style="margin-bottom:6px;font-weight:600">Valores a liberar</div>';
-      pending.forEach(function (it) {
-        html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">' +
-          '<span>#' + (it.code || it.orderId || '') + ' · ' + money(it.amount) + '</span>' +
-          '<span>em ' + releaseCountdown(it.releaseAtMs) + '</span></div>';
-      });
-      listEl.innerHTML = html;
-    }, 1000);
-
-      try { renderSaqueHistorico(); } catch(e) {}
-      var listEl = document.getElementById('walletPendingList');
-      if (!listEl) return;
-      var items = (cacheWallet.pendingItems || []).filter(function (it) { return !it.released; });
-      if (!items.length) {
+      if (!pending.length) {
         listEl.innerHTML = '<p style="margin:0">Nenhum valor a liberar no momento.</p>';
         return;
       }
+      var now = Date.now();
+      var expired = pending.some(function (it) { return it.releaseAtMs && it.releaseAtMs <= now; });
+      if (expired) {
+        if (typeof syncSellerEverything === 'function') {
+          syncSellerEverything().then(function (w) {
+            if (w) cacheWallet = w;
+            renderWallet();
+          }).catch(function () {});
+        }
+        return;
+      }
+      // atualiza só os spans de tempo (não recria a lista inteira se já existir)
+      var timers = listEl.querySelectorAll('[data-release-at]');
+      if (timers.length) {
+        timers.forEach(function (el) {
+          var at = Number(el.getAttribute('data-release-at')) || 0;
+          el.textContent = 'em ' + releaseCountdown(at);
+        });
+        return;
+      }
       listEl.innerHTML = '<strong style="color:#374151">Valores a liberar</strong>' +
-        items.map(function (it) {
+        pending.map(function (it) {
+          var at = Number(it.releaseAtMs) || 0;
           return '<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #e5e7eb">' +
-            '<span>#' + escapeHtml(it.code || it.orderId) + ' · ' + money(it.amount) + '</span>' +
-            '<span>em ' + releaseCountdown(it.releaseAtMs) + '</span></div>';
+            '<span>#' + escapeHtml(it.code || it.orderId || '') + ' · ' + money(it.amount) + '</span>' +
+            '<span data-release-at="' + at + '" style="font-variant-numeric:tabular-nums;white-space:nowrap">em ' + releaseCountdown(at) + '</span></div>';
         }).join('');
+    }
+
+    function ensureWalletCountdown() {
+      if (window.walletCountdownTimer) return;
+      window.walletCountdownTimer = setInterval(paintPendingCountdowns, 1000);
+    }
+
+    function renderWallet() {
+      var elS = document.getElementById('walletSaldo');
+      var elP = document.getElementById('walletPending');
+      if (elS) elS.textContent = money(cacheWallet.saldo);
+      if (elP) elP.textContent = money(cacheWallet.pending);
+      try { renderSaqueHistorico(); } catch (e) {}
+      // força recriar lista com data-release-at
+      var listEl = document.getElementById('walletPendingList');
+      if (listEl) listEl.innerHTML = '';
+      paintPendingCountdowns();
+      ensureWalletCountdown();
     }
 
     var cacheReviews = [];
