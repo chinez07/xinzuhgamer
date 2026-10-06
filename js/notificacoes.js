@@ -117,25 +117,54 @@ async function fsMarkAllNotifsRead() {
 }
 
 function setBadgeCount(count) {
+  count = Number(count) || 0;
   var btn = document.getElementById('notifBellBtn');
+  if (!btn) return;
+
+  // garante overflow e position
+  btn.style.position = 'relative';
+  btn.style.overflow = 'visible';
+  var wrap = btn.parentElement;
+  if (wrap) { wrap.style.position = 'relative'; wrap.style.overflow = 'visible'; }
+
   var badge = document.getElementById('notifBadge');
-  if (!badge && btn) {
+  if (!badge) {
     badge = document.createElement('span');
-    badge.className = 'badge-count';
     badge.id = 'notifBadge';
+    badge.className = 'badge-count';
     btn.appendChild(badge);
   }
-  if (!badge) return;
-  count = Number(count) || 0;
+
   if (count > 0) {
-    badge.classList.add('show');
-    badge.style.cssText = 'display:flex!important;visibility:visible!important;opacity:1!important;position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;line-height:16px;border-radius:999px;align-items:center;justify-content:center;border:2px solid #12121a;z-index:30;pointer-events:none;box-sizing:border-box;';
+    badge.className = 'badge-count show';
     badge.textContent = count > 99 ? '99+' : String(count);
-    badge.setAttribute('aria-label', count + ' notificações');
+    badge.style.cssText = [
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'position:absolute',
+      'top:-4px',
+      'right:-6px',
+      'min-width:17px',
+      'height:17px',
+      'padding:0 4px',
+      'background:#ef4444',
+      'color:#ffffff',
+      'font-size:10px',
+      'font-weight:800',
+      'line-height:1',
+      'border-radius:999px',
+      'border:2px solid #12121a',
+      'z-index:999',
+      'pointer-events:none',
+      'box-sizing:border-box',
+      'visibility:visible',
+      'opacity:1'
+    ].join('!important;') + '!important;';
   } else {
-    badge.classList.remove('show');
-    badge.style.cssText = 'display:none!important';
+    badge.className = 'badge-count';
     badge.textContent = '';
+    badge.style.cssText = 'display:none!important';
   }
 }
 
@@ -260,3 +289,12 @@ if (document.readyState === 'loading') {
 setTimeout(setupNotifBell, 800);
 
 console.log('[Bloxzuh] notificacoes v-notif-readable');
+
+window.__bzNotifBoot = true;
+setInterval(function () {
+  try {
+    if (typeof updateNotifBadge === 'function' && firebase.auth && firebase.auth().currentUser) {
+      /* keep realtime; poll already in startNotifRealtime */
+    }
+  } catch (e) {}
+}, 30000);

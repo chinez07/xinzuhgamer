@@ -64,12 +64,22 @@
     if (!on) {
       document.body.classList.remove('exp-bg');
       document.body.style.removeProperty('--exp-bg-image');
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundSize = '';
+      document.body.style.backgroundPosition = '';
+      document.body.style.backgroundAttachment = '';
+      document.body.style.backgroundRepeat = '';
       return;
     }
     var idx = getBgIndex();
     if (idx < 0) {
       document.body.classList.remove('exp-bg');
       document.body.style.removeProperty('--exp-bg-image');
+      document.body.style.backgroundImage = '';
+      document.body.style.backgroundSize = '';
+      document.body.style.backgroundPosition = '';
+      document.body.style.backgroundAttachment = '';
+      document.body.style.backgroundRepeat = '';
       return;
     }
     var list = isMobileView() ? BG_MOBILE : BG_PC;
@@ -77,6 +87,11 @@
     var url = list[safeIdx];
     document.body.classList.add('exp-bg');
     document.body.style.setProperty('--exp-bg-image', 'url("' + url + '")');
+    document.body.style.backgroundImage = 'url("' + url + '")';
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundRepeat = 'no-repeat';
   }
 
   function persistToProfile(patch) {
