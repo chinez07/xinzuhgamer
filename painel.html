@@ -80,8 +80,9 @@
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: var(--bg);
-  background-image: none;
+  background-color: #0f0f14 !important;
+  background-image: none !important;
+  /* painel solid dark */
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -90,30 +91,9 @@ body {
   line-height: 1.5;
   min-height: 100vh;
 }
-body.exp-bg {
-  background-color: transparent !important;
-  background-image: var(--exp-bg-image) !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
-}
-body.exp-bg .stat-card,
-body.exp-bg .dash-card,
-body.exp-bg table,
-body.exp-bg .table-wrap,
-body.exp-bg .ad-table,
-body.exp-bg .painel-panel.active,
-body.exp-bg .card-box {
-  background: rgba(22, 22, 31, 0.78) !important;
-  backdrop-filter: blur(10px);
-}
-body.exp-bg .header,
-body.exp-bg header.header,
-body.exp-bg .painel-top {
-  background: rgba(15, 15, 20, 0.88) !important;
-  backdrop-filter: blur(12px);
-}
+/* exp-bg desativado no painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
 
 
 a { color: inherit; text-decoration: none; }
@@ -1007,43 +987,11 @@ img { max-width: 100%; display: block; }
 .wd-item .st-ok { background:#dcfce7; color:#166534; }
 .wd-item .st-wait { background:#fef3c7; color:#92400e; }
 
-body.exp-bg {
-  background-color: transparent !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
-}
-body.exp-bg::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image: var(--exp-bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  pointer-events: none;
-}
-body.exp-bg .painel-header,
-body.exp-bg header,
-body.exp-bg .top-bar {
-  background: rgba(20,20,28,.85) !important;
-  backdrop-filter: blur(10px);
-}
-body.exp-bg .stat-card,
-body.exp-bg .painel-panel,
-body.exp-bg .card,
-body.exp-bg .wd-item,
-body.exp-bg .saque-box,
-body.exp-bg [class*="panel"] {
-  background: rgba(22,22,31,.82) !important;
-  backdrop-filter: blur(8px);
-}
-body.exp-bg #painelNav,
-body.exp-bg .painel-nav {
-  background: rgba(20,20,28,.9) !important;
-}
+/* exp-bg desativado no painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
 
 #bzBgLayer {
   display: none;
@@ -1055,27 +1003,11 @@ body.exp-bg .painel-nav {
   background-position: center !important;
   background-repeat: no-repeat !important;
 }
-body.exp-bg {
-  background-color: transparent !important;
-}
-body.exp-bg .container,
-body.exp-bg main,
-body.exp-bg .painel-main,
-body.exp-bg .wrap {
-  position: relative;
-  z-index: 1;
-}
-body.exp-bg .stat-card,
-body.exp-bg .dash-card,
-body.exp-bg .table-wrap,
-body.exp-bg table,
-body.exp-bg .ad-table,
-body.exp-bg .painel-panel,
-body.exp-bg .painel-panel.active {
-  background: rgba(22, 22, 31, 0.72) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
+/* exp-bg desativado no painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
+#bgChangeBtn{display:none!important}
+#bzBgLayer{display:none!important}
 </style>
 
   <style>
@@ -1379,43 +1311,11 @@ body.exp-bg .painel-panel.active {
 .wd-item .st-ok { background:#dcfce7; color:#166534; }
 .wd-item .st-wait { background:#fef3c7; color:#92400e; }
 
-body.exp-bg {
-  background-color: transparent !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-attachment: fixed !important;
-  background-repeat: no-repeat !important;
-}
-body.exp-bg::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background-image: var(--exp-bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  pointer-events: none;
-}
-body.exp-bg .painel-header,
-body.exp-bg header,
-body.exp-bg .top-bar {
-  background: rgba(20,20,28,.85) !important;
-  backdrop-filter: blur(10px);
-}
-body.exp-bg .stat-card,
-body.exp-bg .painel-panel,
-body.exp-bg .card,
-body.exp-bg .wd-item,
-body.exp-bg .saque-box,
-body.exp-bg [class*="panel"] {
-  background: rgba(22,22,31,.82) !important;
-  backdrop-filter: blur(8px);
-}
-body.exp-bg #painelNav,
-body.exp-bg .painel-nav {
-  background: rgba(20,20,28,.9) !important;
-}
+/* exp-bg desativado no painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
 
 #bzBgLayer {
   display: none;
@@ -1427,27 +1327,11 @@ body.exp-bg .painel-nav {
   background-position: center !important;
   background-repeat: no-repeat !important;
 }
-body.exp-bg {
-  background-color: transparent !important;
-}
-body.exp-bg .container,
-body.exp-bg main,
-body.exp-bg .painel-main,
-body.exp-bg .wrap {
-  position: relative;
-  z-index: 1;
-}
-body.exp-bg .stat-card,
-body.exp-bg .dash-card,
-body.exp-bg .table-wrap,
-body.exp-bg table,
-body.exp-bg .ad-table,
-body.exp-bg .painel-panel,
-body.exp-bg .painel-panel.active {
-  background: rgba(22, 22, 31, 0.72) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
+/* exp-bg desativado no painel */
+/* exp-bg off painel */
+/* exp-bg off painel */
+#bgChangeBtn{display:none!important}
+#bzBgLayer{display:none!important}
 </style>
 
 <script>
@@ -2269,21 +2153,6 @@ body.exp-bg .painel-panel.active {
         }).catch(function () {});
       }, 8000);
     });
-  // aplica fundo experimental no painel
-  function __bzApplyPainelBg() {
-    try {
-      if (typeof applyExperimentalBackground === 'function') applyExperimentalBackground();
-      else if (typeof loadFromProfileThenApply === 'function') {}
-    } catch (e) {}
-  }
-  setTimeout(__bzApplyPainelBg, 500);
-  setTimeout(__bzApplyPainelBg, 1500);
-  setTimeout(__bzApplyPainelBg, 3000);
-  try {
-    if (firebase && firebase.auth) {
-      firebase.auth().onAuthStateChanged(function () { setTimeout(__bzApplyPainelBg, 300); });
-    }
-  } catch (e) {}
   })();
   </script>
 </body>
