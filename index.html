@@ -1129,7 +1129,13 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
 }
 
 #notifBellBtn { position: relative !important; overflow: visible !important; }
-#notifBadge.show { display: flex !important; }
+#notifBadge.show, #notifBadge.badge-count.show {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.notif-wrap, #notifBellBtn { overflow: visible !important; }
+
 </style>
 <script>
 (function(){document.documentElement.setAttribute('data-mode','dark');localStorage.setItem('xinzuh-mode','dark');})();
@@ -1155,7 +1161,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
         <div class="notif-wrap">
           <button class="header-icon-btn" title="Notificações" type="button" id="notifBellBtn">
             <i class="fas fa-bell"></i>
-            <span class="badge-count" id="notifBadge" style="display:none"></span>
+            <span class="badge-count" id="notifBadge"></span>
           </button>
         </div>
         <a class="header-icon-btn" href="compras.html" title="Minhas compras" aria-label="Carrinho">
