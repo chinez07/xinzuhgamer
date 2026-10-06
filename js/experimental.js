@@ -3,22 +3,22 @@
  */
 (function () {
     var BG_MOBILE = [
-    'assets/fundos/mobile1.jpg',
-    'assets/fundos/mobile2.jpg',
-    'assets/fundos/mobile3.jpg',
-    'assets/fundos/mobile4.jpg',
-    'assets/fundos/mobile5.png',
-    'assets/fundos/mobile6.png',
-    'assets/fundos/mobile7.png',
-    'assets/fundos/mobile8.png'
+    '/assets/fundos/mobile1.jpg',
+    '/assets/fundos/mobile2.jpg',
+    '/assets/fundos/mobile3.jpg',
+    '/assets/fundos/mobile4.jpg',
+    '/assets/fundos/mobile5.png',
+    '/assets/fundos/mobile6.png',
+    '/assets/fundos/mobile7.png',
+    '/assets/fundos/mobile8.png'
   ];
   var BG_PC = [
-    'assets/fundos/pc1.jpg',
-    'assets/fundos/pc2.jpg',
-    'assets/fundos/pc3.jpg',
-    'assets/fundos/pc4.png',
-    'assets/fundos/pc5.png',
-    'assets/fundos/pc6.png'
+    '/assets/fundos/pc1.jpg',
+    '/assets/fundos/pc2.jpg',
+    '/assets/fundos/pc3.jpg',
+    '/assets/fundos/pc4.png',
+    '/assets/fundos/pc5.png',
+    '/assets/fundos/pc6.png'
   ];
 
   function currentUser() {
@@ -56,42 +56,85 @@
     return window.matchMedia('(max-width: 768px)').matches;
   }
 
+  function ensureBgLayer() {
+    var layer = document.getElementById('bzBgLayer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'bzBgLayer';
+      layer.setAttribute('aria-hidden', 'true');
+      document.body.insertBefore(layer, document.body.firstChild);
+    }
+    return layer;
+  }
+
+  function clearBgLayer() {
+    var layer = document.getElementById('bzBgLayer');
+    if (layer) layer.style.cssText = 'display:none';
+    document.body.classList.remove('exp-bg');
+    document.documentElement.classList.remove('exp-bg');
+    document.body.style.removeProperty('--exp-bg-image');
+    document.body.style.backgroundImage = '';
+    document.body.style.backgroundSize = '';
+    document.body.style.backgroundPosition = '';
+    document.body.style.backgroundAttachment = '';
+    document.body.style.backgroundRepeat = '';
+  }
+
   function applyExperimentalBackground() {
     var btn = document.getElementById('bgChangeBtn');
     var on = isExperimental() && isLogged();
     if (btn) btn.classList.toggle('show', !!on);
 
     if (!on) {
-      document.body.classList.remove('exp-bg');
-      document.body.style.removeProperty('--exp-bg-image');
-      document.body.style.backgroundImage = '';
-      document.body.style.backgroundSize = '';
-      document.body.style.backgroundPosition = '';
-      document.body.style.backgroundAttachment = '';
-      document.body.style.backgroundRepeat = '';
+      clearBgLayer();
       return;
     }
     var idx = getBgIndex();
     if (idx < 0) {
-      document.body.classList.remove('exp-bg');
-      document.body.style.removeProperty('--exp-bg-image');
-      document.body.style.backgroundImage = '';
-      document.body.style.backgroundSize = '';
-      document.body.style.backgroundPosition = '';
-      document.body.style.backgroundAttachment = '';
-      document.body.style.backgroundRepeat = '';
+      clearBgLayer();
       return;
     }
     var list = isMobileView() ? BG_MOBILE : BG_PC;
     var safeIdx = ((idx % list.length) + list.length) % list.length;
     var url = list[safeIdx];
+    // caminho absoluto sempre
+    if (url && url.charAt(0) !== '/') url = '/' + url.replace(/^\.\//, '');
+
     document.body.classList.add('exp-bg');
+    document.documentElement.classList.add('exp-bg');
     document.body.style.setProperty('--exp-bg-image', 'url("' + url + '")');
+    document.body.style.backgroundColor = 'transparent';
     document.body.style.backgroundImage = 'url("' + url + '")';
     document.body.style.backgroundSize = 'cover';
     document.body.style.backgroundPosition = 'center';
     document.body.style.backgroundAttachment = 'fixed';
     document.body.style.backgroundRepeat = 'no-repeat';
+
+    // camada fixa (funciona mesmo se body CSS sobrescrever)
+    var layer = ensureBgLayer();
+    layer.style.cssText = [
+      'display:block',
+      'position:fixed',
+      'inset:0',
+      'z-index:0',
+      'pointer-events:none',
+      'background-image:url("' + url + '")',
+      'background-size:cover',
+      'background-position:center',
+      'background-repeat:no-repeat'
+    ].join(';');
+
+    // garante que o conteúdo fique acima da camada
+    try {
+      var kids = document.body.children;
+      for (var i = 0; i < kids.length; i++) {
+        if (kids[i].id === 'bzBgLayer') continue;
+        if (kids[i].id === 'bgModal' || kids[i].id === 'bgChangeBtn') continue;
+        var z = window.getComputedStyle(kids[i]).zIndex;
+        if (!z || z === 'auto') kids[i].style.position = kids[i].style.position || 'relative';
+        if (!z || z === 'auto') kids[i].style.zIndex = '1';
+      }
+    } catch (e) {}
   }
 
   function persistToProfile(patch) {
