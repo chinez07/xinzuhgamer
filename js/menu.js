@@ -59,10 +59,7 @@ function renderUserMenu() {
       '<a href="favoritos.html" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>' +
-      '<button type="button" class="user-menu-item" onclick="typeof toggleMode===\'function\' && toggleMode()">' +
-        '<i data-mode-icon class="' + modeIcon + '"></i> ' +
-        '<span data-mode-label>' + modeLabel + '</span>' +
-      '</button>' +
+      '' +
       '<div class="user-menu-divider"></div>' +
       '<div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">' +
         '<span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>' +
@@ -82,10 +79,7 @@ function renderUserMenu() {
       '<a href="login.html" class="user-menu-item"><i class="fas fa-sign-in-alt"></i> Entrar</a>' +
       '<a href="cadastro.html" class="user-menu-item"><i class="fas fa-user-plus"></i> Criar conta</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
-      '<button type="button" class="user-menu-item" onclick="typeof toggleMode===\'function\' && toggleMode()">' +
-        '<i data-mode-icon class="' + modeIcon + '"></i> ' +
-        '<span data-mode-label>' + modeLabel + '</span>' +
-      '</button>' +
+      '' +
       '<div class="user-menu-divider"></div>' +
       '<div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">' +
         '<span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>' +
