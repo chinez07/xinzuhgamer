@@ -107,27 +107,39 @@
     });
   }
   async function sendMsg(text){
-    var messages = Array.isArray(order.messages) ? order.messages.slice() : [];
-    var myPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(currentUser.uid)) || localStorage.getItem('xinzuh-photo') || '';
-    messages.push({
-      id: 'm' + Date.now(),
+    var myPhoto = '';
+    try {
+      myPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(currentUser.uid)) || localStorage.getItem('xinzuh-photo') || '';
+    } catch (e) {}
+    var msg = {
+      id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6),
       text: String(text).slice(0, 2000),
       senderUid: currentUser.uid,
       senderName: currentUser.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
       senderPhoto: myPhoto || '',
       createdAtMs: Date.now(),
       read: false
-    });
-    await firebase.firestore().collection('orders').doc(orderId).update({
-      messages: messages,
-      updatedAtMs: Date.now()
+    };
+    var ref = firebase.firestore().collection('orders').doc(orderId);
+    // transaction evita sobrescrever mensagem do outro lado
+    await firebase.firestore().runTransaction(async function (tx) {
+      var snap = await tx.get(ref);
+      if (!snap.exists) throw new Error('Pedido não encontrado');
+      var data = snap.data() || {};
+      var messages = Array.isArray(data.messages) ? data.messages.slice() : [];
+      messages.push(msg);
+      tx.update(ref, {
+        messages: messages,
+        updatedAtMs: Date.now(),
+        lastMessageAtMs: Date.now()
+      });
     });
   }
 
   function renderChat(){
     var msgs = Array.isArray(order.messages) ? order.messages : [];
     if (!msgs.length) return '<p class="muted">Nenhuma mensagem ainda. Combine a entrega por aqui.</p>';
-    return '<div class="chat">' + msgs.map(function(m){
+    return '<div class="chat" id="chatBox">' + msgs.map(function(m){
       var me = m.senderUid === currentUser.uid;
       var photo = m.senderPhoto || '';
       var letter = (m.senderName || '?').charAt(0).toUpperCase();
@@ -382,8 +394,15 @@
       var t = (document.getElementById('msgIn').value || '').trim();
       if (!t) return;
       b.disabled = true;
-      try { await sendMsg(t); await reload(); }
-      catch (e) { bloxzuhMsg(e.message || 'Erro ao enviar', 'err'); b.disabled = false; }
+      try {
+        await sendMsg(t);
+        document.getElementById('msgIn').value = '';
+        // realtime onSnapshot já atualiza; só reabilita botão
+        b.disabled = false;
+      } catch (e) {
+        bloxzuhMsg(e.message || 'Erro ao enviar', 'err');
+        b.disabled = false;
+      }
     };
   }
 
@@ -410,6 +429,37 @@
         }
       }
       draw();
+      // tempo real: qualquer mudança no pedido (mensagens, status) atualiza a tela
+      if (window.__bzOrderUnsub) { try { window.__bzOrderUnsub(); } catch (e0) {} }
+      window.__bzOrderUnsub = firebase.firestore().collection('orders').doc(orderId)
+        .onSnapshot(function (doc) {
+          if (!doc.exists) return;
+          var prevLen = (order && order.messages && order.messages.length) || 0;
+          var prevStatus = order && order.status;
+          order = Object.assign({ id: doc.id }, doc.data());
+          var newLen = (order.messages && order.messages.length) || 0;
+          // guarda texto digitado
+          var input = document.getElementById('msgIn');
+          var draft = input ? input.value : '';
+          var chatEl = document.getElementById('chatBox');
+          var scrollTop = chatEl ? chatEl.scrollTop : 0;
+          var nearBottom = chatEl ? (chatEl.scrollHeight - chatEl.scrollTop - chatEl.clientHeight < 80) : true;
+          draw();
+          // restaura input
+          input = document.getElementById('msgIn');
+          if (input && draft) input.value = draft;
+          chatEl = document.getElementById('chatBox');
+          if (chatEl) {
+            if (nearBottom || newLen > prevLen) chatEl.scrollTop = chatEl.scrollHeight;
+            else chatEl.scrollTop = scrollTop;
+          }
+          // marca como lidas se a outra pessoa enviou
+          if (newLen > prevLen && typeof markMessagesRead === 'function') {
+            markMessagesRead();
+          }
+        }, function (err) {
+          console.warn('order realtime', err);
+        });
     } catch (e) {
       page.innerHTML = '<p class="muted">Erro: ' + esc(e.message) + '</p>';
       console.error(e);
