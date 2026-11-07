@@ -41,7 +41,7 @@ function renderUserMenu() {
   if (!dropdown) return;
   const isLoggedIn = getLoggedIn();
   const userName = getUserName();
-  const mode = document.documentElement.getAttribute('data-mode') || localStorage.getItem('xinzuh-mode') || 'light';
+  const mode = document.documentElement.getAttribute('data-mode') || localStorage.getItem('xinzuh-mode') || 'dark';
   const modeIcon = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   const modeLabel = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
 
