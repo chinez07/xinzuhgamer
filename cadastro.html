@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-mode="dark">
+<html data-mode="dark" lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +12,13 @@
   --primary-hover: #6d28d9;
   --primary-light: #ede9fe;
   --primary-soft: rgba(124, 58, 237, 0.12);
-  --bg: #f8f7fc;
-  --bg-card: #ffffff;
-  --bg-header: #ffffff;
-  --text: #1a1a2e;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --bg: #0f0f14;
+  --bg-card: #1a1a24;
+  --bg-header: #14141c;
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --border: #2d2d3a;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
   --shadow-hover: 0 8px 24px rgba(124, 58, 237, 0.15);
   --radius: 14px;
   --radius-sm: 10px;
@@ -80,6 +80,7 @@
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #0f0f14;
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
@@ -1136,7 +1137,22 @@ img { max-width: 100%; display: block; }
   .painel-nav a { white-space: nowrap; margin-bottom: 0; }
 }
 </style>
-<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script></head>
+<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script><script>
+(function(){
+  document.documentElement.setAttribute('data-mode','dark');
+  localStorage.setItem('xinzuh-mode','dark');
+  // impede voltar para claro
+  try {
+    var obs = new MutationObserver(function(){
+      if (document.documentElement.getAttribute('data-mode') !== 'dark') {
+        document.documentElement.setAttribute('data-mode','dark');
+      }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+  } catch(e){}
+})();
+</script>
+</head>
 <body>
 
   <header class="header">

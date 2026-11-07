@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-mode="dark">
+<html data-mode="dark" lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,8 +16,9 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
+  font-family: system-ui, -apple-system, sans-serif;
+      background-color: #0f0f14;
+  background: var(--bg);
       color: var(--text);
       min-height: 100vh;
     }
@@ -95,7 +96,22 @@
     }
     .empty { text-align: center; color: var(--muted); padding: 40px 16px; grid-column: 1 / -1; }
   </style>
-<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script></head>
+<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script><script>
+(function(){
+  document.documentElement.setAttribute('data-mode','dark');
+  localStorage.setItem('xinzuh-mode','dark');
+  // impede voltar para claro
+  try {
+    var obs = new MutationObserver(function(){
+      if (document.documentElement.getAttribute('data-mode') !== 'dark') {
+        document.documentElement.setAttribute('data-mode','dark');
+      }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+  } catch(e){}
+})();
+</script>
+</head>
 <body>
   <div class="top">
     <a class="logo" href="index.html">

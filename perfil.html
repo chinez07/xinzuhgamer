@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-mode="dark">
+<html data-mode="dark" lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,9 @@
       --primary: #7c3aed; --bg: #0f0f14; --card: #16161f; --text: #f3f4f6; --muted: #9ca3af; --border: #2a2a36; --ok: #22c55e;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    body {
+  font-family: system-ui, sans-serif; background-color: #0f0f14;
+  background: var(--bg); color: var(--text); }
     .top {
       display: flex; align-items: center; justify-content: space-between;
       padding: 10px 14px; background: var(--card); border-bottom: 1px solid var(--border);
@@ -83,7 +85,22 @@
     .recebido-label { font-size: 0.7rem; color: var(--muted); display:block; margin-bottom: 2px; text-align: right; }
 
 </style>
-<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script></head>
+<script>(function(){document.documentElement.setAttribute("data-mode","dark");localStorage.setItem("xinzuh-mode","dark");})();</script><script>
+(function(){
+  document.documentElement.setAttribute('data-mode','dark');
+  localStorage.setItem('xinzuh-mode','dark');
+  // impede voltar para claro
+  try {
+    var obs = new MutationObserver(function(){
+      if (document.documentElement.getAttribute('data-mode') !== 'dark') {
+        document.documentElement.setAttribute('data-mode','dark');
+      }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+  } catch(e){}
+})();
+</script>
+</head>
 <body>
   <div class="top">
     <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>

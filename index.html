@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-mode="dark">
+<html data-mode="dark" lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,13 +12,13 @@
   --primary-hover: #6d28d9;
   --primary-light: #ede9fe;
   --primary-soft: rgba(124, 58, 237, 0.12);
-  --bg: #f8f7fc;
-  --bg-card: #ffffff;
-  --bg-header: #ffffff;
-  --text: #1a1a2e;
-  --text-muted: #6b7280;
-  --border: #e5e7eb;
-  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --bg: #0f0f14;
+  --bg-card: #1a1a24;
+  --bg-header: #14141c;
+  --text: #f3f4f6;
+  --text-muted: #9ca3af;
+  --border: #2d2d3a;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
   --shadow-hover: 0 8px 24px rgba(124, 58, 237, 0.15);
   --radius: 14px;
   --radius-sm: 10px;
@@ -80,7 +80,7 @@
 
 body {
   font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--text);
   line-height: 1.5;
   min-height: 100vh;
@@ -1139,7 +1139,22 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
 </style>
 <script>
 (function(){document.documentElement.setAttribute('data-mode','dark');localStorage.setItem('xinzuh-mode','dark');})();
-</script></head>
+</script><script>
+(function(){
+  document.documentElement.setAttribute('data-mode','dark');
+  localStorage.setItem('xinzuh-mode','dark');
+  // impede voltar para claro
+  try {
+    var obs = new MutationObserver(function(){
+      if (document.documentElement.getAttribute('data-mode') !== 'dark') {
+        document.documentElement.setAttribute('data-mode','dark');
+      }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+  } catch(e){}
+})();
+</script>
+</head>
 <body>
   <!-- Header -->
   <header class="header">
@@ -1419,12 +1434,7 @@ function updateActiveTheme(theme) {
   });
 }
 
-function toggleMode(){ document.documentElement.setAttribute('data-mode','dark'); localStorage.setItem('xinzuh-mode','dark'); }
-
-function updateModeLabels(mode) {
-  document.querySelectorAll('[data-mode-label]').forEach(el => {
-    el.textContent = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
-  });
+function toggleMode(){ document.documentElement.setAttribute('data-mode','dark'); localStorage.setItem('xinzuh-mode','dark'); });
   document.querySelectorAll('[data-mode-icon]').forEach(el => {
     el.className = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
   });

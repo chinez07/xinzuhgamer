@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-mode="dark" data-theme="purple">
+<html data-mode="dark" lang="pt-BR" data-theme="purple">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,7 +18,7 @@
   --text: #f3f4f6;
   --text-muted: #9ca3af;
   --border: #2a2a36;
-  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
   --shadow-hover: 0 8px 24px rgba(124, 58, 237, 0.15);
   --radius: 14px;
   --radius-sm: 10px;
@@ -1340,6 +1340,21 @@ img { max-width: 100%; display: block; }
   document.documentElement.setAttribute('data-mode','dark');
   document.documentElement.setAttribute('data-theme', localStorage.getItem('xinzuh-theme')||'purple');
   localStorage.setItem('xinzuh-mode','dark');
+})();
+</script>
+<script>
+(function(){
+  document.documentElement.setAttribute('data-mode','dark');
+  localStorage.setItem('xinzuh-mode','dark');
+  // impede voltar para claro
+  try {
+    var obs = new MutationObserver(function(){
+      if (document.documentElement.getAttribute('data-mode') !== 'dark') {
+        document.documentElement.setAttribute('data-mode','dark');
+      }
+    });
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+  } catch(e){}
 })();
 </script>
 </head>
