@@ -177,7 +177,15 @@
       applyExperimentalBackground();
     }).catch(function () { applyExperimentalBackground(); });
   }
+  function injectCatFix() {
+    if (document.getElementById('bz-exp-cat-fix')) return;
+    var s = document.createElement('style');
+    s.id = 'bz-exp-cat-fix';
+    s.textContent = 'body.exp-bg .category-card{background:rgba(15,10,25,.92)!important;border:1px solid rgba(167,139,250,.35)!important;box-shadow:0 4px 16px rgba(0,0,0,.35)}body.exp-bg .category-card h3{color:#f3f4f6!important;text-shadow:0 1px 3px rgba(0,0,0,.8)!important;background:rgba(10,6,18,.55);margin:0}body.exp-bg .product-card{background:rgba(15,10,25,.92)!important;border:1px solid rgba(167,139,250,.25)!important}body.exp-bg .product-body h3,body.exp-bg .product-price,body.exp-bg .product-seller{color:#f3f4f6!important}';
+    document.head.appendChild(s);
+  }
   function boot() {
+    injectCatFix();
     forceDarkBg();
     wireModal();
     applyExperimentalBackground();
