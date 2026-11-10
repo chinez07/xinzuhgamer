@@ -1,5 +1,5 @@
 /**
- * Versão experimental + escolher fundo (por conta) - v dark-only
+ * Versão experimental + escolher fundo (por conta) - v dark-only + live apply
  */
 (function () {
   var BG_MOBILE = [
@@ -10,6 +10,7 @@
     '/assets/fundos/pc1.jpg','/assets/fundos/pc2.jpg','/assets/fundos/pc3.jpg',
     '/assets/fundos/pc4.png','/assets/fundos/pc5.png','/assets/fundos/pc6.png'
   ];
+
   function currentUser() {
     try { if (typeof firebase !== 'undefined' && firebase.auth) return firebase.auth().currentUser; } catch (e) {}
     return null;
@@ -34,9 +35,29 @@
   function isPainelPage() {
     try { return (location.pathname || '').toLowerCase().indexOf('painel') !== -1; } catch (e) { return false; }
   }
+
+  function injectCatFix() {
+    var css =
+      'body.exp-bg .category-card{background:rgba(15,10,25,.94)!important;border:1px solid rgba(167,139,250,.4)!important;box-shadow:0 4px 16px rgba(0,0,0,.4)}' +
+      'body.exp-bg .category-card h3{color:#f3f4f6!important;text-shadow:0 1px 3px rgba(0,0,0,.9)!important;background:rgba(10,6,18,.7)!important;margin:0;padding:10px 8px 12px;display:block}' +
+      'body.exp-bg .product-card{background:rgba(15,10,25,.94)!important;border:1px solid rgba(167,139,250,.28)!important}' +
+      'body.exp-bg .product-body h3,body.exp-bg .product-price,body.exp-bg .product-seller{color:#f3f4f6!important}' +
+      'body.exp-bg .header{background:rgba(15,10,25,.9)!important;backdrop-filter:blur(10px)}' +
+      'body.exp-bg .footer{background:rgba(15,10,25,.9)!important}' +
+      'body.exp-bg .section-title,body.exp-bg .hero-tag,body.exp-bg .hero-sub{color:#f3f4f6!important;text-shadow:0 2px 8px rgba(0,0,0,.7)}' +
+      'body.exp-bg main,body.exp-bg .container,body.exp-bg .section,body.exp-bg .hero{position:relative;z-index:1}' +
+      '#bzBgLayer{position:fixed;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat}';
+    var s = document.getElementById('bz-exp-cat-fix');
+    if (!s) {
+      s = document.createElement('style');
+      s.id = 'bz-exp-cat-fix';
+      document.head.appendChild(s);
+    }
+    s.textContent = css;
+  }
+
   function forceDarkBg() {
     document.documentElement.setAttribute('data-mode', 'dark');
-    document.body.style.backgroundColor = '#0f0f14';
     try {
       var s = document.getElementById('bzForceDarkBg');
       if (!s) {
@@ -47,48 +68,87 @@
       }
     } catch (e) {}
   }
+
+  function ensureLayer() {
+    var layer = document.getElementById('bzBgLayer');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'bzBgLayer';
+      if (document.body.firstChild) document.body.insertBefore(layer, document.body.firstChild);
+      else document.body.appendChild(layer);
+    }
+    return layer;
+  }
+
   function clearBg() {
     document.body.classList.remove('exp-bg');
     document.documentElement.classList.remove('exp-bg');
-    document.body.style.backgroundImage = '';
+    document.body.style.backgroundImage = 'none';
     document.body.style.backgroundColor = '#0f0f14';
+    document.documentElement.style.removeProperty('--exp-bg-image');
     var layer = document.getElementById('bzBgLayer');
-    if (layer) layer.style.display = 'none';
+    if (layer) {
+      layer.style.backgroundImage = 'none';
+      layer.style.display = 'none';
+    }
     forceDarkBg();
   }
+
   function applyExperimentalBackground() {
+    injectCatFix();
     forceDarkBg();
+
     if (isPainelPage()) {
       var b = document.getElementById('bgChangeBtn');
-      if (b) b.style.display = 'none';
+      if (b) { b.classList.remove('show'); b.style.display = 'none'; }
       clearBg();
       return;
     }
+
     var btn = document.getElementById('bgChangeBtn');
     var on = isExperimental() && isLogged();
-    if (btn) btn.classList.toggle('show', !!on);
-    if (!on) { clearBg(); return; }
+    if (btn) {
+      btn.classList.toggle('show', !!on);
+      btn.style.display = on ? '' : 'none';
+    }
+
+    if (!on) {
+      clearBg();
+      return;
+    }
+
     var idx = getBgIndex();
-    if (idx < 0) { clearBg(); return; }
+    if (idx < 0) {
+      clearBg();
+      document.body.classList.remove('exp-bg');
+      return;
+    }
+
     var list = isMobileView() ? BG_MOBILE : BG_PC;
     var safeIdx = ((idx % list.length) + list.length) % list.length;
     var url = list[safeIdx];
     if (url && url.charAt(0) !== '/') url = '/' + url;
+
     document.body.classList.add('exp-bg');
+    document.documentElement.classList.add('exp-bg');
+    document.documentElement.style.setProperty('--exp-bg-image', 'url("' + url + '")');
     document.body.style.backgroundColor = '#0f0f14';
     document.body.style.backgroundImage = 'url("' + url + '")';
     document.body.style.backgroundSize = 'cover';
     document.body.style.backgroundPosition = 'center';
     document.body.style.backgroundAttachment = 'fixed';
     document.body.style.backgroundRepeat = 'no-repeat';
-    var layer = document.getElementById('bzBgLayer');
-    if (!layer) {
-      layer = document.createElement('div');
-      layer.id = 'bzBgLayer';
-      document.body.insertBefore(layer, document.body.firstChild);
-    }
-    layer.style.cssText = 'display:block;position:fixed;inset:0;z-index:0;pointer-events:none;background-image:url("'+url+'");background-size:cover;background-position:center;background-repeat:no-repeat';
+
+    var layer = ensureLayer();
+    layer.style.display = 'block';
+    layer.style.backgroundImage = 'url("' + url + '")';
+    layer.style.backgroundSize = 'cover';
+    layer.style.backgroundPosition = 'center';
+    layer.style.backgroundRepeat = 'no-repeat';
+
+    void document.body.offsetHeight;
   }
+
   function persistToProfile(patch) {
     try {
       var u = currentUser();
@@ -96,6 +156,7 @@
       firebase.firestore().collection('profiles').doc(u.uid).set(patch, { merge: true });
     } catch (e) {}
   }
+
   function setExperimental(on) {
     if (!isLogged()) {
       alert('Entre na sua conta para usar a versão experimental.');
@@ -107,6 +168,7 @@
     persistToProfile({ experimentalOn: !!on, updatedAtMs: Date.now() });
     applyExperimentalBackground();
   }
+
   function openBgModal() {
     ensureModal();
     var modal = document.getElementById('bgModal');
@@ -128,16 +190,19 @@
     });
     modal.classList.add('show');
   }
+
   function closeBgModal() {
     var modal = document.getElementById('bgModal');
     if (modal) modal.classList.remove('show');
   }
+
   function resetBg() {
     localStorage.setItem(expStorageKey() + '-bg', '-1');
     persistToProfile({ experimentalBg: -1, updatedAtMs: Date.now() });
     applyExperimentalBackground();
     closeBgModal();
   }
+
   function ensureModal() {
     if (document.getElementById('bgModal')) return;
     var btn = document.createElement('button');
@@ -160,7 +225,9 @@
     document.getElementById('bgReset').onclick = resetBg;
     modal.addEventListener('click', function (e) { if (e.target === modal) closeBgModal(); });
   }
+
   function wireModal() { ensureModal(); }
+
   function loadFromProfileThenApply() {
     forceDarkBg();
     var u = currentUser();
@@ -177,13 +244,7 @@
       applyExperimentalBackground();
     }).catch(function () { applyExperimentalBackground(); });
   }
-  function injectCatFix() {
-    if (document.getElementById('bz-exp-cat-fix')) return;
-    var s = document.createElement('style');
-    s.id = 'bz-exp-cat-fix';
-    s.textContent = 'body.exp-bg .category-card{background:rgba(15,10,25,.92)!important;border:1px solid rgba(167,139,250,.35)!important;box-shadow:0 4px 16px rgba(0,0,0,.35)}body.exp-bg .category-card h3{color:#f3f4f6!important;text-shadow:0 1px 3px rgba(0,0,0,.8)!important;background:rgba(10,6,18,.55);margin:0}body.exp-bg .product-card{background:rgba(15,10,25,.92)!important;border:1px solid rgba(167,139,250,.25)!important}body.exp-bg .product-body h3,body.exp-bg .product-price,body.exp-bg .product-seller{color:#f3f4f6!important}';
-    document.head.appendChild(s);
-  }
+
   function boot() {
     injectCatFix();
     forceDarkBg();
@@ -198,8 +259,10 @@
       setTimeout(loadFromProfileThenApply, 800);
     }
   }
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
+
   window.expStorageKey = expStorageKey;
   window.isExperimental = isExperimental;
   window.setExperimental = setExperimental;
