@@ -1,6 +1,6 @@
 /**
- * Versão experimental + fundo em tempo real (v5)
- * Assume controle mesmo se o index.html tiver funções antigas inline.
+ * Versão experimental + fundo em tempo real (v6)
+ * Anuncio page + categorias + takeover inline
  */
 (function () {
   var BG_MOBILE = [
@@ -67,7 +67,10 @@
       'body.exp-bg .header{background:rgba(15,10,25,.92)!important;backdrop-filter:blur(10px)}' +
       'body.exp-bg .footer{background:rgba(15,10,25,.92)!important}' +
       'body.exp-bg .section-title,body.exp-bg .hero-tag,body.exp-bg .hero-sub{color:#f3f4f6!important;text-shadow:0 2px 8px rgba(0,0,0,.75)}' +
-      'body.exp-bg main,body.exp-bg .container,body.exp-bg .section,body.exp-bg .hero{position:relative;z-index:1}' +
+      'body.exp-bg main,body.exp-bg .container,body.exp-bg .section,body.exp-bg .hero,body.exp-bg .wrap,body.exp-bg .top,body.exp-bg #page,body.exp-bg .page{position:relative;z-index:1}' +
+      'body.exp-bg .top{background:rgba(15,10,25,.95)!important;border-bottom:1px solid rgba(167,139,250,.25)!important}' +
+      'body.exp-bg .card,body.exp-bg .item-sel,body.exp-bg .panel,body.exp-bg .box{background:rgba(15,10,25,.94)!important;border-color:rgba(167,139,250,.3)!important;color:#f3f4f6!important}' +
+      'body.exp-bg .wrap{color:#f3f4f6}' +
       '#bzBgLayer{position:fixed;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat}' +
       'body:not(.exp-bg){background-image:none!important}';
     var s = document.getElementById('bz-exp-cat-fix');
@@ -129,42 +132,25 @@
   function applyExperimentalBackground() {
     injectCatFix();
     forceDarkBg();
-
     if (isPainelPage()) {
       var b = document.getElementById('bgChangeBtn');
       if (b) { b.classList.remove('show'); b.style.display = 'none'; }
       clearBg();
       return;
     }
-
     var btn = document.getElementById('bgChangeBtn');
     var on = isExperimental() && isLogged();
     if (btn) {
-      if (on) {
-        btn.classList.add('show');
-        btn.style.display = 'inline-flex';
-      } else {
-        btn.classList.remove('show');
-        btn.style.display = 'none';
-      }
+      if (on) { btn.classList.add('show'); btn.style.display = 'inline-flex'; }
+      else { btn.classList.remove('show'); btn.style.display = 'none'; }
     }
-
-    if (!on) {
-      clearBg();
-      return;
-    }
-
+    if (!on) { clearBg(); return; }
     var idx = getBgIndex();
-    if (idx < 0) {
-      clearBg();
-      return;
-    }
-
+    if (idx < 0) { clearBg(); return; }
     var list = isMobileView() ? BG_MOBILE : BG_PC;
     var safeIdx = ((idx % list.length) + list.length) % list.length;
     var url = list[safeIdx];
     if (url && url.charAt(0) !== '/') url = '/' + url;
-
     document.body.classList.add('exp-bg');
     document.documentElement.classList.add('exp-bg');
     document.documentElement.style.setProperty('--exp-bg-image', 'url("' + url + '")');
@@ -175,14 +161,12 @@
     document.body.style.backgroundPosition = 'center';
     document.body.style.backgroundAttachment = 'fixed';
     document.body.style.backgroundRepeat = 'no-repeat';
-
     var layer = ensureLayer();
     layer.style.display = 'block';
     layer.style.backgroundImage = 'url("' + url + '")';
     layer.style.backgroundSize = 'cover';
     layer.style.backgroundPosition = 'center';
     layer.style.backgroundRepeat = 'no-repeat';
-
     void document.body.offsetHeight;
   }
 
@@ -313,7 +297,6 @@
     setTimeout(function () { takeOver(); wireModal(); applyExperimentalBackground(); }, 100);
     setTimeout(takeOver, 500);
     setTimeout(function () { takeOver(); applyExperimentalBackground(); }, 1200);
-
     window.addEventListener('resize', function () {
       if (isExperimental() && isLogged()) applyExperimentalBackground();
     });
@@ -326,6 +309,5 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
-
   takeOver();
 })();
