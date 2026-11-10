@@ -1,5 +1,6 @@
 /**
- * Versão experimental + escolher fundo (por conta) - v dark-only + live apply
+ * Versão experimental + fundo em tempo real (v5)
+ * Assume controle mesmo se o index.html tiver funções antigas inline.
  */
 (function () {
   var BG_MOBILE = [
@@ -60,14 +61,15 @@
   function injectCatFix() {
     var css =
       'body.exp-bg .category-card{background:rgba(15,10,25,.94)!important;border:1px solid rgba(167,139,250,.4)!important;box-shadow:0 4px 16px rgba(0,0,0,.4)}' +
-      'body.exp-bg .category-card h3{color:#f3f4f6!important;text-shadow:0 1px 3px rgba(0,0,0,.9)!important;background:rgba(10,6,18,.7)!important;margin:0;padding:10px 8px 12px;display:block}' +
+      'body.exp-bg .category-card h3{color:#f3f4f6!important;text-shadow:0 1px 3px rgba(0,0,0,.9)!important;background:rgba(10,6,18,.75)!important;margin:0;padding:10px 8px 12px;display:block}' +
       'body.exp-bg .product-card{background:rgba(15,10,25,.94)!important;border:1px solid rgba(167,139,250,.28)!important}' +
       'body.exp-bg .product-body h3,body.exp-bg .product-price,body.exp-bg .product-seller{color:#f3f4f6!important}' +
-      'body.exp-bg .header{background:rgba(15,10,25,.9)!important;backdrop-filter:blur(10px)}' +
-      'body.exp-bg .footer{background:rgba(15,10,25,.9)!important}' +
-      'body.exp-bg .section-title,body.exp-bg .hero-tag,body.exp-bg .hero-sub{color:#f3f4f6!important;text-shadow:0 2px 8px rgba(0,0,0,.7)}' +
+      'body.exp-bg .header{background:rgba(15,10,25,.92)!important;backdrop-filter:blur(10px)}' +
+      'body.exp-bg .footer{background:rgba(15,10,25,.92)!important}' +
+      'body.exp-bg .section-title,body.exp-bg .hero-tag,body.exp-bg .hero-sub{color:#f3f4f6!important;text-shadow:0 2px 8px rgba(0,0,0,.75)}' +
       'body.exp-bg main,body.exp-bg .container,body.exp-bg .section,body.exp-bg .hero{position:relative;z-index:1}' +
-      '#bzBgLayer{position:fixed;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat}';
+      '#bzBgLayer{position:fixed;inset:0;z-index:0;pointer-events:none;background-size:cover;background-position:center;background-repeat:no-repeat}' +
+      'body:not(.exp-bg){background-image:none!important}';
     var s = document.getElementById('bz-exp-cat-fix');
     if (!s) {
       s = document.createElement('style');
@@ -104,14 +106,16 @@
   function clearBg() {
     document.body.classList.remove('exp-bg');
     document.documentElement.classList.remove('exp-bg');
-    document.body.style.setProperty('background-image', 'none', 'important');
-    document.body.style.setProperty('background-color', '#0f0f14', 'important');
+    try {
+      document.body.style.removeProperty('background-image');
+      document.body.style.removeProperty('background-size');
+      document.body.style.removeProperty('background-position');
+      document.body.style.removeProperty('background-attachment');
+      document.body.style.removeProperty('background-repeat');
+      document.body.style.removeProperty('--exp-bg-image');
+    } catch (e) {}
     document.body.style.backgroundImage = 'none';
     document.body.style.backgroundColor = '#0f0f14';
-    document.body.style.backgroundAttachment = '';
-    document.body.style.backgroundSize = '';
-    document.body.style.backgroundPosition = '';
-    document.body.style.backgroundRepeat = '';
     document.documentElement.style.removeProperty('--exp-bg-image');
     var layer = document.getElementById('bzBgLayer');
     if (layer) {
@@ -136,8 +140,13 @@
     var btn = document.getElementById('bgChangeBtn');
     var on = isExperimental() && isLogged();
     if (btn) {
-      btn.classList.toggle('show', !!on);
-      btn.style.display = on ? '' : 'none';
+      if (on) {
+        btn.classList.add('show');
+        btn.style.display = 'inline-flex';
+      } else {
+        btn.classList.remove('show');
+        btn.style.display = 'none';
+      }
     }
 
     if (!on) {
@@ -148,7 +157,6 @@
     var idx = getBgIndex();
     if (idx < 0) {
       clearBg();
-      document.body.classList.remove('exp-bg');
       return;
     }
 
@@ -160,6 +168,7 @@
     document.body.classList.add('exp-bg');
     document.documentElement.classList.add('exp-bg');
     document.documentElement.style.setProperty('--exp-bg-image', 'url("' + url + '")');
+    document.body.style.setProperty('--exp-bg-image', 'url("' + url + '")');
     document.body.style.backgroundColor = '#0f0f14';
     document.body.style.backgroundImage = 'url("' + url + '")';
     document.body.style.backgroundSize = 'cover';
@@ -193,6 +202,8 @@
       return;
     }
     writeExpOn(!!on);
+    var t2 = document.getElementById('expToggle');
+    if (t2) t2.checked = !!on;
     persistToProfile({ experimentalOn: !!on, updatedAtMs: Date.now() });
     applyExperimentalBackground();
   }
@@ -232,7 +243,15 @@
   }
 
   function ensureModal() {
-    if (document.getElementById('bgModal')) return;
+    if (document.getElementById('bgModal')) {
+      var r = document.getElementById('bgReset');
+      var c = document.getElementById('bgClose');
+      if (r) r.onclick = resetBg;
+      if (c) c.onclick = closeBgModal;
+      var b = document.getElementById('bgChangeBtn');
+      if (b) b.onclick = openBgModal;
+      return;
+    }
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.id = 'bgChangeBtn';
@@ -273,11 +292,28 @@
     }).catch(function () { applyExperimentalBackground(); });
   }
 
+  function takeOver() {
+    window.setExperimental = setExperimental;
+    window.applyExperimentalBackground = applyExperimentalBackground;
+    window.isExperimental = isExperimental;
+    window.resetBg = resetBg;
+    window.openBgModal = openBgModal;
+    window.closeBgModal = closeBgModal;
+    window.expStorageKey = expStorageKey;
+    window.bgUserKey = expStorageKey;
+  }
+
   function boot() {
     injectCatFix();
     forceDarkBg();
+    takeOver();
     wireModal();
     applyExperimentalBackground();
+    setTimeout(takeOver, 0);
+    setTimeout(function () { takeOver(); wireModal(); applyExperimentalBackground(); }, 100);
+    setTimeout(takeOver, 500);
+    setTimeout(function () { takeOver(); applyExperimentalBackground(); }, 1200);
+
     window.addEventListener('resize', function () {
       if (isExperimental() && isLogged()) applyExperimentalBackground();
     });
@@ -291,11 +327,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  window.expStorageKey = expStorageKey;
-  window.isExperimental = isExperimental;
-  window.setExperimental = setExperimental;
-  window.applyExperimentalBackground = applyExperimentalBackground;
-  window.openBgModal = openBgModal;
-  window.closeBgModal = closeBgModal;
-  window.resetBg = resetBg;
+  takeOver();
 })();
