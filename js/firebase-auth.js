@@ -17,7 +17,6 @@ function saveUser(user, method) {
     localStorage.removeItem('xinzuh-logged');
     localStorage.removeItem('xinzuh-username');
     localStorage.removeItem('xinzuh-email');
-    // não apaga foto local do uid
     localStorage.removeItem('xinzuh-login-method');
     return;
   }
@@ -26,13 +25,11 @@ function saveUser(user, method) {
   localStorage.setItem('xinzuh-email', user.email || '');
   var custom = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
   var isCustom = localStorage.getItem('xinzuh-photo-custom-' + user.uid) === '1';
-  // Nunca sobrescreve foto que o usuário escolheu
-  if (custom && (isCustom || custom.indexOf('data:') === 0) {
+  if (custom && (isCustom || custom.indexOf('data:') === 0)) {
     localStorage.setItem('xinzuh-photo', custom);
   } else if (custom) {
     localStorage.setItem('xinzuh-photo', custom);
   } else if (user.photoURL) {
-    // só Google se ainda não tem custom
     localStorage.setItem('xinzuh-photo-' + user.uid, user.photoURL);
     localStorage.setItem('xinzuh-photo', user.photoURL);
   } else {
@@ -55,7 +52,7 @@ function friendlyError(err) {
     'auth/popup-closed-by-user': 'Login cancelado.',
     'auth/unauthorized-domain': 'Domínio não autorizado no Firebase.',
     'auth/missing-email': 'Digite seu e-mail.',
-    'auth/operation-not-allowed': 'Login por e-mail desativado no Firebase. Ative em Authentication → Método de login → E-mail/senha.',
+    'auth/operation-not-allowed': 'Login por e-mail desativado no Firebase. Ative em Authentication → Método de login → E-mail/senha.'
   };
   return map[err.code] || (err.message || 'Erro desconhecido');
 }
@@ -65,7 +62,7 @@ function showMsg(text, type) {
   if (!el) {
     el = document.createElement('div');
     el.id = 'auth-msg';
-    const card = document.querySelector('.auth-card') || document.querySelector('form')?.parentNode;
+    const card = document.querySelector('.auth-card') || (document.querySelector('form') && document.querySelector('form').parentNode);
     if (card) card.insertBefore(el, card.firstChild.nextSibling || card.firstChild);
     else document.body.prepend(el);
   }
@@ -148,7 +145,6 @@ async function registerWithEmail(email, password, displayName) {
   }
 }
 
-
 async function resetPasswordWithEmail(email) {
   const btn = document.getElementById('btn-reset');
   if (!email || !String(email).trim()) {
@@ -210,7 +206,6 @@ auth.onAuthStateChanged(function (user) {
 
 handleRedirectResult();
 
-
 async function updateDisplayName(name) {
   const user = auth.currentUser;
   if (!user) throw new Error('Faça login primeiro.');
@@ -265,7 +260,6 @@ async function uploadProfilePhoto(file) {
   return dataUrl;
 }
 
-
 function getLocalPhoto(uid) {
   if (uid) {
     var p = localStorage.getItem('xinzuh-photo-' + uid);
@@ -287,7 +281,6 @@ function saveBio(text) {
 }
 
 async function deactivateAccountLocal() {
-  // Soft flag local + sign out (exclusão real exige reauth e delete())
   const user = auth.currentUser;
   if (!user) return;
   localStorage.setItem('xinzuh-deactivated-' + user.uid, '1');
