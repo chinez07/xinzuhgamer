@@ -1,3 +1,7 @@
+// ImgBB - upload de capas dos anúncios (sem Firebase Storage)
+window.IMGBB_API_KEY = 'dc0e891d279d9847ce712b5385dd3744';
+try { localStorage.setItem('bloxzuh-imgbb-key', window.IMGBB_API_KEY); } catch (e) {}
+
 // Firebase Auth - Bloxzuh
 const firebaseConfig = {
   apiKey: "AIzaSyCaBMtonCi3KKKCvr8MuaMbsNOC14960Is",
