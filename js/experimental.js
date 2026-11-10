@@ -310,4 +310,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
   takeOver();
+
+  // carrega sync de nome do perfil
+  try {
+    if (!document.querySelector('script[src*="profile-name-sync"]')) {
+      var s = document.createElement('script');
+      s.src = 'js/profile-name-sync.js';
+      s.async = true;
+      document.head.appendChild(s);
+    }
+  } catch (e) {}
+
 })();
