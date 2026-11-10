@@ -1,34 +1,6 @@
-// Versão experimental - estado por conta (localStorage)
-function expStorageKey() {
-  var email = localStorage.getItem('xinzuh-email') || '';
-  var name = localStorage.getItem('xinzuh-username') || 'guest';
-  return 'xinzuh-exp-' + (email || name);
-}
-function isExperimental() {
-  return localStorage.getItem(expStorageKey() + '-on') === '1';
-}
-function setExperimental(on) {
-  var logged = localStorage.getItem('xinzuh-logged') === 'true';
-  if (!logged) {
-    if (typeof showToast==='function') showToast('Entre na sua conta para usar a versão experimental.'); else console.log('Entre na conta');
-    var t = document.getElementById('expToggle');
-    if (t) t.checked = false;
-    return;
-  }
-  localStorage.setItem(expStorageKey() + '-on', on ? '1' : '0');
-  var t2 = document.getElementById('expToggle');
-  if (t2) t2.checked = !!on;
-  if (typeof applyExperimentalBackground === 'function') {
-    applyExperimentalBackground();
-  }
-  var btn = document.getElementById('bgChangeBtn');
-  if (btn) btn.classList.toggle('show', !!on && logged);
-}
-window.isExperimental = isExperimental;
-window.setExperimental = setExperimental;
-window.expStorageKey = expStorageKey;
-
 // Menu unificado Bloxzuh
+// (versão experimental: usa window.setExperimental / isExperimental do experimental.js)
+
 function getLoggedIn() {
   return localStorage.getItem('xinzuh-logged') === 'true';
 }
@@ -41,9 +13,6 @@ function renderUserMenu() {
   if (!dropdown) return;
   const isLoggedIn = getLoggedIn();
   const userName = getUserName();
-  const mode = document.documentElement.getAttribute('data-mode') || localStorage.getItem('xinzuh-mode') || 'dark';
-  const modeIcon = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-  const modeLabel = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
 
   if (isLoggedIn) {
     dropdown.innerHTML =
@@ -55,35 +24,30 @@ function renderUserMenu() {
       '<a href="vendas.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>' +
       '<a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>' +
       '<a href="conta.html" class="user-menu-item"><i class="fas fa-user-cog"></i> Minha conta</a>' +
-      '<a href="notificacoes.html" class="user-menu-item"><i class="fas fa-bell"></i> Notificações</a>' +
-      '<a href="favoritos.html" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>' +
-      '' +
       '<div class="user-menu-divider"></div>' +
       '<div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">' +
         '<span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>' +
-        '<label class="switch"><input type="checkbox" id="expToggle" onchange="typeof setExperimental===\'function\' && setExperimental(this.checked)"><span class="slider"></span></label>' +
+        '<label class="switch"><input type="checkbox" id="expToggle" onchange="window.setExperimental && window.setExperimental(this.checked)"><span class="slider"></span></label>' +
       '</div>' +
       '<div class="user-menu-divider"></div>' +
       '<button type="button" class="user-menu-item" style="color:#ef4444" onclick="doLogout()">' +
         '<i class="fas fa-sign-out-alt"></i> Sair' +
       '</button>';
-    // sync experimental toggle if helper exists
     setTimeout(function () {
       var t = document.getElementById('expToggle');
-      if (t && typeof isExperimental === 'function') t.checked = isExperimental();
+      if (t && typeof window.isExperimental === 'function') t.checked = !!window.isExperimental();
     }, 0);
   } else {
     dropdown.innerHTML =
       '<a href="login.html" class="user-menu-item"><i class="fas fa-sign-in-alt"></i> Entrar</a>' +
       '<a href="cadastro.html" class="user-menu-item"><i class="fas fa-user-plus"></i> Criar conta</a>' +
       '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
-      '' +
       '<div class="user-menu-divider"></div>' +
       '<div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">' +
         '<span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>' +
-        '<label class="switch"><input type="checkbox" id="expToggle" onchange="typeof setExperimental===\'function\' && setExperimental(this.checked)"><span class="slider"></span></label>' +
+        '<label class="switch"><input type="checkbox" id="expToggle" onchange="window.setExperimental && window.setExperimental(this.checked)"><span class="slider"></span></label>' +
       '</div>';
   }
 }
