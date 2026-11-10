@@ -27,7 +27,7 @@ function saveUser(user, method) {
   var custom = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
   var isCustom = localStorage.getItem('xinzuh-photo-custom-' + user.uid) === '1';
   // Nunca sobrescreve foto que o usuário escolheu
-  if (custom && (isCustom || custom.indexOf('data:') === 0)) {
+  if (custom && (isCustom || custom.indexOf('data:') === 0) {
     localStorage.setItem('xinzuh-photo', custom);
   } else if (custom) {
     localStorage.setItem('xinzuh-photo', custom);
@@ -184,10 +184,24 @@ async function handleRedirectResult() {
 }
 
 function logoutFirebase() {
-  auth.signOut().then(function () {
-    saveUser(null);
-    window.location.href = 'index.html';
-  });
+  var uid = null;
+  try { if (auth.currentUser) uid = auth.currentUser.uid; } catch (e) {}
+  var go = function () {
+    auth.signOut().then(function () {
+      saveUser(null);
+      window.location.href = 'index.html';
+    }).catch(function () {
+      saveUser(null);
+      window.location.href = 'index.html';
+    });
+  };
+  try {
+    if (typeof fsSetOffline === 'function') {
+      Promise.resolve(fsSetOffline(uid)).then(go).catch(go);
+      return;
+    }
+  } catch (e) {}
+  go();
 }
 
 auth.onAuthStateChanged(function (user) {
@@ -277,6 +291,7 @@ async function deactivateAccountLocal() {
   const user = auth.currentUser;
   if (!user) return;
   localStorage.setItem('xinzuh-deactivated-' + user.uid, '1');
+  try { if (typeof fsSetOffline === 'function') await fsSetOffline(user.uid); } catch (e) {}
   await auth.signOut();
   saveUser(null);
   window.location.href = 'index.html';
