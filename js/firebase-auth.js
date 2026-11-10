@@ -1,7 +1,7 @@
 // ImgBB via Cloudflare Worker (chave NÃO fica no navegador)
 // Depois de criar o Worker, coloque a URL aqui, ex:
 // window.BLOXZUH_IMGBB_WORKER = 'https://bloxzuh-imgbb.hskkaj48.workers.dev';
-window.BLOXZUH_IMGBB_WORKER = window.BLOXZUH_IMGBB_WORKER || '';
+window.BLOXZUH_IMGBB_WORKER = window.BLOXZUH_IMGBB_WORKER || 'https://bloxzuh-imgbb.hskkaj48.workers.dev/';
 try { localStorage.removeItem('bloxzuh-imgbb-key'); } catch (e) {}
 window.IMGBB_API_KEY = ''; // não usar chave no cliente
 (function loadImgbbUpload() {
