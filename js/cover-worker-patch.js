@@ -31,7 +31,7 @@
 
   async function prepareAdCover(file) {
     if (!file) return '';
-    console.log('[Bloxzuh] prepareAdCover start', file && file.name, 'worker=', window.BLOXZUH_IMGBB_WORKER);
+    console.log('[Bloxzuh] prepareAdCover', file && file.name, 'worker=', window.BLOXZUH_IMGBB_WORKER);
     var dataUrl = await compressImageFile(file, 320, 0.42);
     if (dataUrl.length > 220000) dataUrl = await compressImageFile(file, 240, 0.32);
     if (dataUrl.length > 220000) dataUrl = await compressImageFile(file, 180, 0.28);
@@ -46,25 +46,78 @@
           body: JSON.stringify({ image: b64 })
         });
         var json = await res.json();
-        console.log('[Bloxzuh] Worker status', res.status, json && json.success);
         if (json && json.success && json.data && (json.data.url || json.data.display_url)) {
           var url = json.data.url || json.data.display_url;
-          console.log('[Bloxzuh] capa OK via Worker:', url);
+          console.log('[Bloxzuh] imagem OK via Worker:', url);
           return url;
         }
-        console.warn('[Bloxzuh] Worker sem URL', json);
+        console.warn('[Bloxzuh] Worker resposta', json);
       } catch (e) {
         console.warn('[Bloxzuh] Worker erro', e);
       }
     }
-
     if (dataUrl.length > 250000) return '';
-    console.warn('[Bloxzuh] usando dataURL (fallback)');
     return dataUrl;
   }
 
   window.prepareAdCover = prepareAdCover;
   window.__bzGalleryFiles = window.__bzGalleryFiles || [];
+
+  async function dataUrlToHosted(g) {
+    if (!g) return '';
+    if (String(g).indexOf('http') === 0) return g;
+    if (String(g).indexOf('data:') !== 0) return '';
+    try {
+      var blob = await (await fetch(g)).blob();
+      var file = new File([blob], 'img.jpg', { type: blob.type || 'image/jpeg' });
+      return await prepareAdCover(file);
+    } catch (e) {
+      console.warn('[Bloxzuh] dataUrlToHosted', e);
+      return '';
+    }
+  }
+
+  async function ensureHostedImages(data) {
+    data = data || {};
+    if (data.cover && String(data.cover).indexOf('data:') === 0) {
+      var c = await dataUrlToHosted(data.cover);
+      if (c) data.cover = c;
+      else data.cover = '';
+      console.log('[Bloxzuh] capa convertida:', data.cover ? data.cover.slice(0, 60) : '(vazia)');
+    }
+    var files = window.__bzGalleryFiles || [];
+    var urls = [];
+    if (files.length) {
+      console.log('[Bloxzuh] enviando galeria arquivos:', files.length);
+      for (var i = 0; i < files.length && i < 6; i++) {
+        try {
+          var u = await prepareAdCover(files[i]);
+          if (u && String(u).indexOf('http') === 0) {
+            urls.push(u);
+            console.log('[Bloxzuh] galeria', i + 1, u);
+          }
+        } catch (e) {
+          console.warn('[Bloxzuh] galeria', i, e);
+        }
+      }
+      window.__bzGalleryFiles = [];
+    } else if (data.gallery && data.gallery.length) {
+      console.log('[Bloxzuh] convertendo gallery dataURL:', data.gallery.length);
+      for (var j = 0; j < data.gallery.length && j < 6; j++) {
+        var g = data.gallery[j];
+        if (!g) continue;
+        if (String(g).indexOf('http') === 0) urls.push(g);
+        else {
+          var uu = await dataUrlToHosted(g);
+          if (uu && String(uu).indexOf('http') === 0) urls.push(uu);
+        }
+      }
+    }
+    if (urls.length) data.gallery = urls;
+    else if (!data.gallery) data.gallery = [];
+    console.log('[Bloxzuh] imagens finais capa=', data.cover ? 'sim' : 'não', 'galeria=', (data.gallery || []).length);
+    return data;
+  }
 
   function hookGalleryInput() {
     var gal = document.getElementById('galInput');
@@ -74,78 +127,48 @@
       try {
         var files = Array.prototype.slice.call(gal.files || [], 0, 6);
         files.forEach(function (f) {
-          if (f && f.type && f.type.indexOf('image/') === 0) {
-            window.__bzGalleryFiles.push(f);
-          }
+          if (f && f.type && f.type.indexOf('image/') === 0) window.__bzGalleryFiles.push(f);
         });
-        if (window.__bzGalleryFiles.length > 6) {
-          window.__bzGalleryFiles = window.__bzGalleryFiles.slice(-6);
-        }
+        if (window.__bzGalleryFiles.length > 6) window.__bzGalleryFiles = window.__bzGalleryFiles.slice(-6);
         console.log('[Bloxzuh] galeria arquivos guardados:', window.__bzGalleryFiles.length);
       } catch (e) {}
-    });
+    }, true);
   }
 
-  function hookFsCreate() {
-    if (typeof window.fsCreateAd !== 'function' || window.fsCreateAd.__bzGal) return;
-    var origCreate = window.fsCreateAd;
-    window.fsCreateAd = async function (data) {
-      data = data || {};
-      try {
-        var files = window.__bzGalleryFiles || [];
-        if (files.length) {
-          console.log('[Bloxzuh] enviando galeria via Worker...', files.length);
-          var urls = [];
-          for (var i = 0; i < files.length && i < 6; i++) {
-            try {
-              var u = await prepareAdCover(files[i]);
-              if (u && String(u).indexOf('http') === 0) {
-                urls.push(u);
-                console.log('[Bloxzuh] galeria', i + 1, u);
-              }
-            } catch (e) {
-              console.warn('[Bloxzuh] galeria falhou', i, e);
-            }
-          }
-          if (urls.length) data.gallery = urls;
-          window.__bzGalleryFiles = [];
-        } else if (data.gallery && data.gallery.length) {
-          var out = [];
-          for (var j = 0; j < data.gallery.length && j < 6; j++) {
-            var g = data.gallery[j];
-            if (!g) continue;
-            if (String(g).indexOf('http') === 0) { out.push(g); continue; }
-            if (String(g).indexOf('data:') === 0) {
-              try {
-                var blob = await (await fetch(g)).blob();
-                var file = new File([blob], 'gal' + j + '.jpg', { type: blob.type || 'image/jpeg' });
-                var uu = await prepareAdCover(file);
-                if (uu && String(uu).indexOf('http') === 0) out.push(uu);
-              } catch (e2) {
-                console.warn('[Bloxzuh] gal dataURL', j, e2);
-              }
-            }
-          }
-          if (out.length) data.gallery = out;
-        }
-        console.log('[Bloxzuh] galeria final no anúncio:', (data.gallery || []).length);
-      } catch (e) {
-        console.warn('[Bloxzuh] hook galeria', e);
-      }
-      return origCreate(data);
-    };
-    window.fsCreateAd.__bzGal = true;
-    console.log('[Bloxzuh] fsCreateAd hook galeria ativo');
+  function hookFs() {
+    if (typeof window.fsCreateAd === 'function' && !window.fsCreateAd.__bzGal) {
+      var origC = window.fsCreateAd;
+      window.fsCreateAd = async function (data) {
+        try { data = await ensureHostedImages(data || {}); } catch (e) { console.warn('[Bloxzuh] ensureHostedImages', e); }
+        return origC(data);
+      };
+      window.fsCreateAd.__bzGal = true;
+      console.log('[Bloxzuh] hook fsCreateAd ativo');
+    }
+    if (typeof window.fsUpdateAd === 'function' && !window.fsUpdateAd.__bzGal) {
+      var origU = window.fsUpdateAd;
+      window.fsUpdateAd = async function (adId, patch) {
+        try { patch = await ensureHostedImages(patch || {}); } catch (e) { console.warn('[Bloxzuh] ensureHostedImages', e); }
+        return origU(adId, patch);
+      };
+      window.fsUpdateAd.__bzGal = true;
+      console.log('[Bloxzuh] hook fsUpdateAd ativo');
+    }
   }
 
   function run() {
     hookGalleryInput();
-    hookFsCreate();
+    hookFs();
   }
+
   run();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-  setTimeout(run, 100);
-  setTimeout(run, 500);
-  setTimeout(run, 1500);
-  console.log('[Bloxzuh] cover-worker-patch ativo');
+  var n = 0;
+  var timer = setInterval(function () {
+    run();
+    n++;
+    if (n > 40) clearInterval(timer);
+  }, 250);
+
+  console.log('[Bloxzuh] cover-worker-patch ativo (capa+galeria)');
 })();
