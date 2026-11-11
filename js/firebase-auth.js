@@ -23,6 +23,16 @@ window.IMGBB_API_KEY = ''; // não usar chave no cliente
   } catch (e) {}
 })();
 
+(function loadBrand() {
+  try {
+    if (document.querySelector('script[src*="brand.js"]')) return;
+    var s = document.createElement('script');
+    s.src = 'js/brand.js';
+    s.async = true;
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) {}
+})();
+
 // Firebase Auth - Bloxzuh
 const firebaseConfig = {
   apiKey: "AIzaSyCaBMtonCi3KKKCvr8MuaMbsNOC14960Is",
