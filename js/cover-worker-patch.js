@@ -38,7 +38,7 @@
 
     var worker = (window.BLOXZUH_IMGBB_WORKER || '').trim();
     if (!worker) {
-      console.warn('[Bloxzuh] Worker URL vazia — capa pode não aparecer no PC');
+      console.warn('[Bloxzuh] Worker URL vazia');
     } else {
       try {
         var b64 = dataUrl.split(',')[1] || '';
@@ -48,22 +48,19 @@
           body: JSON.stringify({ image: b64 })
         });
         var json = await res.json();
-        console.log('[Bloxzuh] Worker status', res.status, json && json.success, json && json.error);
+        console.log('[Bloxzuh] Worker status', res.status, json && json.success);
         if (json && json.success && json.data && (json.data.url || json.data.display_url)) {
           var url = json.data.url || json.data.display_url;
           console.log('[Bloxzuh] capa OK via Worker:', url);
           return url;
         }
-        console.warn('[Bloxzuh] Worker não retornou URL', json);
+        console.warn('[Bloxzuh] Worker sem URL', json);
       } catch (e) {
         console.warn('[Bloxzuh] Worker erro', e);
       }
     }
 
-    if (dataUrl.length > 250000) {
-      console.warn('[Bloxzuh] dataURL grande demais, sem capa');
-      return '';
-    }
+    if (dataUrl.length > 250000) return '';
     console.warn('[Bloxzuh] usando dataURL (fallback)');
     return dataUrl;
   }
