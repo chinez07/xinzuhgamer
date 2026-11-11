@@ -1,12 +1,9 @@
 /**
  * Upload de capa via Cloudflare Worker (chave ImgBB NÃO fica no navegador).
- * Configure window.BLOXZUH_IMGBB_WORKER no firebase-auth.js
- * Ex: https://bloxzuh-imgbb.SEU_SUBDOMINIO.workers.dev
+ * URL: window.BLOXZUH_IMGBB_WORKER
  */
 (function () {
-  var ORIGIN_PREPARE = null;
-
-  async function compressImageFile(file, maxSide, quality) {
+  function compressImageFile(file, maxSide, quality) {
     maxSide = maxSide || 320;
     quality = quality || 0.42;
     return new Promise(function (resolve, reject) {
@@ -38,7 +35,7 @@
     if (dataUrl.length > 220000) dataUrl = await compressImageFile(file, 240, 0.32);
     if (dataUrl.length > 220000) dataUrl = await compressImageFile(file, 180, 0.28);
 
-    var worker = window.BLOXZUH_IMGBB_WORKER || '';
+    var worker = (window.BLOXZUH_IMGBB_WORKER || '').trim();
     if (worker) {
       try {
         var b64 = dataUrl.split(',')[1] || '';
@@ -48,32 +45,32 @@
           body: JSON.stringify({ image: b64 })
         });
         var json = await res.json();
-        if (json && json.success && json.data && json.data.url) {
-          return json.data.url;
+        if (json && json.success && json.data && (json.data.url || json.data.display_url)) {
+          var url = json.data.url || json.data.display_url;
+          console.log('[Bloxzuh] capa enviada via Worker:', url);
+          return url;
         }
-        console.warn('[Bloxzuh] Worker ImgBB', json);
+        console.warn('[Bloxzuh] Worker ImgBB resposta:', json);
       } catch (e) {
         console.warn('[Bloxzuh] Worker ImgBB falhou', e);
       }
+    } else {
+      console.warn('[Bloxzuh] BLOXZUH_IMGBB_WORKER não configurado');
     }
 
-    // fallback: função original (se existir) ou dataURL pequena
-    if (typeof ORIGIN_PREPARE === 'function') {
-      try { return await ORIGIN_PREPARE(file); } catch (e) {}
-    }
     if (dataUrl.length > 250000) return '';
     return dataUrl;
   }
 
   function install() {
-    if (typeof window.prepareAdCover === 'function' && !ORIGIN_PREPARE) {
-      ORIGIN_PREPARE = window.prepareAdCover;
-    }
     window.prepareAdCover = prepareAdCoverViaWorker;
   }
 
   install();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', install);
+  }
   setTimeout(install, 0);
-  setTimeout(install, 500);
-  setTimeout(install, 1500);
+  setTimeout(install, 300);
+  setTimeout(install, 1000);
 })();
