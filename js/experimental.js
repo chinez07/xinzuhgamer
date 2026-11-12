@@ -4,6 +4,38 @@
  */
 (function () {
 
+  (function () {
+    if (document.getElementById('bz-brand-css-early')) return;
+    var s = document.createElement('style');
+    s.id = 'bz-brand-css-early';
+    s.textContent = '.logo-icon i.fa-bolt,.logo-i i.fa-bolt,.logo i.fa-bolt{display:none!important}' +
+      '.logo-icon,.logo-i{background:transparent url(https://i.ibb.co/Rp7zLN9J/acce3b9a1d18.png) center/contain no-repeat!important;box-shadow:none!important}';
+    (document.head || document.documentElement).appendChild(s);
+  })();
+
+  // Fix Minha Conta: cards legíveis com fundo experimental
+  (function fixContaPage() {
+    try {
+      var path = (location.pathname || '').toLowerCase();
+      if (path.indexOf('conta') === -1) return;
+      if (document.getElementById('bz-conta-fix')) return;
+      var s = document.createElement('style');
+      s.id = 'bz-conta-fix';
+      s.textContent =
+        '.conta-page{position:relative!important;z-index:10!important;max-width:520px;margin:0 auto;padding:24px 16px 48px}' +
+        '.conta-card{position:relative!important;z-index:10!important;background:#1a1a24!important;border:1px solid #2d2d3a!important;color:#f3f4f6!important;border-radius:16px!important;padding:24px 20px!important;margin-bottom:16px!important;box-shadow:0 4px 20px rgba(0,0,0,.5)!important;opacity:1!important;visibility:visible!important}' +
+        '.conta-card h2,.conta-card label,.conta-card p,.conta-card .danger-text,.conta-card .avatar-edit{color:#f3f4f6!important}' +
+        '.conta-card input,.conta-card textarea{background:#0f0f14!important;color:#f3f4f6!important;border:1.5px solid #2d2d3a!important;width:100%!important}' +
+        '.conta-card input:disabled{opacity:.9!important;color:#d1d5db!important}' +
+        '#avatarBox,.avatar-placeholder{background:linear-gradient(135deg,#7c3aed,#a78bfa)!important;color:#fff!important}' +
+        '.header{position:sticky!important;top:0!important;z-index:100!important;background:#14141c!important}' +
+        'body.exp-bg .conta-card{background:rgba(15,10,25,.97)!important;border-color:rgba(167,139,250,.4)!important}' +
+        '#bzBgLayer{z-index:0!important;pointer-events:none!important}';
+      (document.head || document.documentElement).appendChild(s);
+      console.log('[Bloxzuh] conta-fix ativo');
+    } catch (e) { console.warn(e); }
+  })();
+
   try {
     if (!document.querySelector('script[src*="brand.js"]')) {
       var sb = document.createElement('script');
