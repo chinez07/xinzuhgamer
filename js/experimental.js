@@ -8,33 +8,61 @@
     if (document.getElementById('bz-brand-css-early')) return;
     var s = document.createElement('style');
     s.id = 'bz-brand-css-early';
-    s.textContent = '.logo-icon i.fa-bolt,.logo-i i.fa-bolt,.logo i.fa-bolt{display:none!important}' +
-      '.logo-icon,.logo-i{background:transparent url(https://i.ibb.co/Rp7zLN9J/acce3b9a1d18.png) center/contain no-repeat!important;box-shadow:none!important}';
+    s.textContent = '.logo-icon i.fa-bolt,.logo-i i.fa-bolt,.logo i.fa-bolt,.logo-icon i.fas,.logo-i i.fas{display:none!important;opacity:0!important;font-size:0!important}' +
+      '.logo-icon,.logo-i,.header .logo-icon,.logo .logo-icon{background:transparent url(https://i.ibb.co/Rp7zLN9J/acce3b9a1d18.png) center/contain no-repeat!important;background-image:url(https://i.ibb.co/Rp7zLN9J/acce3b9a1d18.png)!important;box-shadow:none!important;background-color:transparent!important}';
     (document.head || document.documentElement).appendChild(s);
   })();
 
-  // Fix Minha Conta: cards legíveis com fundo experimental
-  (function fixContaPage() {
+  // Fix Minha Conta (PC): cards legíveis + inline styles
+  function fixContaPage() {
     try {
       var path = (location.pathname || '').toLowerCase();
       if (path.indexOf('conta') === -1) return;
-      if (document.getElementById('bz-conta-fix')) return;
-      var s = document.createElement('style');
-      s.id = 'bz-conta-fix';
-      s.textContent =
-        '.conta-page{position:relative!important;z-index:10!important;max-width:520px;margin:0 auto;padding:24px 16px 48px}' +
-        '.conta-card{position:relative!important;z-index:10!important;background:#1a1a24!important;border:1px solid #2d2d3a!important;color:#f3f4f6!important;border-radius:16px!important;padding:24px 20px!important;margin-bottom:16px!important;box-shadow:0 4px 20px rgba(0,0,0,.5)!important;opacity:1!important;visibility:visible!important}' +
-        '.conta-card h2,.conta-card label,.conta-card p,.conta-card .danger-text,.conta-card .avatar-edit{color:#f3f4f6!important}' +
-        '.conta-card input,.conta-card textarea{background:#0f0f14!important;color:#f3f4f6!important;border:1.5px solid #2d2d3a!important;width:100%!important}' +
-        '.conta-card input:disabled{opacity:.9!important;color:#d1d5db!important}' +
-        '#avatarBox,.avatar-placeholder{background:linear-gradient(135deg,#7c3aed,#a78bfa)!important;color:#fff!important}' +
-        '.header{position:sticky!important;top:0!important;z-index:100!important;background:#14141c!important}' +
-        'body.exp-bg .conta-card{background:rgba(15,10,25,.97)!important;border-color:rgba(167,139,250,.4)!important}' +
-        '#bzBgLayer{z-index:0!important;pointer-events:none!important}';
-      (document.head || document.documentElement).appendChild(s);
-      console.log('[Bloxzuh] conta-fix ativo');
+
+      if (!document.getElementById('bz-conta-fix')) {
+        var s = document.createElement('style');
+        s.id = 'bz-conta-fix';
+        s.textContent =
+          '.conta-page{position:relative!important;z-index:20!important;isolation:isolate!important}' +
+          '.conta-card{position:relative!important;z-index:20!important;background:#1a1a24!important;border:1px solid #2d2d3a!important;color:#f3f4f6!important;border-radius:16px!important;padding:24px 20px!important;margin-bottom:16px!important;box-shadow:0 8px 32px rgba(0,0,0,.65)!important;opacity:1!important;visibility:visible!important;backdrop-filter:none!important}' +
+          '.conta-card h2,.conta-card label,.conta-card p,.conta-card .danger-text,.conta-card .avatar-edit,.conta-card span{color:#f3f4f6!important}' +
+          '.conta-card input,.conta-card textarea{background:#0f0f14!important;color:#f3f4f6!important;border:1.5px solid #2d2d3a!important;width:100%!important;opacity:1!important}' +
+          '.conta-card input:disabled{opacity:.95!important;color:#e5e7eb!important;-webkit-text-fill-color:#e5e7eb!important}' +
+          '#avatarBox,.avatar-placeholder{background:linear-gradient(135deg,#7c3aed,#a78bfa)!important;color:#fff!important}' +
+          '.header{position:sticky!important;top:0!important;z-index:100!important;background:#14141c!important}' +
+          'body.exp-bg .conta-card{background:rgba(22,16,35,.98)!important;border-color:rgba(167,139,250,.45)!important}' +
+          '#bzBgLayer{z-index:0!important;pointer-events:none!important}' +
+          'body.exp-bg{background-attachment:scroll!important}';
+        (document.head || document.documentElement).appendChild(s);
+      }
+
+      document.querySelectorAll('.conta-card').forEach(function (el) {
+        el.style.setProperty('background', 'rgba(22,16,35,0.98)', 'important');
+        el.style.setProperty('color', '#f3f4f6', 'important');
+        el.style.setProperty('opacity', '1', 'important');
+        el.style.setProperty('visibility', 'visible', 'important');
+        el.style.setProperty('position', 'relative', 'important');
+        el.style.setProperty('z-index', '20', 'important');
+      });
+      document.querySelectorAll('.conta-page').forEach(function (el) {
+        el.style.setProperty('position', 'relative', 'important');
+        el.style.setProperty('z-index', '20', 'important');
+      });
+      document.querySelectorAll('.conta-card input, .conta-card textarea, .conta-card label, .conta-card h2, .conta-card p').forEach(function (el) {
+        el.style.setProperty('color', '#f3f4f6', 'important');
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          el.style.setProperty('background', '#0f0f14', 'important');
+          el.style.setProperty('-webkit-text-fill-color', '#f3f4f6', 'important');
+        }
+      });
+      console.log('[Bloxzuh] conta-fix ativo (PC)');
     } catch (e) { console.warn(e); }
-  })();
+  }
+  fixContaPage();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fixContaPage);
+  setTimeout(fixContaPage, 100);
+  setTimeout(fixContaPage, 500);
+  setTimeout(fixContaPage, 1500);
 
   try {
     if (!document.querySelector('script[src*="brand.js"]')) {
@@ -225,7 +253,7 @@
     document.body.style.backgroundImage = 'url("' + url + '")';
     document.body.style.backgroundSize = 'cover';
     document.body.style.backgroundPosition = 'center';
-    document.body.style.backgroundAttachment = 'fixed';
+    document.body.style.backgroundAttachment = (window.matchMedia('(max-width: 768px)').matches ? 'scroll' : 'scroll');
     document.body.style.backgroundRepeat = 'no-repeat';
     var layer = ensureLayer();
     layer.style.display = 'block';
@@ -234,6 +262,7 @@
     layer.style.backgroundPosition = 'center';
     layer.style.backgroundRepeat = 'no-repeat';
     void document.body.offsetHeight;
+    try { if (typeof fixContaPage === 'function') fixContaPage(); } catch (eC) {}
   }
 
   function persistToProfile(patch) {
