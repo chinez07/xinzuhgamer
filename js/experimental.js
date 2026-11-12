@@ -65,14 +65,14 @@
     s.id = id;
     s.textContent =
       '.wrap,#page{position:relative;z-index:2!important}' +
-      '.cover,.cover-carousel{position:relative;z-index:3!important;width:100%!important;' +
-      'aspect-ratio:16/10!important;min-height:200px!important;overflow:hidden!important;' +
-      'border-radius:16px!important;background:#1e1b4b!important;margin:8px 0 12px!important}' +
-      '.cover img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}' +
+      '.cover,.cover-carousel{position:relative;z-index:5!important;width:100%!important;' +
+      'aspect-ratio:16/10!important;min-height:220px!important;overflow:hidden!important;' +
+      'border-radius:16px!important;background:#1e1b4b!important;margin:8px 0 12px!important;display:block!important}' +
+      '.cover img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;opacity:1!important}' +
       '.cover-carousel .slides{position:absolute!important;inset:0!important;display:flex!important;width:100%!important;height:100%!important;transition:transform .28s ease}' +
       '.cover-carousel .slides .slide{flex:0 0 100%!important;width:100%!important;height:100%!important;position:relative!important}' +
-      '.cover-carousel .slides .slide img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}' +
-      '.cover-carousel .nav{z-index:5!important}';
+      '.cover-carousel .slides .slide img{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;opacity:1!important}' +
+      '.cover-carousel .nav{z-index:6!important}';
     document.head.appendChild(s);
   }
 
@@ -330,6 +330,16 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
   takeOver();
+
+  try {
+    if ((location.pathname || '').toLowerCase().indexOf('anuncio') !== -1) {
+      if (!document.querySelector('script[src*="anuncio-cover-fix"]')) {
+        var sc = document.createElement('script');
+        sc.src = 'js/anuncio-cover-fix.js';
+        document.head.appendChild(sc);
+      }
+    }
+  } catch (e0) {}
 
   try {
     if (!document.querySelector('script[src*="profile-name-sync"]')) {
