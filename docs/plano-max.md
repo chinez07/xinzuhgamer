@@ -68,3 +68,11 @@ O acesso de teste libera os mesmos benefícios, sem criar Pix ou pagamento. A p�
 ## Teste inicial de 10 dias
 
 `POST /max/trial`, autenticado, ativa uma única vez por UID. O servidor fixa início e duração; ignora UID e datas do cliente. O registro `intro_trial_10days` usa a mesma tabela de liberações, sem criar pagamento. `GET /max/me` informa `trialEligible`. Contas com liberação anterior (inclusive expirada/revogada) ou histórico de pagamento aprovado não recebem novo teste. Repetições simultâneas usam a chave única UID e não prolongam o prazo. Ao vencer, é preciso pagar R$45/30 dias manualmente. Uma compra durante o teste começa na aprovação e não soma dias gratuitos. A política limita por conta Firebase, não por pessoa física.
+
+## Aparência e vitrine responsiva
+
+A configuração premium aceita `theme: {accent, backgroundDesktop, backgroundMobile}`. A tabela D1 `max_themes` é criada automaticamente, sem alterar as linhas antigas de perfil. Cor hexadecimal e imagens embutidas JPG/PNG/WebP são validadas no servidor (até 500 mil caracteres por fundo). Não aceita CSS, SVG ou URLs de fundo externas. Campos ausentes em clientes antigos preservam o tema. A gravação do perfil e do tema usa uma transação D1. O tema desaparece da leitura pública ao vencer, preservado na área privada.
+
+Fundos são comprimidos no navegador; o celular pode usar imagem própria ou o fundo do computador. A cor selecionada controla botões e detalhes, com contraste automático no texto. A personalização é aplicada somente à vitrine `loja.html`, mantendo a identidade da plataforma nas demais páginas.
+
+No PC, vitrine com cabeçalho, foto, informações e horários na lateral. No celular, produtos e filtros aparecem antes das informações detalhadas. A busca é local à loja, aceita acentos, filtra categorias e permite ordenar por preço. Paginação Firestore continua buscando todos os anúncios ativos e a ordenação padrão respeita a visibilidade existente.

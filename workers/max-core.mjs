@@ -22,7 +22,8 @@ async function maxInit(db) {
       db.prepare('CREATE TABLE IF NOT EXISTS max_payments (payment_id TEXT PRIMARY KEY, uid TEXT NOT NULL, reference TEXT NOT NULL UNIQUE, status TEXT NOT NULL, paid_at INTEGER, created_at INTEGER NOT NULL, live INTEGER NOT NULL DEFAULT 0)'),
       db.prepare('CREATE INDEX IF NOT EXISTS max_payments_user ON max_payments(uid)'),
       db.prepare("CREATE TABLE IF NOT EXISTS max_profiles (uid TEXT PRIMARY KEY, shop_name TEXT NOT NULL DEFAULT '', cover TEXT NOT NULL DEFAULT '', schedule_json TEXT NOT NULL DEFAULT '[]', offline_message TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL)"),
-      db.prepare("CREATE TABLE IF NOT EXISTS max_test_grants (uid TEXT PRIMARY KEY, starts_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, reason TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL)")
+      db.prepare("CREATE TABLE IF NOT EXISTS max_test_grants (uid TEXT PRIMARY KEY, starts_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, reason TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL)"),
+      db.prepare("CREATE TABLE IF NOT EXISTS max_themes (uid TEXT PRIMARY KEY, theme_json TEXT NOT NULL, updated_at INTEGER NOT NULL)")
     ]).catch(e => {initialized.delete(db); throw e;});
     initialized.set(db, ready);
   }
@@ -79,6 +80,22 @@ export function maxValidCPF(value) {
   }
   return true;
 }
+export function maxThemeInput(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) maxError('Tema da loja inválido.');
+  const accent = String(value.accent || '#a78bfa');
+  if (!/^#[0-9a-f]{6}$/i.test(accent)) maxError('Escolha uma cor válida para a loja.');
+  const backgrounds = {};
+  for (const key of ['backgroundDesktop', 'backgroundMobile']) {
+    const image = String(value[key] || '');
+    if (image.length > 500000 || (image && !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image))) maxError('O fundo deve ser JPG, PNG ou WebP de até 500 KB após a compressão.');
+    backgrounds[key] = image;
+  }
+  return {accent: accent.toLowerCase(), ...backgrounds};
+}
+async function maxReadTheme(db, uid) {
+  const row = await db.prepare('SELECT theme_json FROM max_themes WHERE uid = ?').bind(uid).first();
+  return row ? JSON.parse(row.theme_json) : {accent: '#a78bfa', backgroundDesktop: '', backgroundMobile: ''};
+}
 export function maxProfileInput(body) {
   const shopName = String(body.shopName || '').trim();
   const cover = String(body.cover || '');
@@ -95,7 +112,7 @@ export function maxProfileInput(body) {
     if (!valid(day.start) || !valid(day.end) || day.start >= day.end) maxError('O horário de encerramento deve ser posterior ao de abertura.');
     return {open: true, start: day.start, end: day.end};
   });
-  return {shopName, cover, offlineMessage, schedule: clean};
+  return {shopName, cover, offlineMessage, schedule: clean, ...(body.theme === undefined ? {} : {theme: maxThemeInput(body.theme)})};
 }
 async function maxPublic(db, uid, compact = false) {
   const member = await maxMember(db, uid);
@@ -106,7 +123,7 @@ async function maxPublic(db, uid, compact = false) {
   }
   const row = await db.prepare('SELECT shop_name, cover, schedule_json, offline_message FROM max_profiles WHERE uid = ?').bind(uid).first();
   return {uid, ...member, shopName: row?.shop_name || '', cover: row?.cover || '',
-    schedule: row ? JSON.parse(row.schedule_json) : [], offlineMessage: row?.offline_message || ''};
+    schedule: row ? JSON.parse(row.schedule_json) : [], offlineMessage: row?.offline_message || '', theme: await maxReadTheme(db, uid)};
 }
 async function maxMP(env, fetcher, id) {
   const response = await fetcher('https://api.mercadopago.com/v1/payments/' + encodeURIComponent(id), {headers: {Authorization: 'Bearer ' + env.MP_ACCESS_TOKEN}});
@@ -202,7 +219,7 @@ export async function handleMaxRequest(request, env, fetcher = fetch) {
       const {results} = await db.prepare('SELECT payment_id, status, created_at FROM max_payments WHERE uid = ? ORDER BY created_at DESC LIMIT 10').bind(user.uid).all();
       const saved = await db.prepare('SELECT shop_name, cover, schedule_json, offline_message FROM max_profiles WHERE uid = ?').bind(user.uid).first();
       return maxJSON({member: await maxPublic(db, user.uid), trialEligible: await maxTrialEligible(db, user.uid), payments: results,
-        settings: saved ? {shopName: saved.shop_name, cover: saved.cover, schedule: JSON.parse(saved.schedule_json), offlineMessage: saved.offline_message} : null});
+        settings: saved ? {shopName: saved.shop_name, cover: saved.cover, schedule: JSON.parse(saved.schedule_json), offlineMessage: saved.offline_message, theme: await maxReadTheme(db, user.uid)} : null});
     }
     if (path === '/max/trial' && request.method === 'POST') {
       const now = Date.now();
@@ -225,8 +242,11 @@ export async function handleMaxRequest(request, env, fetcher = fetch) {
     if (path === '/max/profile' && request.method === 'PUT') {
       if (!(await maxMember(db, user.uid)).active) maxError('Sua assinatura MAX precisa estar ativa para salvar a loja.', 403);
       const settings = maxProfileInput(await request.json());
-      await db.prepare('INSERT INTO max_profiles(uid, shop_name, cover, schedule_json, offline_message, updated_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET shop_name=excluded.shop_name, cover=excluded.cover, schedule_json=excluded.schedule_json, offline_message=excluded.offline_message, updated_at=excluded.updated_at')
-        .bind(user.uid, settings.shopName, settings.cover, JSON.stringify(settings.schedule), settings.offlineMessage, Date.now()).run();
+      const writes = [db.prepare('INSERT INTO max_profiles(uid, shop_name, cover, schedule_json, offline_message, updated_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET shop_name=excluded.shop_name, cover=excluded.cover, schedule_json=excluded.schedule_json, offline_message=excluded.offline_message, updated_at=excluded.updated_at')
+        .bind(user.uid, settings.shopName, settings.cover, JSON.stringify(settings.schedule), settings.offlineMessage, Date.now())];
+      if (settings.theme) writes.push(db.prepare('INSERT INTO max_themes(uid, theme_json, updated_at) VALUES(?, ?, ?) ON CONFLICT(uid) DO UPDATE SET theme_json=excluded.theme_json, updated_at=excluded.updated_at')
+        .bind(user.uid, JSON.stringify(settings.theme), Date.now()));
+      await db.batch(writes);
       return maxJSON({ok: true, member: await maxPublic(db, user.uid)});
     }
     return maxJSON({error: 'Rota MAX não encontrada.'}, 404);

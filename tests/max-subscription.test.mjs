@@ -271,3 +271,40 @@ test('A paid purchase during trial grants 30 days from approval without adding f
   assert.equal(paid.body.member.expiresAt, approval + MAX_PERIOD);
   assert.equal(paid.body.member.testAccess, undefined);
 });
+
+
+test('Store theme saves per authenticated account and survives legacy profile updates', async () => {
+  const f = fixture(); await f.call('trial', {});
+  const schedule = Array.from({length: 7}, () => ({open: false, start: '09:00', end: '18:00'}));
+  const theme = {accent: '#60a5fa', backgroundDesktop: 'data:image/jpeg;base64,YWJj', backgroundMobile: 'data:image/png;base64,YWJj'};
+  const base = {shopName: 'Alice theme', cover: '', schedule, offlineMessage: ''};
+  assert.equal((await f.call('profile', {...base, theme, uid:'bob'}, 'alice','PUT')).status,200);
+  assert.deepEqual((await f.call('me')).body.settings.theme,theme);
+  assert.deepEqual((await f.call('public?uid=alice',null,null)).body.theme,theme);
+  assert.equal((await f.call('public?uid=bob',null,null)).body.theme,undefined);
+  await f.call('profile',{...base,shopName:'Updated name'},'alice','PUT');
+  assert.deepEqual((await f.call('me')).body.settings.theme,theme);
+  await f.call('profile',{...base,theme:{accent:'#a78bfa',backgroundDesktop:'',backgroundMobile:''}},'alice','PUT');
+  assert.equal((await f.call('me')).body.settings.theme.backgroundDesktop,'');
+});
+
+test('Expired MAX hides store theme publicly but preserves settings for renewal', async () => {
+  const f = fixture(); await f.call('trial',{});
+  const theme = {accent:'#f472b6',backgroundDesktop:'',backgroundMobile:''};
+  const schedule = Array.from({length:7},()=>({open:false,start:'09:00',end:'18:00'}));
+  await f.call('profile',{shopName:'Alice',cover:'',schedule,offlineMessage:'',theme},'alice','PUT');
+  f.db.sql.prepare('UPDATE max_test_grants SET expires_at = ?').run(Date.now()-1000);
+  assert.equal((await f.call('public?uid=alice',null,null)).body.theme,undefined);
+  assert.deepEqual((await f.call('me')).body.settings.theme,theme);
+  assert.equal((await f.call('profile',{shopName:'Alice',schedule,theme},'alice','PUT')).status,403);
+});
+
+test('Theme validation rejects CSS injection, external/SVG backgrounds and oversize files', async () => {
+  const f = fixture(); await f.call('trial',{});
+  const schedule = Array.from({length:7},()=>({open:false,start:'09:00',end:'18:00'}));
+  const base = {shopName:'Alice',cover:'',schedule,offlineMessage:''};
+  for (const theme of [{accent:'red;display:none'}, {accent:'#123'}, {accent:'#123456',backgroundDesktop:'https://example.test/bg.jpg'}, {accent:'#123456',backgroundMobile:'data:image/svg+xml;base64,YWJj'}, {accent:'#123456',backgroundDesktop:'data:image/jpeg;base64,'+'A'.repeat(500000)}]) {
+    assert.equal((await f.call('profile',{...base,theme},'alice','PUT')).status,400);
+  }
+  assert.equal((await f.call('me')).body.settings,null);
+});
