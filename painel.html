@@ -1374,6 +1374,7 @@ img { max-width: 100%; display: block; }
     .seller-profile-link[hidden]{display:none}
     @media(max-width:560px){.seller-dashboard-heading{padding:18px}.seller-welcome{gap:12px}.seller-avatar-wrap{width:56px;height:56px;flex-basis:56px}.seller-profile-link{width:100%}}
   </style>
+  <link rel="stylesheet" href="css/painel-settings.css?v=settings-1">
 </head>
 <body>
   <header class="header">
@@ -1400,7 +1401,7 @@ img { max-width: 100%; display: block; }
         <a href="#" data-panel="reviews"><i class="fas fa-star"></i> Avaliações</a>
         <a href="plano-max.html"><i class="fas fa-crown"></i> Plano MAX</a>
         <a href="niveis.html"><i class="fas fa-gem"></i> Meus níveis</a>
-        <a href="conta.html"><i class="fas fa-cog"></i> Configurações</a>
+        <details class="seller-settings-nav" id="sellerSettingsNav"><summary><span><i class="fas fa-cog" aria-hidden="true"></i> Configurações</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div class="seller-settings-subnav"><a href="conta.html">Minha conta</a><a href="#dados" data-panel="dados">Meus dados</a><a href="#verificacoes" data-panel="verificacoes">Verificações</a><a href="#seguranca" data-panel="seguranca">Segurança</a></div></details>
       </nav>
     </aside>
 
@@ -1537,6 +1538,21 @@ img { max-width: 100%; display: block; }
         <p class="sub">Feedback dos compradores.</p>
         <div id="reviewsList"></div>
       </section>
+      <section class="painel-panel" id="panel-dados" aria-labelledby="sellerDataTitle">
+        <h1 id="sellerDataTitle">Meus dados</h1><p class="sub">Seu nome e sua apresentação na Bloxzuh.</p>
+        <div class="seller-settings-card"><form id="sellerDataForm" class="seller-settings-form"><label>Nome de usuário<input id="sellerDataName" type="text" autocomplete="nickname" minlength="1" maxlength="60" required></label><label>E-mail da conta<input id="sellerDataEmail" type="email" disabled></label><p class="seller-settings-note">O e-mail é o identificador usado para entrar na sua conta.</p><label>Biografia<textarea id="sellerDataBio" maxlength="1000" rows="5" placeholder="Conte um pouco sobre você e sua loja."></textarea></label><button class="btn btn-primary" id="sellerDataSave" type="submit" disabled>Salvar meus dados</button></form><p id="sellerDataMessage" class="seller-settings-message" role="status" aria-live="polite"></p></div>
+        <div class="seller-settings-card"><h2>Sua conta</h2><dl class="seller-settings-facts"><div><dt>Membro desde</dt><dd id="sellerJoined">—</dd></div><div><dt>Formas de acesso</dt><dd id="sellerProviders">Carregando…</dd></div></dl><p class="seller-settings-note">Para trocar sua foto ou acessar as demais opções da conta, abra <a href="conta.html">Minha conta</a>.</p></div>
+      </section>
+      <section class="painel-panel" id="panel-verificacoes" aria-labelledby="sellerVerificationTitle">
+        <h1 id="sellerVerificationTitle">Verificações</h1><p class="sub">Confira o estado real da sua conta.</p>
+        <div class="seller-settings-card"><div class="seller-settings-status-row"><div><h2>E-mail</h2><p id="sellerVerificationEmail" class="seller-settings-note"></p></div><span id="sellerEmailStatus" class="seller-settings-tag">Consultando…</span></div><p id="sellerVerificationNote" class="seller-settings-note"></p><div class="seller-settings-actions"><button class="btn btn-primary" id="sellerSendVerification" type="button" hidden>Enviar e-mail de confirmação</button><button class="btn btn-outline" id="sellerRefreshVerification" type="button">Atualizar verificação</button></div><p id="sellerVerificationMessage" class="seller-settings-message" role="status" aria-live="polite"></p></div>
+        <div class="seller-settings-card"><h2>Identidade e documentos</h2><p class="seller-settings-note">A verificação de documentos ainda não está disponível. Este painel não concede selo de identidade nem de vendedor verificado.</p></div>
+      </section>
+      <section class="painel-panel" id="panel-seguranca" aria-labelledby="sellerSecurityTitle">
+        <h1 id="sellerSecurityTitle">Segurança</h1><p class="sub">Gerencie o acesso à sua conta.</p>
+        <div class="seller-settings-card"><h2>Formas de login</h2><p id="sellerSecurityMethods" class="seller-settings-note">Carregando…</p><p id="sellerGoogleSecurity" class="seller-settings-note" hidden>Você usa o Google para entrar. Gerencie a senha e a proteção desse acesso na <a href="https://myaccount.google.com/security" target="_blank" rel="noopener noreferrer">segurança da sua Conta Google</a>.</p></div>
+        <div class="seller-settings-card" id="sellerPasswordCard" hidden><h2>Alterar senha</h2><form id="sellerPasswordForm" class="seller-settings-form"><label>Nova senha<input id="sellerNewPassword" type="password" minlength="6" autocomplete="new-password" required></label><label>Confirme a nova senha<input id="sellerConfirmPassword" type="password" minlength="6" autocomplete="new-password" required></label><p class="seller-settings-note">Use pelo menos 6 caracteres. O Firebase pode pedir que você entre novamente antes da alteração.</p><button class="btn btn-primary" id="sellerPasswordSave" type="submit">Alterar senha</button></form><p id="sellerPasswordMessage" class="seller-settings-message" role="status" aria-live="polite"></p></div>
+      </section>
     </main>
   </div>
 
@@ -1549,6 +1565,7 @@ img { max-width: 100%; display: block; }
   <script src="js/firestore-db.js"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/notificacoes.js"></script>
+  <script src="js/painel-settings.js?v=settings-1"></script>
   <script>
   (function () {
     function msg(text, type) {
@@ -1721,15 +1738,25 @@ img { max-width: 100%; display: block; }
     }
 
 
-    function showPanel(id) {
+    function showPanel(id, updateHash) {
+      const panel = document.getElementById('panel-' + id);
+      if (!panel || !panel.classList.contains('painel-panel')) return;
       document.querySelectorAll('.painel-panel').forEach(function (p) { p.classList.remove('active'); });
       document.querySelectorAll('#painelNav a[data-panel]').forEach(function (a) {
-        a.classList.toggle('active', a.getAttribute('data-panel') === id);
+        const selected = a.getAttribute('data-panel') === id;
+        a.classList.toggle('active', selected);
+        if (selected) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
       });
-      const panel = document.getElementById('panel-' + id);
-      if (panel) panel.classList.add('active');
+      panel.classList.add('active');
+      if (['dados', 'verificacoes', 'seguranca'].indexOf(id) >= 0) document.getElementById('sellerSettingsNav').open = true;
+      if (updateHash !== false && location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+      if (window.BloxzuhSellerSettings) BloxzuhSellerSettings.open(id);
       if (id === 'reviews' && typeof loadReviews === 'function') loadReviews();
     }
+
+    function openHashPanel() {var id = location.hash.slice(1); showPanel(document.getElementById('panel-' + id) ? id : 'dash', false);}
+    window.addEventListener('hashchange', openHashPanel);
+    openHashPanel();
 
     document.getElementById('painelNav').addEventListener('click', function (e) {
       const a = e.target.closest('a[data-panel]');
@@ -2203,7 +2230,7 @@ img { max-width: 100%; display: block; }
         else profileLink.removeAttribute('href');
       }
       if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = 'login.html?redirect=' + encodeURIComponent('painel.html' + location.hash);
         return;
       }
       const elUser = document.getElementById('painelUser');

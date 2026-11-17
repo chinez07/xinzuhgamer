@@ -62,10 +62,10 @@ function renderUserMenu() {
 
   if (isLoggedIn) {
     dropdown.innerHTML = `
-      <div class="user-menu-header">
+      <a class="user-menu-header" href="painel.html" style="color:inherit;text-decoration:none">
         <strong>Olá, ${userName}!</strong>
         <span>VER MINHA CONTA</span>
-      </div>
+      </a>
       <button class="user-menu-item"><i class="fas fa-shopping-bag"></i> Minhas Compras</button>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>
