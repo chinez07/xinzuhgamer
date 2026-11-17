@@ -55,7 +55,12 @@
     var badge = document.createElement('span');
     badge.className = 'level-badge';
     badge.style.setProperty('--rank-color', data.color);
-    badge.textContent = '◆ Nível ' + data.level + ' · ' + data.rank;
+    var icon = document.createElement('span');
+    var rankIndex = ranks.findIndex(function (rank) {return rank.name === data.rank;});
+    icon.className = 'level-crystal level-crystal-' + Math.max(0, rankIndex);
+    icon.setAttribute('aria-hidden', 'true');
+    badge.appendChild(icon);
+    badge.appendChild(document.createTextNode('Nível ' + data.level + ' · ' + data.rank));
     element.appendChild(badge);
     if (compact) return;
     var detail = document.createElement('p');
