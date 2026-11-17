@@ -1,8 +1,8 @@
 .level-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rank-color,#c4b5fd);color:var(--rank-color,#c4b5fd);background:#14141e;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:800;line-height:1.5}.level-detail{font-size:13px;color:#a1a1b5;margin:10px 0}.level-progress{display:block;width:100%;height:8px;border:0;border-radius:99px;overflow:hidden;background:#292936;accent-color:#a78bfa}.level-progress::-webkit-progress-bar{background:#292936;border-radius:99px}.level-progress::-webkit-progress-value{background:#a78bfa;border-radius:99px}.level-progress::-moz-progress-bar{background:#a78bfa;border-radius:99px}.level-card{background:#16161f;border:1px solid #2a2a36;border-radius:14px;padding:16px;margin-bottom:14px}.level-card a{color:#c4b5fd;font-size:13px}.level-card h2{font-size:16px;margin:0 0 14px}
 
-/* Original transparent artwork shared by all five ranks; each slot shows one crystal. */
-.level-crystal{display:inline-block;flex:0 0 auto;width:32px;height:32px;background-image:url('../assets/level-crystals.png');background-repeat:no-repeat;background-size:500% auto;background-position:0 45%;vertical-align:middle}
-.level-crystal-0{background-position-x:0%}.level-crystal-1{background-position-x:25%}.level-crystal-2{background-position-x:50%}.level-crystal-3{background-position-x:75%}.level-crystal-4{background-position-x:100%}
+/* Individual transparent rank artwork, displayed in full without cropping. */
+.level-crystal{display:inline-block;flex:0 0 auto;width:32px;height:32px;background-repeat:no-repeat;background-size:contain;background-position:center;vertical-align:middle}
+.level-crystal-0{background-image:url('../assets/level-quartzo.png')}.level-crystal-1{background-image:url('../assets/level-ametista.png')}.level-crystal-2{background-image:url('../assets/level-safira.png')}.level-crystal-3{background-image:url('../assets/level-esmeralda.png')}.level-crystal-4{background-image:url('../assets/level-rubi.png')}
 .rank-card .level-crystal{display:block;width:112px;height:112px;max-width:100%;margin:0 auto 12px}
 .crown .level-crystal{width:150px;height:150px}
 .level-badge .level-crystal{width:30px;height:30px}
