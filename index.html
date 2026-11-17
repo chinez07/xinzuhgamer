@@ -1158,8 +1158,9 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
+  <link rel="stylesheet" href="css/home.css?v=home-menu-1">
 </head>
-<body>
+<body class="home-page">
   <!-- Header -->
   <header class="header">
     <div class="container header-content">
@@ -1452,9 +1453,6 @@ function renderUserMenu() {
   if (!dropdown) return;
   const isLoggedIn = localStorage.getItem('xinzuh-logged') === 'true';
   const userName = localStorage.getItem('xinzuh-username') || 'Jogador';
-  const mode = document.documentElement.getAttribute('data-mode') || 'dark';
-  const modeIcon = mode === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-  const modeLabel = mode === 'dark' ? 'Tema claro' : 'Tema escuro';
 
   if (isLoggedIn) {
     dropdown.innerHTML = `
@@ -1466,16 +1464,11 @@ function renderUserMenu() {
       <a href="vendas.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>
       <a href="conta.html" class="user-menu-item"><i class="fas fa-user-cog"></i> Minha conta</a>
-      <a href="notificacoes.html" class="user-menu-item"><i class="fas fa-bell"></i> Notificações</a>
       <a href="favoritos.html" class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</a>
       <a href="plano-max.html" class="user-menu-item"><i class="fas fa-crown"></i> Plano MAX</a>
       <a href="niveis.html" class="user-menu-item"><i class="fas fa-gem"></i> Níveis de reputação</a>
       <a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>
       <a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>
-      <button type="button" class="user-menu-item" onclick="typeof toggleMode==='function'&&toggleMode()">
-        <i data-mode-icon class="${modeIcon}"></i>
-        <span data-mode-label>${modeLabel}</span>
-      </button>
       <div class="user-menu-divider"></div>
       <div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">
         <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
@@ -1497,10 +1490,6 @@ function renderUserMenu() {
       <a href="plano-max.html" class="user-menu-item"><i class="fas fa-crown"></i> Plano MAX</a>
       <a href="niveis.html" class="user-menu-item"><i class="fas fa-gem"></i> Níveis de reputação</a>
       <a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>
-      <button type="button" class="user-menu-item" onclick="typeof toggleMode==='function'&&toggleMode()">
-        <i data-mode-icon class="${modeIcon}"></i>
-        <span data-mode-label>${modeLabel}</span>
-      </button>
       <div class="user-menu-divider"></div>
       <div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">
         <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>

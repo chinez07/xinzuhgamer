@@ -6,7 +6,8 @@ const modeToggle = document.getElementById('modeToggle');
 const modeToggleMenu = document.getElementById('modeToggleMenu');
 
 const savedTheme = localStorage.getItem('xinzuh-theme') || 'purple';
-const savedMode = localStorage.getItem('xinzuh-mode') || 'light';
+const savedMode = 'dark';
+localStorage.setItem('xinzuh-mode', savedMode);
 document.documentElement.setAttribute('data-theme', savedTheme);
 document.documentElement.setAttribute('data-mode', savedMode);
 updateActiveTheme(savedTheme);
@@ -37,11 +38,8 @@ function updateActiveTheme(theme) {
 }
 
 function toggleMode() {
-  const current = document.documentElement.getAttribute('data-mode');
-  const next = current === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-mode', next);
-  localStorage.setItem('xinzuh-mode', next);
-  updateModeLabels(next);
+  document.documentElement.setAttribute('data-mode', 'dark');
+  localStorage.setItem('xinzuh-mode', 'dark');
 }
 
 function updateModeLabels(mode) {
@@ -74,10 +72,6 @@ function renderUserMenu() {
       <button class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</button>
       <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
       <button class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</button>
-      <button class="user-menu-item" onclick="toggleMode()">
-        <i data-mode-icon class="${document.documentElement.getAttribute('data-mode') === 'dark' ? 'fas fa-sun' : 'fas fa-moon'}"></i>
-        <span data-mode-label>${document.documentElement.getAttribute('data-mode') === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
-      </button>
       <div class="user-menu-divider"></div>
       <div class="user-menu-item" style="justify-content:space-between;cursor:default">
         <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
@@ -97,10 +91,6 @@ function renderUserMenu() {
         <i class="fas fa-user-plus"></i> Criar conta
       </a>
       <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
-      <button class="user-menu-item" onclick="toggleMode()">
-        <i data-mode-icon class="${document.documentElement.getAttribute('data-mode') === 'dark' ? 'fas fa-sun' : 'fas fa-moon'}"></i>
-        <span data-mode-label>${document.documentElement.getAttribute('data-mode') === 'dark' ? 'Tema claro' : 'Tema escuro'}</span>
-      </button>
       <div class="user-menu-divider"></div>
       <div class="user-menu-item" style="justify-content:space-between;cursor:default">
         <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
