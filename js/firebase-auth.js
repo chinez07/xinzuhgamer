@@ -33,6 +33,28 @@ window.IMGBB_API_KEY = ''; // não usar chave no cliente
   } catch (e) {}
 })();
 
+// O selo MAX consulta a assinatura no servidor, nunca o localStorage.
+(function () {
+  function load() {
+    if (document.querySelector('script[src*="max-client.js"]')) return;
+    var script = document.createElement('script');
+    script.src = 'js/max-client.js?v=clube-max-1'; script.async = true;
+    document.head.appendChild(script);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();
+})();
+
+function authReturnPath() {
+  try {
+    var value = new URLSearchParams(window.location.search).get('redirect');
+    if (value) {
+      var destination = new URL(value, window.location.href);
+      if (destination.origin === window.location.origin && !/\/(?:login|cadastro)(?:\.html)?$/.test(destination.pathname)) return destination.pathname + destination.search + destination.hash;
+    }
+  } catch (e) {}
+  return 'index.html';
+}
+
 // Firebase Auth - Bloxzuh
 const firebaseConfig = {
   apiKey: "AIzaSyCaBMtonCi3KKKCvr8MuaMbsNOC14960Is",
@@ -128,7 +150,7 @@ async function loginWithGoogle() {
   try {
     const result = await auth.signInWithPopup(provider);
     saveUser(result.user, 'google');
-    window.location.href = 'index.html';
+    window.location.href = authReturnPath();
   } catch (err) {
     if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
       try {
@@ -150,7 +172,7 @@ async function loginWithEmail(email, password) {
     const result = await auth.signInWithEmailAndPassword(email.trim(), password);
     saveUser(result.user, 'email');
     showMsg('Login ok! Redirecionando...', 'ok');
-    window.location.href = 'index.html';
+    window.location.href = authReturnPath();
   } catch (err) {
     showMsg(friendlyError(err), 'err');
     console.error(err);
@@ -207,7 +229,7 @@ async function handleRedirectResult() {
     const result = await auth.getRedirectResult();
     if (result && result.user) {
       saveUser(result.user, 'google');
-      window.location.href = 'index.html';
+      window.location.href = authReturnPath();
     }
   } catch (err) {
     console.error(err);

@@ -105,6 +105,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
+  <script src="js/max-client.js?v=clube-max-1"></script>
   <script src="js/firestore-db.js"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
@@ -144,7 +145,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           '<div class="product-body">' +
             '<h3>' + esc(ad.title || 'Anúncio') + '</h3>' +
             '<div class="product-price">R$ ' + price + '</div>' +
-            '<div class="product-seller">' + avatar + '<span>' + esc(ad.seller || 'Vendedor') + '</span></div>' +
+            '<div class="product-seller">' + avatar + '<span data-max-uid="' + esc(ad.sellerUid || '') + '" data-max-name>' + esc(ad.seller || 'Vendedor') + '</span></div>' +
           '</div>' +
         '</a>'
       );

@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Plano MAX · Bloxzuh</title>
-  <meta name="description" content="Conheça o futuro Plano MAX da Bloxzuh: ferramentas para sua loja, personalização e atendimento. R$ 45 por 30 dias, com renovação manual.">
+  <meta name="description" content="Conheça o Clube MAX da Bloxzuh: ferramentas para sua loja, personalização e atendimento. R$ 45 por 30 dias, com renovação manual.">
   <link rel="icon" href="assets/bloxzuh-favicon.png" type="image/png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/community.css">
+  <link rel="stylesheet" href="css/max.css" data-bloxzuh-max-css="1">
 </head>
 <body>
   <header class="community-header"><div class="shell header-inner">
@@ -17,38 +18,60 @@
   <main>
     <div class="shell hero">
       <div><span class="eyebrow">Para quem constrói sua própria loja</span><h1>Sua identidade.<br>Sua comunidade.<br>Seu próximo <em>MAX.</em></h1>
-        <p>Uma nova experiência para vendedores Bloxzuh: mais personalidade para o seu perfil e ferramentas para cuidar de cada venda.</p>
+        <p>Sua loja com nome próprio, selo de assinante, capa personalizada, vitrine e horário de atendimento. Tudo por R$ 45 a cada 30 dias.</p>
         <div class="actions"><a class="action primary" href="#beneficios">Conhecer benefícios</a><a class="action" href="#plano">Ver o plano</a></div>
-        <span class="status">Em preparação</span><p class="fine">As assinaturas ainda não estão abertas. Nenhuma cobrança será feita nesta página.</p>
+        <span class="status" data-max-sales-status>Consultando disponibilidade</span><p class="fine" id="maxSalesNote">Carregando as condições da assinatura…</p>
       </div>
-      <div class="membership" aria-label="Prévia visual do cartão Plano MAX"><div class="membership-top"><img src="assets/bloxzuh-logo.png" alt="" width="46" height="46"><span>BLOXZUH / MAX</span></div><div class="crown"><i class="fas fa-crown" aria-hidden="true"></i></div><strong>Uma loja com<br>a sua assinatura.</strong><p>Sua marca merece ser reconhecida.</p><div class="membership-bottom"><span>PLANO MAX</span><span>PRÉVIA</span></div></div>
+      <div class="membership" aria-label="Clube MAX Bloxzuh"><div class="membership-top"><img src="assets/bloxzuh-logo.png" alt="" width="46" height="46"><span>BLOXZUH / MAX</span></div><img class="max-art" src="assets/clube-max.gif" alt="Coroa B com relâmpagos roxos animados" width="210" height="210"><strong>Uma loja com<br>a sua assinatura.</strong><p>Sua marca merece ser reconhecida.</p><div class="membership-bottom"><span>PLANO MAX</span><span>CLUBE MAX</span></div></div>
     </div>
     <section class="section" id="beneficios"><div class="shell">
-      <div class="section-title"><span class="eyebrow">O que estamos preparando</span><h2>Mais espaço para a sua marca.<br>Mais recursos para sua rotina.</h2><p>Estes são os benefícios planejados. A lista de recursos disponíveis será confirmada antes da abertura das assinaturas.</p></div>
+      <div class="section-title"><span class="eyebrow">O que está incluído</span><h2>Mais espaço para a sua marca.<br>Mais recursos para sua rotina.</h2><p>Quatro benefícios para dar identidade à sua loja. Seus dados ficam guardados se a assinatura vencer e voltam a aparecer quando você renovar.</p></div>
       <div class="benefits">
-        <article class="benefit"><i class="fas fa-crown" aria-hidden="true"></i><h3>Identidade MAX</h3><p>Nome da loja e selo de assinante para identificar sua marca no perfil e nos seus anúncios.</p><span class="phase">Planejado</span></article>
-        <article class="benefit"><i class="fas fa-palette" aria-hidden="true"></i><h3>Um perfil com sua cara</h3><p>Capa personalizada e uma apresentação mais completa da sua loja. Foto e biografia básicas continuam gratuitas.</p><span class="phase">Planejado</span></article>
-        <article class="benefit"><i class="fas fa-store" aria-hidden="true"></i><h3>Vitrine da sua loja</h3><p>Seus anúncios reunidos em um espaço organizado para quem quer conhecer tudo o que você vende.</p><span class="phase">Planejado</span></article>
-        <article class="benefit"><i class="fas fa-clock" aria-hidden="true"></i><h3>Atendimento organizado</h3><p>Mostre seus horários e deixe uma mensagem de ausência para orientar quem chega fora do expediente.</p><span class="phase">Planejado</span></article>
-        <article class="benefit"><i class="fas fa-comment-dots" aria-hidden="true"></i><h3>Respostas rápidas</h3><p>Mensagens salvas para dúvidas frequentes, instruções de entrega e acompanhamento das compras.</p><span class="phase">Planejado</span></article>
-        <article class="benefit"><i class="fas fa-chart-line" aria-hidden="true"></i><h3>Métricas da loja</h3><p>Acompanhe vendas e desempenho dos anúncios para entender a evolução do seu negócio.</p><span class="phase">Planejado</span></article>
-        <article class="benefit"><i class="fas fa-ticket" aria-hidden="true"></i><h3>Cupons próprios</h3><p>Campanhas com regras de desconto e validade para os produtos da sua loja.</p><span class="phase">Etapa futura</span></article>
-        <article class="benefit"><i class="fas fa-video" aria-hidden="true"></i><h3>Vídeos nos anúncios</h3><p>Mostre detalhes dos seus produtos em vídeo, além das imagens da galeria.</p><span class="phase">Etapa futura</span></article>
-        <article class="benefit"><i class="fas fa-users" aria-hidden="true"></i><h3>Uma comunidade por perto</h3><p>Seguidores para aproximar sua loja das pessoas que querem acompanhar suas novidades.</p><span class="phase">Etapa futura</span></article>
+        <article class="benefit"><i class="fas fa-crown" aria-hidden="true"></i><h3>Identidade MAX</h3><p>Nome da loja e selo de assinante para identificar sua marca no perfil e nos anúncios. Passe o mouse ou toque na coroa para ver o selo de assinante.</p><span class="phase">Incluído no Clube MAX</span></article>
+        <article class="benefit"><i class="fas fa-palette" aria-hidden="true"></i><h3>Um perfil com sua cara</h3><p>Capa personalizada e uma apresentação mais completa da sua loja. Foto e biografia básicas continuam gratuitas.</p><span class="phase">Incluído no Clube MAX</span></article>
+        <article class="benefit"><i class="fas fa-store" aria-hidden="true"></i><h3>Vitrine da sua loja</h3><p>Seus anúncios reunidos em um espaço organizado para quem quer conhecer tudo o que você vende.</p><span class="phase">Incluído no Clube MAX</span></article>
+        <article class="benefit"><i class="fas fa-clock" aria-hidden="true"></i><h3>Atendimento organizado</h3><p>Mostre seus horários e deixe uma mensagem de ausência para orientar quem chega fora do expediente.</p><span class="phase">Incluído no Clube MAX</span></article>
+
+
+
+
+
       </div>
     </div></section>
     <section class="section" id="plano"><div class="shell"><div class="offer">
-      <div><span class="eyebrow">Plano MAX Bloxzuh</span><h2>30 dias para levar<br>sua loja além.</h2><p class="fine">Renovação manual. Sem cobrança automática.</p><div class="price">R$ 45<small> / 30 dias</small></div><span class="status">Assinaturas em breve</span></div>
-      <div><ul><li>Uma assinatura por conta.</li><li>Preço fixo pelo período de 30 dias.</li><li>Ativação após a confirmação do pagamento.</li><li>Benefícios finais informados antes da contratação.</li></ul><button class="action primary" type="button" disabled>Assinaturas ainda indisponíveis</button><p class="fine">Por enquanto, você pode continuar comprando e vendendo normalmente.</p></div>
+      <div><span class="eyebrow">Plano MAX Bloxzuh</span><h2>30 dias para levar<br>sua loja além.</h2><p class="fine">Renovação manual. Sem cobrança automática.</p><div class="price">R$ 45<small> / 30 dias</small></div><span class="status" data-max-sales-status>Consultando disponibilidade</span></div>
+      <div><ul><li>Uma assinatura por conta.</li><li>Preço fixo pelo período de 30 dias.</li><li>Ativação após a confirmação do pagamento.</li><li>Nome da loja, coroa, capa, vitrine e horários incluídos.</li></ul><a class="action primary" href="#assinatura">Assinar ou gerenciar meu MAX</a><p class="fine">Por enquanto, você pode continuar comprando e vendendo normalmente.</p></div>
     </div><div class="notice">O MAX é uma assinatura de ferramentas. Os destaques Prata, Ouro e Diamante continuam seguindo a visibilidade de cada anúncio. A assinatura não compra níveis nem avaliações.</div></div></section>
+
+    <section class="section" id="assinatura"><div class="shell">
+      <div class="section-title"><span class="eyebrow">Seu Clube MAX</span><h2>Assine. Personalize. Faça sua marca.</h2></div>
+      <div id="maxGuest" class="max-panel"><p>Entre na sua conta para assinar ou gerenciar sua loja MAX.</p><a class="action primary" href="login.html?redirect=plano-max.html%23assinatura">Entrar na Bloxzuh</a></div>
+      <div id="maxMessage" class="max-message" role="status" aria-live="polite" hidden></div>
+      <div id="maxManagement" hidden>
+        <div class="max-panel"><h3>Minha assinatura</h3><p id="maxState" class="max-status-pill">Consultando assinatura…</p><p id="maxRenewNote" class="fine"></p><p id="maxPending" class="fine" hidden></p><button class="action" type="button" id="maxCheckExisting" hidden>Consultar Pix pendente</button></div>
+        <div id="maxCheckout" class="max-panel" hidden><h3>Pix de R$ 45 · 30 dias</h3><p class="max-legal">A assinatura dá acesso aos quatro benefícios desta página. A renovação é manual. O período começa na aprovação do Pix, ou é somado ao período ainda ativo. Não há acréscimo de 2,99% nas vendas pelo MAX.</p>
+          <form id="maxCheckoutForm" class="max-form"><label>CPF do pagador<input id="maxCPF" name="cpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" required></label><label><input id="maxAgree" type="checkbox" required> Li as condições acima e quero gerar um Pix de R$ 45 por 30 dias de Clube MAX.</label><button class="action primary" id="maxGenerate" type="submit">Gerar Pix de R$ 45 · 30 dias</button></form><p class="fine">O CPF é enviado ao processador do pagamento e não é salvo na configuração da loja. Gerar o Pix não efetua o pagamento.</p>
+        </div>
+        <div id="maxPayment" class="max-panel" hidden><h3>Pague pelo aplicativo do seu banco</h3><div class="max-pay-grid"><img id="maxQr" class="max-qr" alt="QR Code Pix da assinatura" width="230" height="230"><div><label for="maxPixCode">Pix copia e cola</label><textarea id="maxPixCode" class="max-pay-code" readonly></textarea><div class="actions"><button class="action" id="maxCopy" type="button">Copiar código Pix</button><button class="action primary" id="maxCheckNow" type="button">Já paguei, consultar</button></div><p id="maxPixExpiry" class="fine"></p><p id="maxPaymentState" role="status" aria-live="polite"></p></div></div></div>
+        <div id="maxSettings" class="max-panel" hidden><h3>Personalizar minha loja MAX</h3><div class="actions"><a id="maxMyStore" class="action" href="loja.html">Ver minha vitrine</a><a id="maxMyProfile" class="action" href="perfil.html">Ver meu perfil</a></div>
+          <form id="maxSettingsForm" class="max-form"><label>Nome da loja<input id="maxShopName" type="text" minlength="1" maxlength="40" required></label><label>Capa da loja<input id="maxCoverFile" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="fine">JPG, PNG ou WebP, até 5 MB. A prévia será recortada no formato da capa.</p><img id="maxCoverPreview" class="max-cover-preview" alt="Prévia da capa" hidden><button id="maxRemoveCover" class="action" type="button">Remover capa</button><div><h3>Horário de atendimento</h3><p class="fine">Horário de Brasília. Desmarque os dias em que sua loja não atende.</p><div id="maxSchedule"></div></div><label>Mensagem fora do horário<textarea id="maxOffline" maxlength="500" placeholder="Olá! Estamos fora do horário de atendimento. Voltamos em breve."></textarea></label><button id="maxSave" class="action primary" type="submit">Salvar minha loja</button></form>
+        </div>
+      </div>
+    </div></section>
     <section class="section"><div class="shell faq"><span class="eyebrow">Sem dúvidas pelo caminho</span><h2>Antes de virar MAX</h2>
-      <details><summary>Já posso assinar?</summary><p>Ainda não. A página apresenta o plano em preparação. A compra só será aberta quando o pagamento e os benefícios estiverem disponíveis.</p></details>
+      <details><summary>Como faço para assinar?</summary><p>Entre na sua conta, acesse a área de assinatura, informe o CPF e gere o Pix de R$ 45. A coroa e os benefícios são liberados após a confirmação do pagamento. Se o serviço estiver indisponível, a geração de Pix ficará desativada.</p></details>
       <details><summary>Vou pagar mais 2,99% nas vendas?</summary><p>O valor definido para a assinatura é R$ 45 por 30 dias. A seleção antiga de Plano MAX com acréscimo de 2,99% continua desativada. As taxas de visibilidade do anúncio permanecem separadas.</p></details>
-      <details><summary>A renovação será automática?</summary><p>Não. A proposta é renovar manualmente por mais 30 dias, quando você quiser continuar.</p></details>
+      <details><summary>A renovação será automática?</summary><p>Não. A renovação é manual: você gera um novo Pix quando quiser continuar. Se renovar antes do vencimento, os 30 dias são somados ao período que ainda resta.</p></details>
       <details><summary>Preciso ser MAX para ganhar níveis?</summary><p>Não. Os níveis de reputação são gratuitos e independem da assinatura. <a href="niveis.html">Veja como funciona a progressão.</a></p></details>
       <details><summary>Minha foto e minha biografia vão deixar de ser gratuitas?</summary><p>Não. Sua foto de perfil, biografia básica e a participação no marketplace continuam disponíveis sem assinatura.</p></details>
     </div></section>
+    <section class="section" id="condicoes"><div class="shell"><h2>O que acontece ao vencer?</h2><p class="fine">O selo, o nome da loja, a capa e a vitrine MAX ficam indisponíveis até uma nova assinatura. A configuração é preservada. Seu perfil básico, anúncios, foto e biografia continuam disponíveis. Cupons, vídeos, seguidores, métricas avançadas e aceleração de saques não estão incluídos nesta versão.</p></div></section>
   </main>
   <footer class="community-footer"><div class="shell footer-inner"><span>Bloxzuh · Feito para a sua próxima conquista.</span><a href="index.html">Voltar ao marketplace</a></div></footer>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="js/firebase-auth.js"></script>
+  <script src="js/max-client.js?v=clube-max-1"></script>
+  <script src="js/max-page.js"></script>
 </body>
 </html>

@@ -74,6 +74,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
+  <script src="js/max-client.js?v=clube-max-1"></script>
   <script src="js/firestore-db.js"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script>
@@ -177,7 +178,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       }
       return '<div class="bubble-row ' + (me ? 'me' : 'them') + '">' + av +
         '<div class="bubble ' + (me ? 'me' : 'them') + '">' + esc(m.text) +
-        '<div class="t">' + esc(m.senderName) + ' · ' + timeAgo(m.createdAtMs) + ticks + '</div></div></div>';
+        '<div class="t"><span data-max-uid="' + esc(m.senderUid || '') + '" data-max-name>' + esc(m.senderName) + '</span> · ' + timeAgo(m.createdAtMs) + ticks + '</div></div></div>';
     }).join('') + '</div>';
   }
 
@@ -247,8 +248,9 @@ html { color-scheme: dark; background-color: #0f0f14; }
         '<h1>Pedido #' + esc(o.code) + '</h1>' +
         '<p class="muted" style="margin:8px 0"><span class="badge st-' + esc(o.status) + '">' + label(o.status) + '</span></p>' +
         '<div class="row"><span>Total</span><span style="font-weight:800;color:#c4b5fd">' + money(o.total || o.price) + '</span></div>' +
-        '<div class="row"><span>Vendedor</span><span>' + esc(o.sellerName) + '</span></div>' +
-        '<div class="row"><span>Comprador</span><span>' + esc(o.buyerName) + '</span></div>' +
+        '<div class="row"><span>Vendedor</span><span data-max-uid="' + esc(o.sellerUid || '') + '" data-max-name>' + esc(o.sellerName) + '</span></div>' +
+        '<div class="row"><span>Comprador</span><span data-max-uid="' + esc(o.buyerUid || '') + '" data-max-name>' + esc(o.buyerName) + '</span></div>' +
+        '<div data-max-hours="' + esc(o.sellerUid || '') + '"></div>' +
         img +
         '<div style="font-weight:700">' + esc(o.adTitle) + '</div>' +
         (o.adId ? '<div class="actions"><a class="btn btn-ghost" href="anuncio.html?id=' + encodeURIComponent(o.adId) + '">Ver anúncio</a></div>' : '') +

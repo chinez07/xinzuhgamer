@@ -1,0 +1,7 @@
+{
+  "name": "bloxzuh-pix",
+  "main": "mp-pix.js",
+  "compatibility_date": "2026-09-30",
+  "vars": {"MAX_SALES_ENABLED": "true"},
+  "d1_databases": [{"binding": "MAX_DB", "database_name": "bloxzuh-max", "database_id": "691d2aa3-32f9-417a-ad72-e3bbe4fe4995"}]
+}
