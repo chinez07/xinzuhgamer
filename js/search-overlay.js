@@ -203,9 +203,6 @@
         var da = visOf(a) === 'diamante' ? 1 : 0;
         var db = visOf(b) === 'diamante' ? 1 : 0;
         if (db !== da) return db - da;
-        if (typeof bloxzuhVisRank === 'function') {
-          return bloxzuhVisRank(visOf(b)) - bloxzuhVisRank(visOf(a));
-        }
         return 0;
       });
       adHits = adHits.slice(0, 20);

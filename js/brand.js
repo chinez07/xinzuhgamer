@@ -1,10 +1,10 @@
 /**
- * Logo + favicon Bloxzuh (B com coroa) — v2 sem flash do raio
+ * Logo + favicon Bloxzuh (B com coroa) — v3 com imagens locais desde o HTML
  */
 (function () {
-  var LOGO = 'https://i.ibb.co/Rp7zLN9J/acce3b9a1d18.png';
-  var LOGO_HD = 'https://i.ibb.co/5gNDMtF4/ac9afc57bcc1.png';
-  var FAVICON = 'https://i.ibb.co/0jK0YF2L/e058937827d3.png';
+  var LOGO = 'assets/bloxzuh-logo.png';
+  var LOGO_HD = 'assets/bloxzuh-logo-hd.png';
+  var FAVICON = 'assets/bloxzuh-favicon.png';
 
   (function injectBrandCss() {
     if (document.getElementById('bz-brand-css')) return;
@@ -50,8 +50,8 @@
       img = document.createElement('img');
       el.appendChild(img);
     }
-    img.src = LOGO;
-    img.alt = 'Bloxzuh';
+    if (img.getAttribute('src') !== LOGO) img.src = LOGO;
+    img.alt = '';
     img.width = size;
     img.height = size;
     img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block';

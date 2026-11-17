@@ -48,11 +48,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
     .footer{border-top:1px solid var(--border);padding:28px 0;margin-top:20px;color:var(--text-muted);font-size:.85rem}
     @media (max-width:600px){.filters{flex-direction:column}.filters input,.filters select{width:100%;min-width:0}}
   </style>
+  <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
+  <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
+  <link rel="stylesheet" href="css/brand.css">
 </head>
 <body>
   <header class="header">
     <div class="container header-content">
-      <a class="logo" href="index.html"><span class="logo-icon"><i class="fas fa-bolt"></i></span> Bloxzuh</a>
+      <a class="logo" href="index.html"><span class="logo-icon"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></span> Bloxzuh</a>
       <a class="btn-anunciar" href="anunciar.html">+ Anunciar</a>
     </div>
   </header>
@@ -164,7 +167,17 @@ html { color-scheme: dark; background-color: #0f0f14; }
         }
         return true;
       });
-      if (sort === 'price_asc') list.sort(function (a, b) { return (a.price || 0) - (b.price || 0); });
+      if (sort === 'rel') {
+        if (q) {
+          // Só Diamante recebe prioridade na busca; Ouro segue a ordem normal.
+          list.sort(function (a, b) {
+            return Number(bloxzuhIsSearchFeatured(b)) - Number(bloxzuhIsSearchFeatured(a));
+          });
+        } else {
+          list = bloxzuhSortByVisibility(list);
+        }
+      }
+      else if (sort === 'price_asc') list.sort(function (a, b) { return (a.price || 0) - (b.price || 0); });
       else if (sort === 'price_desc') list.sort(function (a, b) { return (b.price || 0) - (a.price || 0); });
       else if (sort === 'sales') list.sort(function (a, b) { return (b.sold || b.sales || 0) - (a.sold || a.sales || 0); });
       var grid = document.getElementById('adsList');

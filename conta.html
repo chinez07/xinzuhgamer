@@ -985,12 +985,15 @@ img { max-width: 100%; display: block; }
   } catch(e){}
 })();
 </script>
+  <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
+  <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
+  <link rel="stylesheet" href="css/brand.css">
 </head>
 <body>
   <header class="header">
     <div class="container header-content">
       <a href="index.html" class="logo">
-        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+        <div class="logo-icon"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div>
         <span>Bloxzuh</span>
       </a>
       <div class="header-right">

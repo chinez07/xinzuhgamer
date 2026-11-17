@@ -90,6 +90,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       border: 2px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer;
     }
     .vis-opt.sel, .plan-opt.sel { border-color: var(--primary); background: var(--primary-soft); }
+    .plan-opt[aria-disabled="true"] { cursor: default; opacity: .65; }
     .vis-opt h4, .plan-opt h4 { margin-bottom: 6px; font-size: 1rem; }
     .vis-opt ul, .plan-opt ul { list-style: none; font-size: 0.82rem; color: var(--muted); }
     .vis-opt ul li, .plan-opt ul li { margin: 4px 0; }
@@ -166,10 +167,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
   } catch(e){}
 })();
 </script>
+  <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
+  <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
+  <link rel="stylesheet" href="css/brand.css">
 </head>
 <body>
   <div class="top">
-    <a class="logo" href="index.html"><div class="logo-i"><i class="fas fa-bolt"></i></div> Bloxzuh</a>
+    <a class="logo" href="index.html"><div class="logo-i"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div> Bloxzuh</a>
     <a class="link" href="index.html">Voltar ao site</a>
   </div>
 
@@ -322,7 +326,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         <div class="acc-head"><div class="ico"><i class="fas fa-star"></i></div> Plano <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
         <div class="acc-body">
           <div class="plan-opt sel" data-plan="none"><h4>Sem plano</h4><ul><li>Pagamento protegido</li><li>Saque padrão</li></ul></div>
-          <div class="plan-opt" data-plan="max"><h4>Plano MAX <span class="badge-fee">+2,99%</span></h4><ul><li>Saque acelerado</li><li>Mensagem automática</li><li>Estoque automático</li></ul></div>
+          <div class="plan-opt" data-plan="max" aria-disabled="true"><h4>Plano MAX <span class="badge-fee">Em breve</span></h4><p class="hint" style="margin:8px 0 0">Assinatura ainda indisponível. Seu anúncio será publicado sem plano e sem taxa adicional.</p></div>
           <button type="button" class="btn btn-primary" id="btnToImages">Próxima etapa — Imagens</button>
         </div>
       </div>
@@ -651,13 +655,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
         state.feePercent = parseFloat(el.getAttribute('data-fee'));
       });
     });
-    document.querySelectorAll('.plan-opt').forEach(el => {
-      el.addEventListener('click', () => {
-        document.querySelectorAll('.plan-opt').forEach(x => x.classList.remove('sel'));
-        el.classList.add('sel');
-        state.plan = el.getAttribute('data-plan');
-      });
-    });
+    // Sem plano pago enquanto a assinatura não estiver configurada.
+    state.plan = 'none';
 
     // FAQ
     document.getElementById('btnAddFaq').addEventListener('click', () => {
@@ -805,8 +804,7 @@ state.cover = await fileToDataUrl(f, 480);
 
     function renderSummary() {
       const price = parseFloat(document.getElementById('price').value) || 0;
-      let fee = state.feePercent;
-      if (state.plan === 'max') fee += 2.99;
+      const fee = state.feePercent;
       const receive = price - (price * fee / 100);
       const cat = [document.getElementById('category').value, document.getElementById('subcategory').value, document.getElementById('section').value].filter(Boolean).join(' > ');
       document.getElementById('summaryBox').innerHTML =
@@ -827,8 +825,7 @@ state.cover = await fileToDataUrl(f, 480);
       const btn = document.getElementById('btnPublish');
       btn.disabled = true;
       btn.textContent = 'Publicando...';
-      let fee = state.feePercent;
-      if (state.plan === 'max') fee += 2.99;
+      const fee = state.feePercent;
       try {
         showMsg('Preparando imagem e publicando…', 'ok');
         let cover = '';
@@ -892,8 +889,8 @@ state.cover = await fileToDataUrl(f, 480);
             desc: document.getElementById('desc') ? document.getElementById('desc').value.trim() : '',
             faq: (state.faq || []).filter(function(f){ return f.q && f.a; }),
             visibility: state.visibility || 'prata',
-            plan: state.plan || 'none',
-            feePercent: state.feePercent || 9.99,
+            plan: 'none',
+            feePercent: fee,
             status: stockVal > 0 ? 'ativo' : 'pausado',
             updatedAtMs: Date.now()
           };
@@ -938,7 +935,7 @@ state.cover = await fileToDataUrl(f, 480);
           desc: document.getElementById('desc').value.trim(),
           faq: state.faq.filter(f => f.q && f.a),
           visibility: state.visibility,
-          plan: state.plan,
+          plan: 'none',
           feePercent: fee,
           cover: cover,
           gallery: (state.gallery || []).slice(0, 6)
@@ -1021,14 +1018,14 @@ state.cover = await fileToDataUrl(f, 480);
       setSelect('accountInfo', d.accountInfo);
 
       // Visibilidade
-      state.visibility = d.visibility || 'prata';
-      state.feePercent = d.feePercent != null ? Number(d.feePercent) : (state.visibility === 'diamante' ? 12.99 : state.visibility === 'ouro' ? 11.99 : 9.99);
+      state.visibility = ['prata', 'ouro', 'diamante'].indexOf(d.visibility) >= 0 ? d.visibility : 'prata';
+      state.feePercent = Number(document.querySelector('.vis-opt[data-vis="' + state.visibility + '"]').getAttribute('data-fee'));
       document.querySelectorAll('.vis-opt').forEach(function(el){
         el.classList.toggle('sel', el.getAttribute('data-vis') === state.visibility);
       });
 
       // Plano
-      state.plan = d.plan || 'none';
+      state.plan = 'none';
       document.querySelectorAll('.plan-opt').forEach(function(el){
         el.classList.toggle('sel', el.getAttribute('data-plan') === state.plan);
       });

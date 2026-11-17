@@ -1155,13 +1155,16 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   } catch(e){}
 })();
 </script>
+  <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
+  <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
+  <link rel="stylesheet" href="css/brand.css">
 </head>
 <body>
   <!-- Header -->
   <header class="header">
     <div class="container header-content">
       <a href="index.html" class="logo">
-        <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+        <div class="logo-icon"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div>
         <span>Bloxzuh</span>
       </a>
 
@@ -1354,7 +1357,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
       <div class="footer-grid">
         <div class="footer-col">
           <a href="index.html" class="logo">
-            <div class="logo-icon"><i class="fas fa-bolt"></i></div>
+            <div class="logo-icon"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div>
             <span>Bloxzuh</span>
           </a>
           <p>Marketplace de jogos online seguro e moderno. Compre e venda com tranquilidade.</p>
@@ -1882,23 +1885,23 @@ async function loadFirestoreAdsHome() {
     var dynTitle = document.getElementById('dynamicCatTitle');
     if (dynTitle) dynTitle.textContent = CAT_LABELS[focusCat] || 'Categoria';
 
-    var featured = live.filter(function (a) {
+    var homeEligible = live.filter(function (a) {
       return (typeof bloxzuhIsHomeFeatured === 'function')
         ? bloxzuhIsHomeFeatured(a)
         : (a.visibility === 'diamante' || a.visibility === 'ouro');
     });
+    var featured = homeEligible;
     if (typeof bloxzuhSortByVisibility === 'function') featured = bloxzuhSortByVisibility(featured);
     featured = featured.slice(0, 12);
 
-    var catAds = live.filter(function (a) {
+    var catAds = homeEligible.filter(function (a) {
       var c = (a.category || '').toLowerCase();
       if (focusCat === 'premium') return c === 'premium';
       return c === focusCat || c.indexOf(focusCat) !== -1;
     });
     if (typeof bloxzuhSortByVisibility === 'function') catAds = bloxzuhSortByVisibility(catAds);
 
-    // se não houver ouro/diamante, mostra os mais recentes na home (não fica vazio eterno)
-    if (!featured.length) featured = live.slice(0, 12);
+    // Prata permanece nas categorias, mesmo quando não há anúncios em destaque.
 
     if (featuredScroll) {
       featuredScroll.innerHTML = featured.length

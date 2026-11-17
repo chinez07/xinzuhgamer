@@ -1,0 +1,15 @@
+/* Marca presente no HTML, antes de qualquer JavaScript. */
+.logo-icon, .logo-i {
+  background: transparent !important;
+  box-shadow: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.logo-icon img, .logo-i img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
