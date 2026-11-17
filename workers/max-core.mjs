@@ -20,7 +20,8 @@ async function maxInit(db) {
       db.prepare('CREATE TABLE IF NOT EXISTS max_intents (reference TEXT PRIMARY KEY, uid TEXT NOT NULL, request_id TEXT NOT NULL, created_at INTEGER NOT NULL, payment_id TEXT UNIQUE, UNIQUE(uid, request_id))'),
       db.prepare('CREATE TABLE IF NOT EXISTS max_payments (payment_id TEXT PRIMARY KEY, uid TEXT NOT NULL, reference TEXT NOT NULL UNIQUE, status TEXT NOT NULL, paid_at INTEGER, created_at INTEGER NOT NULL, live INTEGER NOT NULL DEFAULT 0)'),
       db.prepare('CREATE INDEX IF NOT EXISTS max_payments_user ON max_payments(uid)'),
-      db.prepare("CREATE TABLE IF NOT EXISTS max_profiles (uid TEXT PRIMARY KEY, shop_name TEXT NOT NULL DEFAULT '', cover TEXT NOT NULL DEFAULT '', schedule_json TEXT NOT NULL DEFAULT '[]', offline_message TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL)")
+      db.prepare("CREATE TABLE IF NOT EXISTS max_profiles (uid TEXT PRIMARY KEY, shop_name TEXT NOT NULL DEFAULT '', cover TEXT NOT NULL DEFAULT '', schedule_json TEXT NOT NULL DEFAULT '[]', offline_message TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL)"),
+      db.prepare("CREATE TABLE IF NOT EXISTS max_test_grants (uid TEXT PRIMARY KEY, starts_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, reason TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL)")
     ]).catch(e => {initialized.delete(db); throw e;});
     initialized.set(db, ready);
   }
@@ -37,7 +38,15 @@ export function maxMembership(events, now = Date.now()) {
 }
 async function maxMember(db, uid) {
   const {results} = await db.prepare('SELECT payment_id, status, live, paid_at FROM max_payments WHERE uid = ?').bind(uid).all();
-  return maxMembership(results);
+  const paid = maxMembership(results);
+  // A courtesy test never extends, fabricates or changes a paid period.
+  if (paid.active) return paid;
+  const grant = await db.prepare('SELECT starts_at, expires_at, revoked_at FROM max_test_grants WHERE uid = ?').bind(uid).first();
+  const now = Date.now();
+  if (grant && grant.revoked_at === null && Number.isFinite(grant.starts_at) && Number.isFinite(grant.expires_at) && grant.starts_at <= now && grant.expires_at > now) {
+    return {active: true, expiresAt: grant.expires_at, testAccess: true};
+  }
+  return paid;
 }
 async function maxUser(request, fetcher) {
   const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');

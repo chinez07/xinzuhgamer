@@ -31,10 +31,10 @@
     var member = data.member;
     var active = !!member.active;
     el('maxSettings').hidden = !active;
-    el('maxState').textContent = active ? 'Assinatura ativa até ' + date(member.expiresAt) + ' · horário de Brasília' : 'Sua conta ainda não tem uma assinatura MAX ativa.';
+    el('maxState').textContent = active ? (member.testAccess ? 'Acesso de teste gratuito até ' : 'Assinatura ativa até ') + date(member.expiresAt) + ' · horário de Brasília' : 'Sua conta ainda não tem uma assinatura MAX ativa.';
     el('maxCheckout').hidden = !salesEnabled;
-    el('maxGenerate').textContent = active ? 'Gerar Pix para renovar por 30 dias · R$ 45' : 'Gerar Pix de R$ 45 · 30 dias';
-    el('maxRenewNote').textContent = active ? 'A renovação soma 30 dias ao período atual. Não há cobrança automática.' : 'Os 30 dias começam na aprovação do Pix. Não há cobrança automática.';
+    el('maxGenerate').textContent = active && !member.testAccess ? 'Gerar Pix para renovar por 30 dias · R$ 45' : 'Gerar Pix de R$ 45 · 30 dias';
+    el('maxRenewNote').textContent = member.testAccess ? 'Seu acesso de teste não gera cobrança. Se assinar, os 30 dias começam na aprovação do Pix.' : active ? 'A renovação soma 30 dias ao período atual. Não há cobrança automática.' : 'Os 30 dias começam na aprovação do Pix. Não há cobrança automática.';
     if (active) {
       var settings = data.settings || member;
       el('maxShopName').value = settings.shopName || firebase.auth().currentUser.displayName || '';

@@ -176,3 +176,44 @@ test('Profile validation rejects unsafe images, invalid times and excessive text
   assert.throws(() => maxProfileInput({...base, offlineMessage: 'x'.repeat(501)}), /mensagem/);
   assert.throws(() => maxProfileInput({...base, schedule: Array.from({length: 7}, () => ({open: true, start: '18:00', end: '09:00'}))}), /encerramento/);
 });
+
+
+test('Administrative test access unlocks benefits only for its UID without payments', async () => {
+  const f = fixture(); await f.call('me');
+  const now = Date.now(), end = now + 7 * 86400000;
+  f.db.sql.prepare('INSERT INTO max_test_grants VALUES (?, ?, ?, ?, NULL, ?)').run('alice', now - 1000, end, 'administrative_test', now);
+  const me = await f.call('me');
+  assert.equal(me.body.member.active, true);
+  assert.equal(me.body.member.testAccess, true);
+  assert.equal(me.body.member.expiresAt, end);
+  assert.deepEqual(me.body.payments, []);
+  assert.equal(f.created, 0);
+  assert.equal((await f.call('me', null, 'bob')).body.member.active, false);
+  const schedule = Array.from({length: 7}, () => ({open: false, start: '09:00', end: '18:00'}));
+  assert.equal((await f.call('profile', {shopName: 'Test store', cover: '', schedule, offlineMessage: ''}, 'alice', 'PUT')).status, 200);
+  assert.equal((await f.call('public?uid=alice', null, null)).body.shopName, 'Test store');
+  assert.equal((await f.call('test-grants', {uid: 'bob', expiresAt: end})).status, 404);
+});
+
+test('Expired, future, and revoked administrative grants cannot unlock MAX', async () => {
+  const f = fixture(); await f.call('me');
+  const now = Date.now();
+  const insert = f.db.sql.prepare('INSERT OR REPLACE INTO max_test_grants VALUES (?, ?, ?, ?, ?, ?)');
+  for (const [start, end, revoked] of [[now - 2000, now - 1000, null], [now + 1000, now + 86400000, null], [now - 1000, now + 86400000, now]]) {
+    insert.run('alice', start, end, 'administrative_test', revoked, now);
+    assert.equal((await f.call('me')).body.member.active, false);
+    assert.equal((await f.call('profile', {shopName: 'Test'}, 'alice', 'PUT')).status, 403);
+  }
+});
+
+test('Test grants never extend paid periods or survive their own revocation', async () => {
+  const f = fixture(), invoice = await f.checkout(); f.approve(invoice.body.paymentId);
+  const paid = await f.call('payment?id=' + invoice.body.paymentId);
+  const now = Date.now();
+  f.db.sql.prepare('INSERT INTO max_test_grants VALUES (?, ?, ?, ?, NULL, ?)').run('alice', now - 1000, now + MAX_PERIOD * 2, 'administrative_test', now);
+  const me = await f.call('me');
+  assert.equal(me.body.member.expiresAt, paid.body.member.expiresAt);
+  assert.equal(me.body.member.testAccess, undefined);
+  f.db.sql.prepare('UPDATE max_test_grants SET revoked_at = ? WHERE uid = ?').run(now, 'alice');
+  assert.equal((await f.call('me')).body.member.expiresAt, paid.body.member.expiresAt);
+});

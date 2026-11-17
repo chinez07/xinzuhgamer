@@ -58,3 +58,9 @@ O primeiro pagamento real deve ser concluído pelo titular no aplicativo bancár
 Os níveis continuam gratuitos. Cada pedido com avaliação recebida de 5 estrelas concede 100 XP, contado uma vez por destinatário. Negociação consigo mesmo, autoria incompatível e dados sem pedido são ignorados. Nível N: `100 * (N - 1)^2` XP, máximo 20. Quartzo 1–4, Ametista 5–8, Safira 9–12, Esmeralda 13–16, Rubi 17–20. A contagem percorre todo o histórico por paginação e não grava níveis editáveis em `profiles`.
 
 Não estão incluídos nesta versão: cupons, seguidores, vídeos, respostas rápidas, métricas avançadas ou aceleração de saques.
+
+## Acesso administrativo temporário para teste
+
+A tabela D1 `max_test_grants` guarda liberações por UID com início, expiração, motivo e revogação. Somente quem administra o D1 pode inserir ou revogar uma liberação; nenhuma rota pública ou autenticada permite criá-la. Não use a tabela de pagamentos para simular uma compra.
+
+O acesso de teste libera os mesmos benefícios, sem criar Pix ou pagamento. A página identifica o acesso como teste gratuito. O prazo expira automaticamente, e `revoked_at` revoga imediatamente. Uma assinatura paga ativa tem prioridade e conserva seu vencimento original. Uma compra durante o teste começa na aprovação, sem somar o período gratuito.
