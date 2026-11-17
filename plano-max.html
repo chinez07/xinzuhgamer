@@ -18,8 +18,8 @@
   <main>
     <div class="shell hero">
       <div><span class="eyebrow">Para quem constrói sua própria loja</span><h1>Sua identidade.<br>Sua comunidade.<br>Seu próximo <em>MAX.</em></h1>
-        <p>Sua loja com nome próprio, selo de assinante, capa personalizada, vitrine e horário de atendimento. Tudo por R$ 45 a cada 30 dias.</p>
-        <div class="actions"><a class="action primary" href="#beneficios">Conhecer benefícios</a><a class="action" href="#plano">Ver o plano</a></div>
+        <p>Sua loja com nome próprio, selo de assinante, capa personalizada, vitrine e horário de atendimento. Experimente por 10 dias grátis no primeiro uso. Depois, R$ 45 a cada 30 dias, sem cobrança automática.</p>
+        <div class="actions"><a class="action primary" href="#assinatura">Experimentar 10 dias grátis</a><a class="action" href="#plano">Ver o plano</a></div>
         <span class="status" data-max-sales-status>Consultando disponibilidade</span><p class="fine" id="maxSalesNote">Carregando as condições da assinatura…</p>
       </div>
       <div class="membership" aria-label="Clube MAX Bloxzuh"><div class="membership-top"><img src="assets/bloxzuh-logo.png" alt="" width="46" height="46"><span>BLOXZUH / MAX</span></div><img class="max-art" src="assets/clube-max.gif" alt="Coroa B com relâmpagos roxos animados" width="210" height="210"><strong>Uma loja com<br>a sua assinatura.</strong><p>Sua marca merece ser reconhecida.</p><div class="membership-bottom"><span>PLANO MAX</span><span>CLUBE MAX</span></div></div>
@@ -40,16 +40,17 @@
     </div></section>
     <section class="section" id="plano"><div class="shell"><div class="offer">
       <div><span class="eyebrow">Plano MAX Bloxzuh</span><h2>30 dias para levar<br>sua loja além.</h2><p class="fine">Renovação manual. Sem cobrança automática.</p><div class="price">R$ 45<small> / 30 dias</small></div><span class="status" data-max-sales-status>Consultando disponibilidade</span></div>
-      <div><ul><li>Uma assinatura por conta.</li><li>Preço fixo pelo período de 30 dias.</li><li>Ativação após a confirmação do pagamento.</li><li>Nome da loja, coroa, capa, vitrine e horários incluídos.</li></ul><a class="action primary" href="#assinatura">Assinar ou gerenciar meu MAX</a><p class="fine">Por enquanto, você pode continuar comprando e vendendo normalmente.</p></div>
+      <div><ul><li>10 dias grátis no primeiro uso, uma única vez por conta.</li><li>Preço fixo pelo período de 30 dias.</li><li>Ativação após a confirmação do pagamento.</li><li>Nome da loja, coroa, capa, vitrine e horários incluídos.</li></ul><a class="action primary" href="#assinatura">Experimentar ou gerenciar meu MAX</a><p class="fine">Por enquanto, você pode continuar comprando e vendendo normalmente.</p></div>
     </div><div class="notice">O MAX é uma assinatura de ferramentas. Os destaques Prata, Ouro e Diamante continuam seguindo a visibilidade de cada anúncio. A assinatura não compra níveis nem avaliações.</div></div></section>
 
     <section class="section" id="assinatura"><div class="shell">
       <div class="section-title"><span class="eyebrow">Seu Clube MAX</span><h2>Assine. Personalize. Faça sua marca.</h2></div>
-      <div id="maxGuest" class="max-panel"><p>Entre na sua conta para assinar ou gerenciar sua loja MAX.</p><a class="action primary" href="login.html?redirect=plano-max.html%23assinatura">Entrar na Bloxzuh</a></div>
+      <div id="maxGuest" class="max-panel"><p>Entre na sua conta para experimentar 10 dias grátis ou gerenciar sua loja MAX.</p><a class="action primary" href="login.html?redirect=plano-max.html%23assinatura">Entrar na Bloxzuh</a></div>
       <div id="maxMessage" class="max-message" role="status" aria-live="polite" hidden></div>
       <div id="maxManagement" hidden>
         <div class="max-panel"><h3>Minha assinatura</h3><p id="maxState" class="max-status-pill">Consultando assinatura…</p><p id="maxRenewNote" class="fine"></p><p id="maxPending" class="fine" hidden></p><button class="action" type="button" id="maxCheckExisting" hidden>Consultar Pix pendente</button></div>
-        <div id="maxCheckout" class="max-panel" hidden><h3>Pix de R$ 45 · 30 dias</h3><p class="max-legal">A assinatura dá acesso aos quatro benefícios desta página. A renovação é manual. O período começa na aprovação do Pix, ou é somado ao período ainda ativo. Não há acréscimo de 2,99% nas vendas pelo MAX.</p>
+        <div id="maxTrial" class="max-panel" hidden><h3>10 dias grátis para conhecer o MAX</h3><p>Todos os benefícios por 10 dias, uma única vez por conta, antes da primeira assinatura paga. Não precisa de CPF nem de Pix.</p><button class="action primary" id="maxStartTrial" type="button">Ativar meus 10 dias grátis</button><p class="fine">Depois do teste, os benefícios premium param até você assinar por R$ 45 a cada 30 dias. Sem cobrança automática. Suas configurações ficam guardadas.</p></div>
+        <div id="maxCheckout" class="max-panel" hidden><h3>Pix de R$ 45 · 30 dias</h3><p class="max-legal">A assinatura dá acesso aos quatro benefícios desta página. A renovação é manual. O período começa na aprovação do Pix, ou é somado à assinatura paga ainda ativa. Os dias gratuitos não se somam à compra. Não há acréscimo de 2,99% nas vendas pelo MAX.</p>
           <form id="maxCheckoutForm" class="max-form"><label>CPF do pagador<input id="maxCPF" name="cpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" required></label><label><input id="maxAgree" type="checkbox" required> Li as condições acima e quero gerar um Pix de R$ 45 por 30 dias de Clube MAX.</label><button class="action primary" id="maxGenerate" type="submit">Gerar Pix de R$ 45 · 30 dias</button></form><p class="fine">O CPF é enviado ao processador do pagamento e não é salvo na configuração da loja. Gerar o Pix não efetua o pagamento.</p>
         </div>
         <div id="maxPayment" class="max-panel" hidden><h3>Pague pelo aplicativo do seu banco</h3><div class="max-pay-grid"><img id="maxQr" class="max-qr" alt="QR Code Pix da assinatura" width="230" height="230"><div><label for="maxPixCode">Pix copia e cola</label><textarea id="maxPixCode" class="max-pay-code" readonly></textarea><div class="actions"><button class="action" id="maxCopy" type="button">Copiar código Pix</button><button class="action primary" id="maxCheckNow" type="button">Já paguei, consultar</button></div><p id="maxPixExpiry" class="fine"></p><p id="maxPaymentState" role="status" aria-live="polite"></p></div></div></div>
@@ -59,9 +60,10 @@
       </div>
     </div></section>
     <section class="section"><div class="shell faq"><span class="eyebrow">Sem dúvidas pelo caminho</span><h2>Antes de virar MAX</h2>
+      <details><summary>Como funcionam os 10 dias grátis?</summary><p>Entre na sua conta e clique em “Ativar meus 10 dias grátis”. O prazo começa na ativação e não pode ser reiniciado. Vale uma vez por conta que ainda não usou teste nem teve assinatura paga. Ao vencer, não há cobrança: os benefícios ficam indisponíveis até você pagar uma assinatura. Se comprar durante o teste, os 30 dias pagos começam na aprovação do Pix.</p></details>
       <details><summary>Como faço para assinar?</summary><p>Entre na sua conta, acesse a área de assinatura, informe o CPF e gere o Pix de R$ 45. A coroa e os benefícios são liberados após a confirmação do pagamento. Se o serviço estiver indisponível, a geração de Pix ficará desativada.</p></details>
       <details><summary>Vou pagar mais 2,99% nas vendas?</summary><p>O valor definido para a assinatura é R$ 45 por 30 dias. A seleção antiga de Plano MAX com acréscimo de 2,99% continua desativada. As taxas de visibilidade do anúncio permanecem separadas.</p></details>
-      <details><summary>A renovação será automática?</summary><p>Não. A renovação é manual: você gera um novo Pix quando quiser continuar. Se renovar antes do vencimento, os 30 dias são somados ao período que ainda resta.</p></details>
+      <details><summary>A renovação será automática?</summary><p>Não. A renovação é manual: você gera um novo Pix quando quiser continuar. Se renovar uma assinatura paga antes do vencimento, os 30 dias são somados ao período pago que ainda resta. O período gratuito não se soma à compra.</p></details>
       <details><summary>Preciso ser MAX para ganhar níveis?</summary><p>Não. Os níveis de reputação são gratuitos e independem da assinatura. <a href="niveis.html">Veja como funciona a progressão.</a></p></details>
       <details><summary>Minha foto e minha biografia vão deixar de ser gratuitas?</summary><p>Não. Sua foto de perfil, biografia básica e a participação no marketplace continuam disponíveis sem assinatura.</p></details>
     </div></section>
@@ -72,6 +74,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/max-page.js?v=max-test-grants-1"></script>
+  <script src="js/max-page.js?v=intro-trial-10days-1"></script>
 </body>
 </html>

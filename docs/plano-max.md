@@ -64,3 +64,7 @@ Não estão incluídos nesta versão: cupons, seguidores, vídeos, respostas rá
 A tabela D1 `max_test_grants` guarda liberações por UID com início, expiração, motivo e revogação. Somente quem administra o D1 pode inserir ou revogar uma liberação; nenhuma rota pública ou autenticada permite criá-la. Não use a tabela de pagamentos para simular uma compra.
 
 O acesso de teste libera os mesmos benefícios, sem criar Pix ou pagamento. A página identifica o acesso como teste gratuito. O prazo expira automaticamente, e `revoked_at` revoga imediatamente. Uma assinatura paga ativa tem prioridade e conserva seu vencimento original. Uma compra durante o teste começa na aprovação, sem somar o período gratuito.
+
+## Teste inicial de 10 dias
+
+`POST /max/trial`, autenticado, ativa uma única vez por UID. O servidor fixa início e duração; ignora UID e datas do cliente. O registro `intro_trial_10days` usa a mesma tabela de liberações, sem criar pagamento. `GET /max/me` informa `trialEligible`. Contas com liberação anterior (inclusive expirada/revogada) ou histórico de pagamento aprovado não recebem novo teste. Repetições simultâneas usam a chave única UID e não prolongam o prazo. Ao vencer, é preciso pagar R$45/30 dias manualmente. Uma compra durante o teste começa na aprovação e não soma dias gratuitos. A política limita por conta Firebase, não por pessoa física.

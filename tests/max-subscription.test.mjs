@@ -217,3 +217,57 @@ test('Test grants never extend paid periods or survive their own revocation', as
   f.db.sql.prepare('UPDATE max_test_grants SET revoked_at = ? WHERE uid = ?').run(now, 'alice');
   assert.equal((await f.call('me')).body.member.expiresAt, paid.body.member.expiresAt);
 });
+
+
+test('Intro trial grants exactly 10 days to the authenticated UID without CPF or payment', async () => {
+  const f = fixture(), before = Date.now();
+  assert.equal((await f.call('me')).body.trialEligible, true);
+  const one = await f.call('trial', {uid: 'bob', days: 999, expiresAt: 9999999999999});
+  assert.equal(one.status, 200);
+  assert.equal(one.body.member.active, true);
+  assert.equal(one.body.member.testAccess, true);
+  assert.equal(one.body.member.uid, 'alice');
+  const grant = f.db.sql.prepare('SELECT * FROM max_test_grants WHERE uid = ?').get('alice');
+  assert.equal(grant.expires_at - grant.starts_at, 10 * 86400000);
+  assert.ok(grant.starts_at >= before && grant.starts_at <= Date.now());
+  assert.equal((await f.call('me')).body.trialEligible, false);
+  assert.equal((await f.call('me', null, 'bob')).body.member.active, false);
+  assert.equal((await f.call('trial', {}, null)).status, 401);
+  assert.deepEqual((await f.call('me')).body.payments, []);
+  assert.equal(f.created, 0);
+  const two = await f.call('trial', {});
+  assert.equal(two.status, 200);
+  assert.equal(two.body.member.expiresAt, one.body.member.expiresAt);
+});
+
+test('Expired or revoked trials cannot restart and continue blocking premium writes', async () => {
+  const f = fixture(); await f.call('trial', {});
+  f.db.sql.prepare('UPDATE max_test_grants SET expires_at = ?').run(Date.now() - 1000);
+  assert.equal((await f.call('trial', {})).status, 409);
+  assert.equal((await f.call('me')).body.member.active, false);
+  assert.equal((await f.call('profile', {shopName: 'Expired'}, 'alice', 'PUT')).status, 403);
+  f.db.sql.prepare('UPDATE max_test_grants SET expires_at = ?, revoked_at = ?').run(Date.now() + 86400000, Date.now());
+  assert.equal((await f.call('trial', {})).status, 409);
+});
+
+test('Prior paid history and administrative grants cannot claim an introductory trial', async () => {
+  const f = fixture(), invoice = await f.checkout(); f.approve(invoice.body.paymentId);
+  await f.call('payment?id=' + invoice.body.paymentId);
+  assert.equal((await f.call('trial', {})).status, 409);
+  f.db.sql.prepare("UPDATE max_payments SET status = 'refunded'").run();
+  assert.equal((await f.call('trial', {})).status, 409);
+  assert.equal((await f.call('me')).body.trialEligible, false);
+  const g = fixture(); await g.call('me'); const now = Date.now();
+  g.db.sql.prepare('INSERT INTO max_test_grants VALUES (?, ?, ?, ?, NULL, ?)').run('alice', now - 1000, now + 86400000, 'administrative_test_7days', now);
+  assert.equal((await g.call('trial', {})).status, 409);
+  assert.equal((await g.call('me')).body.trialEligible, false);
+});
+
+test('A paid purchase during trial grants 30 days from approval without adding free days', async () => {
+  const f = fixture(); await f.call('trial', {});
+  const invoice = await f.checkout(); f.approve(invoice.body.paymentId);
+  const paid = await f.call('payment?id=' + invoice.body.paymentId);
+  const approval = Date.parse(f.payments.get(invoice.body.paymentId).date_approved);
+  assert.equal(paid.body.member.expiresAt, approval + MAX_PERIOD);
+  assert.equal(paid.body.member.testAccess, undefined);
+});

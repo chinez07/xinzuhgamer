@@ -31,6 +31,7 @@
     var member = data.member;
     var active = !!member.active;
     el('maxSettings').hidden = !active;
+    el('maxTrial').hidden = !data.trialEligible;
     el('maxState').textContent = active ? (member.testAccess ? 'Acesso de teste gratuito até ' : 'Assinatura ativa até ') + date(member.expiresAt) + ' · horário de Brasília' : 'Sua conta ainda não tem uma assinatura MAX ativa.';
     el('maxCheckout').hidden = !salesEnabled;
     el('maxGenerate').textContent = active && !member.testAccess ? 'Gerar Pix para renovar por 30 dias · R$ 45' : 'Gerar Pix de R$ 45 · 30 dias';
@@ -58,6 +59,18 @@
     if (expected !== revision) return;
     renderMember(data);
   }
+  el('maxStartTrial').addEventListener('click', async function () {
+    if (!uid) return;
+    var expected = revision;
+    el('maxStartTrial').disabled = true;
+    try {
+      await api('trial', {auth: true, method: 'POST', body: {}});
+      if (expected !== revision) return;
+      await reloadAccount(expected);
+      if (expected === revision) message('Seus 10 dias grátis começaram! Personalize sua loja abaixo. Não há cobrança automática.');
+    } catch (e) {if (expected === revision) {message(e.message, true); if (e.status === 409) await reloadAccount(expected);}}
+    finally {el('maxStartTrial').disabled = false;}
+  });
   async function checkPayment() {
     if (!paymentId || !uid) return;
     var expected = revision;
@@ -146,13 +159,13 @@
   var configuration = api('config').then(function (config) {
     salesEnabled = config.salesEnabled;
     document.querySelectorAll('[data-max-sales-status]').forEach(function (element) {element.textContent = salesEnabled ? 'Clube MAX disponível' : 'Assinaturas temporariamente indisponíveis';});
-    el('maxSalesNote').textContent = salesEnabled ? 'R$ 45 por 30 dias. Você escolhe se deseja renovar, sem cobrança automática.' : 'Estamos finalizando a ativação das assinaturas. Nenhuma cobrança pode ser gerada por enquanto.';
+    el('maxSalesNote').textContent = salesEnabled ? 'Primeiro uso: 10 dias grátis. Depois, R$ 45 por 30 dias, com pagamento manual.' : 'Estamos finalizando a ativação das assinaturas. Nenhuma cobrança pode ser gerada por enquanto.';
   }).catch(function () {el('maxSalesNote').textContent = 'O Clube MAX está temporariamente indisponível. Tente novamente mais tarde.';});
   auth.onAuthStateChanged(async function (user) {
     revision++; var expected = revision; uid = user ? user.uid : ''; clearInterval(polling); polling = null; paymentId = ''; cover = '';
     el('maxCPF').value = ''; el('maxAgree').checked = false;
     el('maxManagement').hidden = !user; el('maxGuest').hidden = !!user;
-    el('maxPayment').hidden = true; el('maxSettings').hidden = true; message('');
+    el('maxPayment').hidden = true; el('maxSettings').hidden = true; el('maxTrial').hidden = true; message('');
     if (!user) return;
     el('maxState').textContent = 'Consultando sua assinatura…';
     try {await configuration; await reloadAccount(expected);} catch (e) {if (expected === revision) message(e.message, true);}

@@ -1,5 +1,6 @@
 // JavaScript / max-core.mjs / Cloudflare Workers + D1 / Clube MAX Bloxzuh.
 export const MAX_PRICE = 45;
+export const MAX_TRIAL_PERIOD = 10 * 24 * 60 * 60 * 1000;
 export const MAX_PERIOD = 30 * 24 * 60 * 60 * 1000;
 const PROJECT = 'xinzuhgamer-87ff5';
 const FIREBASE_KEY = 'AIzaSyCaBMtonCi3KKKCvr8MuaMbsNOC14960Is';
@@ -47,6 +48,11 @@ async function maxMember(db, uid) {
     return {active: true, expiresAt: grant.expires_at, testAccess: true};
   }
   return paid;
+}
+async function maxTrialEligible(db, uid) {
+  const used = await db.prepare('SELECT uid FROM max_test_grants WHERE uid = ?').bind(uid).first();
+  const paid = await db.prepare('SELECT payment_id FROM max_payments WHERE uid = ? AND paid_at IS NOT NULL LIMIT 1').bind(uid).first();
+  return !used && !paid;
 }
 async function maxUser(request, fetcher) {
   const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
@@ -174,7 +180,7 @@ export async function handleMaxRequest(request, env, fetcher = fetch) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/, '');
     if (request.method === 'OPTIONS') return maxJSON({ok: true});
-    if (path === '/max/config' && request.method === 'GET') return maxJSON({price: MAX_PRICE, days: 30, manualRenewal: true, salesEnabled: !!env.MAX_DB && !!env.MP_ACCESS_TOKEN && !String(env.MP_ACCESS_TOKEN).startsWith('TEST-') && env.MAX_SALES_ENABLED === 'true'});
+    if (path === '/max/config' && request.method === 'GET') return maxJSON({price: MAX_PRICE, days: 30, manualRenewal: true, trialDays: 10, salesEnabled: !!env.MAX_DB && !!env.MP_ACCESS_TOKEN && !String(env.MP_ACCESS_TOKEN).startsWith('TEST-') && env.MAX_SALES_ENABLED === 'true'});
     await maxInit(env.MAX_DB);
     const db = env.MAX_DB;
     if (path === '/max/public' && request.method === 'GET') {
@@ -195,8 +201,17 @@ export async function handleMaxRequest(request, env, fetcher = fetch) {
     if (path === '/max/me' && request.method === 'GET') {
       const {results} = await db.prepare('SELECT payment_id, status, created_at FROM max_payments WHERE uid = ? ORDER BY created_at DESC LIMIT 10').bind(user.uid).all();
       const saved = await db.prepare('SELECT shop_name, cover, schedule_json, offline_message FROM max_profiles WHERE uid = ?').bind(user.uid).first();
-      return maxJSON({member: await maxPublic(db, user.uid), payments: results,
+      return maxJSON({member: await maxPublic(db, user.uid), trialEligible: await maxTrialEligible(db, user.uid), payments: results,
         settings: saved ? {shopName: saved.shop_name, cover: saved.cover, schedule: JSON.parse(saved.schedule_json), offlineMessage: saved.offline_message} : null});
+    }
+    if (path === '/max/trial' && request.method === 'POST') {
+      const now = Date.now();
+      // Atomic single-use claim for the authenticated UID; no client-supplied dates or UID.
+      await db.prepare("INSERT INTO max_test_grants (uid, starts_at, expires_at, reason, revoked_at, created_at) SELECT ?, ?, ?, 'intro_trial_10days', NULL, ? WHERE NOT EXISTS (SELECT 1 FROM max_payments WHERE uid = ? AND paid_at IS NOT NULL) ON CONFLICT(uid) DO NOTHING")
+        .bind(user.uid, now, now + MAX_TRIAL_PERIOD, now, user.uid).run();
+      const grant = await db.prepare('SELECT reason, expires_at, revoked_at FROM max_test_grants WHERE uid = ?').bind(user.uid).first();
+      if (!grant || grant.reason !== 'intro_trial_10days' || grant.revoked_at !== null || grant.expires_at <= now) maxError('O teste gratuito já foi utilizado ou sua conta já teve uma assinatura paga.', 409);
+      return maxJSON({ok: true, member: await maxPublic(db, user.uid)});
     }
     if (path === '/max/checkout' && request.method === 'POST') return maxJSON(await maxCheckout(request, env, user, fetcher));
     if (path === '/max/payment' && request.method === 'GET') {
