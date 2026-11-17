@@ -105,8 +105,10 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/levels.css?v=gems-3">
+  <link rel="stylesheet" href="css/max.css?v=profile-design-1" data-bloxzuh-max-css="1">
+  <link rel="stylesheet" href="css/profile-max.css?v=profile-design-1">
 </head>
-<body>
+<body class="profile-page">
   <div class="top">
     <a class="logo" href="index.html"><div class="logo-i"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div> Bloxzuh</a>
     <a href="anuncios.html" style="color:#c4b5fd;text-decoration:none;font-weight:600;font-size:0.9rem">Anúncios</a>
@@ -119,8 +121,10 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
   <script src="js/firestore-db.js"></script>
-  <script src="js/levels.js?v=crystals-1"></script>
+  <script src="js/levels.js?v=gems-3"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
+  <script src="js/store-theme.js?v=store-design-1"></script>
+  <script src="js/profile-theme.js?v=profile-design-1"></script>
   <script>
   (function () {
     function esc(s) {
@@ -370,12 +374,15 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
       page.innerHTML =
         '<a class="back" href="javascript:history.back()">← Voltar</a>' +
-        '<div data-max-profile="' + esc(uid) + '"></div>' +
+        '<section class="profile-hero"><div class="profile-cover-slot" data-max-profile="' + esc(uid) + '"></div>' +
         '<div class="head">' +
           '<div class="av">' + av + '</div>' +
-          '<div><div style="font-size:1.2rem;font-weight:800">' + '<span data-max-uid="' + esc(uid) + '" data-max-name>' + esc(name) + '</span> <span class="' + ((window.__perfilMeta && window.__perfilMeta.online) ? 'on' : 'off') + '">' + ((window.__perfilMeta && window.__perfilMeta.online) ? 'ON' : 'OFF') + '</span></div>' +
+          '<div class="profile-identity"><h1 class="profile-name">' + '<span data-max-uid="' + esc(uid) + '" data-max-name>' + esc(name) + '</span> <span class="' + ((window.__perfilMeta && window.__perfilMeta.online) ? 'on' : 'off') + '">' + ((window.__perfilMeta && window.__perfilMeta.online) ? 'ON' : 'OFF') + '</span></h1>' +
           '<div class="level" id="profileLevelBadge">Carregando nível…</div></div>' +
         '</div>' +
+        '<a class="profile-customize" id="profileCustomize" href="plano-max.html#maxSettings" hidden>Personalizar perfil <i class="fas fa-palette" aria-hidden="true"></i></a></section>' +
+        '<div class="profile-layout"><aside class="profile-sidebar" aria-label="Sobre este perfil">' +
+        ((window.__perfilMeta.profile && window.__perfilMeta.profile.bio) ? '<section class="card profile-bio"><h2>Sobre mim</h2><p>' + esc(window.__perfilMeta.profile.bio) + '</p></section>' : '') +
         '<div data-max-hours="' + esc(uid) + '"></div>' +
         '<div class="level-card"><h2>Nível de reputação</h2><div id="profileLevelProgress" aria-live="polite">Carregando histórico…</div><a href="niveis.html">Como os níveis funcionam</a></div>' +
         '<div class="card perfil-slide-wrap" id="perfilCarousel">' +
@@ -386,6 +393,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           '<span class="chip"><i class="fas fa-check"></i> Email</span>' +
           '<span class="chip"><i class="fas fa-check"></i> Conta Bloxzuh</span>' +
         '</div></div>' +
+        '</aside><div class="profile-main">' +
         '<div class="card" id="repCard">' +
           '<div class="rep-head">' +
             '<h2>Reputação</h2>' +
@@ -412,7 +420,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
                 '<div class="product-body"><h3>' + esc(a.title) + '</h3><div class="product-price">' + money(a.price) + '</div></div></a>';
             }).join('') + '</div>'
           : '<div class="empty"><i class="fas fa-bullhorn" style="font-size:1.5rem;opacity:.4"></i><p style="margin-top:8px">Nenhum anúncio disponível.</p><p style="font-size:0.85rem">Este vendedor ainda não possui anúncios ativos.</p></div>') +
-        '</div>';
+        '</div></div></div>';
 
       if (uid) {
         BloxzuhLevels.load(uid).then(function (level) {

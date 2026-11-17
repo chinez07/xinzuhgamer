@@ -65,7 +65,7 @@
         if (output.length > 500000) throw new Error('Escolha uma imagem mais simples para o fundo.');
         if (expected !== revision) return;
         theme['background' + kind] = output; showBackgrounds();
-        message('Fundo pronto na prévia. Clique em “Salvar minha loja” para publicar.');
+        message('Fundo pronto na prévia. Clique em “Salvar loja e perfil” para publicar.');
       } catch (e) {if (expected === revision) message(e.message || 'Não foi possível preparar o fundo.', true);}
       finally {backgroundJobs--; el('maxSave').disabled = backgroundJobs > 0; event.target.value = '';}
     });
@@ -189,7 +189,7 @@
       if (cover.length > 350000) cover = canvas.toDataURL('image/jpeg', .4);
       if (cover.length > 350000) throw new Error('A imagem continua muito grande. Escolha uma capa mais simples.');
       el('maxCoverPreview').src = cover; el('maxCoverPreview').hidden = false;
-      message('Prévia da capa pronta. Clique em “Salvar minha loja” para publicá-la.');
+      message('Prévia da capa pronta. Clique em “Salvar loja e perfil” para publicá-la.');
     } catch (e) {message(e.message || 'Não foi possível abrir essa imagem.', true);} finally {event.target.value = '';}
   });
   el('maxRemoveCover').addEventListener('click', function () {cover = ''; el('maxCoverPreview').hidden = true; el('maxCoverPreview').removeAttribute('src');});
@@ -198,7 +198,7 @@
     try {
       var schedule = [...el('maxSchedule').children].map(function (row) {return {open: row.querySelector('input[type=checkbox]').checked, start: row.querySelector('[data-max-time=start]').value, end: row.querySelector('[data-max-time=end]').value};});
       await api('profile', {method: 'PUT', auth: true, body: {shopName: el('maxShopName').value, cover: cover, schedule: schedule, offlineMessage: el('maxOffline').value, theme: theme}});
-      if (expected === revision) message('Sua loja MAX foi salva e já está disponível no perfil e na vitrine.');
+      if (expected === revision) message('Sua loja e seu perfil MAX foram salvos e já estão disponíveis.');
     } catch (e) {message(e.message, true);} finally {el('maxSave').disabled = false;}
   });
   var configuration = api('config').then(function (config) {

@@ -73,6 +73,10 @@ O acesso de teste libera os mesmos benefícios, sem criar Pix ou pagamento. A p�
 
 A configuração premium aceita `theme: {accent, backgroundDesktop, backgroundMobile}`. A tabela D1 `max_themes` é criada automaticamente, sem alterar as linhas antigas de perfil. Cor hexadecimal e imagens embutidas JPG/PNG/WebP são validadas no servidor (até 500 mil caracteres por fundo). Não aceita CSS, SVG ou URLs de fundo externas. Campos ausentes em clientes antigos preservam o tema. A gravação do perfil e do tema usa uma transação D1. O tema desaparece da leitura pública ao vencer, preservado na área privada.
 
-Fundos são comprimidos no navegador; o celular pode usar imagem própria ou o fundo do computador. A cor selecionada controla botões e detalhes, com contraste automático no texto. A personalização é aplicada somente à vitrine `loja.html`, mantendo a identidade da plataforma nas demais páginas.
+Fundos são comprimidos no navegador; o celular pode usar imagem própria ou o fundo do computador. A cor selecionada controla botões e detalhes, com contraste automático no texto. A personalização é aplicada à vitrine `loja.html` e ao perfil público `perfil.html`, mantendo a identidade da plataforma nas demais páginas.
 
 No PC, vitrine com cabeçalho, foto, informações e horários na lateral. No celular, produtos e filtros aparecem antes das informações detalhadas. A busca é local à loja, aceita acentos, filtra categorias e permite ordenar por preço. Paginação Firestore continua buscando todos os anúncios ativos e a ordenação padrão respeita a visibilidade existente.
+
+## Perfil público personalizado
+
+Perfil e vitrine compartilham cor, capa e fundos de PC/celular salvos em Personalizar minha loja e perfil MAX. Não há novos campos nem migração do banco. `profile-theme.js` consulta o direito ativo no servidor antes de aplicar o tema, usando a mesma validação e contraste de `store-theme.js`. O atalho Personalizar perfil só aparece para o próprio titular com MAX ativo. A avaliação, o histórico, a presença, os anúncios e os níveis continuam usando as fontes existentes.
