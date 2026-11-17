@@ -2,7 +2,7 @@
 
 /* Individual transparent rank artwork, displayed in full without cropping. */
 .level-crystal{display:inline-block;flex:0 0 auto;width:32px;height:32px;background-repeat:no-repeat;background-size:contain;background-position:center;vertical-align:middle}
-.level-crystal-0{background-image:url('../assets/level-quartzo.png')}.level-crystal-1{background-image:url('../assets/level-ametista.png')}.level-crystal-2{background-image:url('../assets/level-safira.png')}.level-crystal-3{background-image:url('../assets/level-esmeralda.png')}.level-crystal-4{background-image:url('../assets/level-rubi.png')}
+.level-crystal-0{background-image:url('../assets/level-quartzo.png?v=gems-3')}.level-crystal-1{background-image:url('../assets/level-ametista.png?v=gems-3')}.level-crystal-2{background-image:url('../assets/level-safira.png?v=gems-3')}.level-crystal-3{background-image:url('../assets/level-esmeralda.png?v=gems-3')}.level-crystal-4{background-image:url('../assets/level-rubi.png?v=gems-3')}
 .rank-card .level-crystal{display:block;width:112px;height:112px;max-width:100%;margin:0 auto 12px}
 .crown .level-crystal{width:150px;height:150px}
 .level-badge .level-crystal{width:30px;height:30px}
