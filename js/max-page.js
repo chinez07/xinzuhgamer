@@ -30,6 +30,9 @@
   }
   function previewTheme() {
     theme.accent = el('maxAccent').value;
+    theme.panelColor = el('maxPanelColor').value;
+    theme.panelTransparency = Number(el('maxPanelTransparency').value);
+    el('maxPanelTransparencyValue').textContent = theme.panelTransparency + '%';
     BloxzuhStoreTheme.apply(el('maxThemePreview'), theme);
     el('maxThemePreviewName').textContent = el('maxShopName').value || 'Minha loja MAX';
     document.querySelectorAll('[data-max-accent]').forEach(function (button) {button.setAttribute('aria-pressed', String(button.dataset.maxAccent === theme.accent));});
@@ -43,6 +46,9 @@
     previewTheme();
   }
   el('maxAccent').addEventListener('input', previewTheme);
+  el('maxPanelColor').addEventListener('input', previewTheme);
+  el('maxPanelTransparency').addEventListener('input', previewTheme);
+  el('maxResetPanels').addEventListener('click', function () {el('maxPanelColor').value = '#16161f'; el('maxPanelTransparency').value = '4'; previewTheme();});
   el('maxShopName').addEventListener('input', previewTheme);
   document.querySelectorAll('[data-max-accent]').forEach(function (button) {button.addEventListener('click', function () {el('maxAccent').value = button.dataset.maxAccent; previewTheme();});});
   el('maxResetAccent').addEventListener('click', function () {el('maxAccent').value = '#a78bfa'; previewTheme();});
@@ -85,7 +91,7 @@
       el('maxOffline').value = settings.offlineMessage || '';
       cover = settings.cover || '';
       theme = BloxzuhStoreTheme.normalize(settings.theme || member.theme);
-      el('maxAccent').value = theme.accent; showBackgrounds();
+      el('maxAccent').value = theme.accent; el('maxPanelColor').value = theme.panelColor; el('maxPanelTransparency').value = String(theme.panelTransparency); showBackgrounds();
       el('maxCoverPreview').hidden = !cover;
       if (cover) el('maxCoverPreview').src = cover; else el('maxCoverPreview').removeAttribute('src');
       scheduleFields(settings.schedule);
@@ -207,7 +213,7 @@
     el('maxSalesNote').textContent = salesEnabled ? 'Primeiro uso: 10 dias grátis. Depois, R$ 45 por 30 dias, com pagamento manual.' : 'Estamos finalizando a ativação das assinaturas. Nenhuma cobrança pode ser gerada por enquanto.';
   }).catch(function () {el('maxSalesNote').textContent = 'O Clube MAX está temporariamente indisponível. Tente novamente mais tarde.';});
   auth.onAuthStateChanged(async function (user) {
-    revision++; var expected = revision; uid = user ? user.uid : ''; theme = BloxzuhStoreTheme.normalize(); el('maxAccent').value = theme.accent; showBackgrounds(); clearInterval(polling); polling = null; paymentId = ''; cover = '';
+    revision++; var expected = revision; uid = user ? user.uid : ''; theme = BloxzuhStoreTheme.normalize(); el('maxAccent').value = theme.accent; el('maxPanelColor').value = theme.panelColor; el('maxPanelTransparency').value = String(theme.panelTransparency); showBackgrounds(); clearInterval(polling); polling = null; paymentId = ''; cover = '';
     el('maxCPF').value = ''; el('maxAgree').checked = false;
     el('maxManagement').hidden = !user; el('maxGuest').hidden = !!user;
     el('maxPayment').hidden = true; el('maxSettings').hidden = true; el('maxTrial').hidden = true; message('');

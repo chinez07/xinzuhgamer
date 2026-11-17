@@ -308,3 +308,23 @@ test('Theme validation rejects CSS injection, external/SVG backgrounds and overs
   }
   assert.equal((await f.call('me')).body.settings,null);
 });
+
+
+test('Panel color and transparency persist per account and survive older clients', async () => {
+  const f=fixture(); await f.call('trial',{});
+  const schedule=Array.from({length:7},()=>({open:false,start:'09:00',end:'18:00'}));
+  const body={shopName:'Panels',cover:'',schedule,offlineMessage:''};
+  for (const transparency of [0,50,100]) {
+    await f.call('profile',{...body,theme:{accent:'#60a5fa',panelColor:'#FFFFFF',panelTransparency:transparency}},'alice','PUT');
+    const member=(await f.call('public?uid=alice',null,null)).body;
+    assert.equal(member.theme.panelColor,'#ffffff');
+    assert.equal(member.theme.panelTransparency,transparency);
+  }
+  await f.call('profile',{...body,theme:{accent:'#f472b6',backgroundDesktop:'',backgroundMobile:''}},'alice','PUT');
+  assert.equal((await f.call('me')).body.settings.theme.panelTransparency,100);
+  assert.equal((await f.call('me')).body.settings.theme.panelColor,'#ffffff');
+  for (const theme of [{panelColor:'red;opacity:0'}, {panelTransparency:-1}, {panelTransparency:101}, {panelTransparency:'50'}, {panelTransparency:0.5}]) {
+    assert.equal((await f.call('profile',{...body,theme},'alice','PUT')).status,400);
+  }
+  assert.equal((await f.call('me',null,'bob')).body.member.active,false);
+});

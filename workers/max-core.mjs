@@ -90,7 +90,16 @@ export function maxThemeInput(value) {
     if (image.length > 500000 || (image && !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image))) maxError('O fundo deve ser JPG, PNG ou WebP de até 500 KB após a compressão.');
     backgrounds[key] = image;
   }
-  return {accent: accent.toLowerCase(), ...backgrounds};
+  const panels = {};
+  if (value.panelColor !== undefined) {
+    if (typeof value.panelColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(value.panelColor)) maxError('Escolha uma cor válida para os painéis.');
+    panels.panelColor = value.panelColor.toLowerCase();
+  }
+  if (value.panelTransparency !== undefined) {
+    if (typeof value.panelTransparency !== 'number' || !Number.isInteger(value.panelTransparency) || value.panelTransparency < 0 || value.panelTransparency > 100) maxError('A transparência deve estar entre 0% e 100%.');
+    panels.panelTransparency = value.panelTransparency;
+  }
+  return {accent: accent.toLowerCase(), ...backgrounds, ...panels};
 }
 async function maxReadTheme(db, uid) {
   const row = await db.prepare('SELECT theme_json FROM max_themes WHERE uid = ?').bind(uid).first();
@@ -245,7 +254,7 @@ export async function handleMaxRequest(request, env, fetcher = fetch) {
       const writes = [db.prepare('INSERT INTO max_profiles(uid, shop_name, cover, schedule_json, offline_message, updated_at) VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(uid) DO UPDATE SET shop_name=excluded.shop_name, cover=excluded.cover, schedule_json=excluded.schedule_json, offline_message=excluded.offline_message, updated_at=excluded.updated_at')
         .bind(user.uid, settings.shopName, settings.cover, JSON.stringify(settings.schedule), settings.offlineMessage, Date.now())];
       if (settings.theme) writes.push(db.prepare('INSERT INTO max_themes(uid, theme_json, updated_at) VALUES(?, ?, ?) ON CONFLICT(uid) DO UPDATE SET theme_json=excluded.theme_json, updated_at=excluded.updated_at')
-        .bind(user.uid, JSON.stringify(settings.theme), Date.now()));
+        .bind(user.uid, JSON.stringify({...await maxReadTheme(db, user.uid), ...settings.theme}), Date.now()));
       await db.batch(writes);
       return maxJSON({ok: true, member: await maxPublic(db, user.uid)});
     }

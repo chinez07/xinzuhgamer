@@ -80,3 +80,7 @@ No PC, vitrine com cabeçalho, foto, informações e horários na lateral. No ce
 ## Perfil público personalizado
 
 Perfil e vitrine compartilham cor, capa e fundos de PC/celular salvos em Personalizar minha loja e perfil MAX. Não há novos campos nem migração do banco. `profile-theme.js` consulta o direito ativo no servidor antes de aplicar o tema, usando a mesma validação e contraste de `store-theme.js`. O atalho Personalizar perfil só aparece para o próprio titular com MAX ativo. A avaliação, o histórico, a presença, os anúncios e os níveis continuam usando as fontes existentes.
+
+## Cor e transparência dos painéis
+
+`theme.panelColor` aceita hexadecimal de seis dígitos e `theme.panelTransparency` aceita inteiro 0–100 (0 sólido, 100 transparente). Os padrões preservam os cartões anteriores: #16161f e 4%. A transparência usa RGBA somente no fundo, mantendo texto e imagens opacos. O texto alterna entre claro/escuro para acompanhar cores claras e escuras. Vitrine e perfil compartilham a configuração. Clientes antigos que omitem os novos campos não apagam a preferência salva.
