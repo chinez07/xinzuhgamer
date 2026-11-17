@@ -103,3 +103,54 @@ test('The former numeric-zero photo write is rejected without changing the profi
   await assert.rejects(save({photo: 0}), /Valor inválido/);
   assert.equal(result(), undefined);
 });
+
+function photoForm() {
+  const html = read('conta.html');
+  const render = html.slice(html.indexOf('    function renderAvatar('), html.indexOf('    function fillForm('));
+  const handler = html.slice(html.indexOf("    document.getElementById('photoInput').addEventListener('change'"), html.indexOf("    document.getElementById('btnSaveProfile').addEventListener"));
+  let onChange, resolveSave, rejectSave;
+  const saving = new Promise((resolve, reject) => {resolveSave = resolve; rejectSave = reject;});
+  const avatar = {tagName: 'IMG', src: google, getAttribute() {return this.src;}};
+  const input = {files: [{size: 100, type: 'image/png'}], disabled: false, value: 'photo.png', addEventListener(event, fn) {onChange = fn;}};
+  const messages = [];
+  // Simulate an older cached photos.js: the memory cache still has the old photo.
+  const api = {cache: {alice: google}, setLocal() {}};
+  const sandbox = vm.createContext({
+    window: {BloxzuhPhotos: api}, BloxzuhPhotos: api,
+    auth: {currentUser: user}, console: {error() {}},
+    localStorage: {getItem: () => google},
+    document: {getElementById: id => ({avatarBox: avatar, photoInput: input, username: {value: 'Alice'}}[id])},
+    uploadProfilePhoto: async () => custom,
+    fsSaveProfile: () => saving,
+    msg: (text, type) => messages.push({text, type})
+  });
+  vm.runInContext(render + '\n' + handler, sandbox);
+  return {change: () => onChange({target: input}), resolveSave, rejectSave, avatar, input, messages};
+}
+
+test('Selected photo appears before cloud save finishes and survives a stale memory cache', async () => {
+  const form = photoForm();
+  const pending = form.change();
+  await new Promise(setImmediate);
+  assert.equal(form.avatar.src, custom);
+  assert.equal(form.input.disabled, true);
+  assert.equal(form.messages.at(-1).text, 'Salvando foto…');
+  form.resolveSave();
+  await pending;
+  assert.equal(form.avatar.src, custom);
+  assert.equal(form.messages.at(-1).text, 'Foto salva com sucesso!');
+  assert.equal(form.input.disabled, false);
+});
+
+test('A failed cloud save restores the previous avatar and unlocks file selection', async () => {
+  const form = photoForm();
+  const pending = form.change();
+  await new Promise(setImmediate);
+  assert.equal(form.avatar.src, custom);
+  form.rejectSave(Error('Sem conexão'));
+  await pending;
+  assert.equal(form.avatar.src, google);
+  assert.equal(form.input.disabled, false);
+  assert.equal(form.input.value, '');
+  assert.equal(form.messages.at(-1).type, 'err');
+});

@@ -1064,7 +1064,7 @@ img { max-width: 100%; display: block; }
   <script src="js/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firestore-db.js"></script>
-  <script src="js/photos.js"></script>
+  <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/experimental.js"></script>
   <script>
     function msg(text, type) {
@@ -1074,18 +1074,16 @@ img { max-width: 100%; display: block; }
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    function renderAvatar(user) {
+    function renderAvatar(user, photoOverride) {
       var box = document.getElementById('avatarBox');
       if (!box) return;
+      if (typeof photoOverride !== 'string' && document.getElementById('photoInput').disabled) return;
       var local = '';
       try {
         local = localStorage.getItem('xinzuh-photo-' + user.uid) || '';
       } catch (e) {}
-      var isCustom = false;
-      try { isCustom = localStorage.getItem('xinzuh-photo-custom-' + user.uid) === '1'; } catch(e){}
       var cached = window.BloxzuhPhotos && BloxzuhPhotos.cache[user.uid];
-      var src = cached || local || (!isCustom ? (user.photoURL || '') : '') || '';
-      if (!src && user.photoURL) src = user.photoURL;
+      var src = typeof photoOverride === 'string' ? photoOverride : (cached || local || user.photoURL || '');
       var letter = (user.displayName || user.email || '?').charAt(0).toUpperCase();
       if (src) {
         if (box.tagName === 'IMG') {
@@ -1121,29 +1119,38 @@ img { max-width: 100%; display: block; }
 
     document.getElementById('photoInput').addEventListener('change', async function (e) {
       const file = e.target.files && e.target.files[0];
-      if (!file) return;
+      if (!file || e.target.disabled) return;
       if (file.size > 2 * 1024 * 1024) {
         msg('A foto deve ter no máximo 2 MB (será comprimida).', 'err');
         return;
       }
+      const user = auth.currentUser;
+      const previousAvatar = document.getElementById('avatarBox');
+      const previousPhoto = previousAvatar && previousAvatar.tagName === 'IMG' ? previousAvatar.getAttribute('src') : '';
+      e.target.disabled = true;
       msg('Salvando foto…', 'ok');
       try {
-        const user = auth.currentUser;
         const dataUrl = await uploadProfilePhoto(file);
         if (!auth.currentUser || auth.currentUser.uid !== user.uid) throw new Error('A conta mudou. Entre novamente para salvar a foto.');
+        // Prévia imediata, sem depender do cache da foto anterior.
+        renderAvatar(user, dataUrl);
         await fsSaveProfile({
           photo: dataUrl,
           photoSource: 'custom',
           displayName: document.getElementById('username').value || user.displayName || ''
         });
+        if (!auth.currentUser || auth.currentUser.uid !== user.uid) return;
         BloxzuhPhotos.setLocal(user.uid, dataUrl, true);
-        renderAvatar(user);
+        renderAvatar(user, dataUrl);
         msg('Foto salva com sucesso!', 'ok');
       } catch (err) {
         console.error(err);
+        if (user && auth.currentUser && auth.currentUser.uid === user.uid) renderAvatar(user, previousPhoto || '');
         msg(err.message || 'Erro ao salvar foto. Tente uma imagem menor.', 'err');
+      } finally {
+        e.target.disabled = false;
+        e.target.value = '';
       }
-      e.target.value = '';
     });
 
     document.getElementById('btnSaveProfile').addEventListener('click', async function () {
