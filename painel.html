@@ -1361,6 +1361,13 @@ img { max-width: 100%; display: block; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
+  <style>
+    .seller-dashboard-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+    .seller-dashboard-heading .sub{margin-bottom:0}
+    .seller-profile-link{display:inline-flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap;text-decoration:none;flex-shrink:0}
+    .seller-profile-link[hidden]{display:none}
+    @media(max-width:560px){.seller-profile-link{width:100%}}
+  </style>
 </head>
 <body>
   <header class="header">
@@ -1396,8 +1403,11 @@ img { max-width: 100%; display: block; }
 
       <!-- DASHBOARD -->
       <section class="painel-panel active" id="panel-dash">
-        <h1>Dashboard</h1>
-        <p class="sub">Olá, <strong id="painelUser">Vendedor</strong>! Resumo da sua conta.</p>
+        <div class="seller-dashboard-heading">
+          <div><h1>Dashboard</h1>
+          <p class="sub">Olá, <strong id="painelUser">Vendedor</strong>! Resumo da sua conta.</p></div>
+          <a class="btn btn-outline seller-profile-link" id="sellerProfileLink" hidden><i class="fas fa-user" aria-hidden="true"></i> Ver meu perfil <i class="fas fa-chevron-right" aria-hidden="true"></i></a>
+        </div>
         <div class="stats-grid">
           <div class="stat-card"><div class="label">Saldo disponível</div><div class="value" id="statSaldo">R$ 0,00</div></div>
           <div class="stat-card"><div class="label">Vendas este mês</div><div class="value" id="statVendas">0</div></div>
@@ -2159,6 +2169,12 @@ img { max-width: 100%; display: block; }
     });
 
     firebase.auth().onAuthStateChanged(function (user) {
+      const profileLink = document.getElementById('sellerProfileLink');
+      if (profileLink) {
+        profileLink.hidden = !user;
+        if (user) profileLink.href = 'perfil.html?uid=' + encodeURIComponent(user.uid);
+        else profileLink.removeAttribute('href');
+      }
       if (!user) {
         window.location.href = 'login.html';
         return;
