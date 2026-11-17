@@ -1083,7 +1083,8 @@ img { max-width: 100%; display: block; }
       } catch (e) {}
       var isCustom = false;
       try { isCustom = localStorage.getItem('xinzuh-photo-custom-' + user.uid) === '1'; } catch(e){}
-      var src = local || (!isCustom ? (user.photoURL || '') : '') || '';
+      var cached = window.BloxzuhPhotos && BloxzuhPhotos.cache[user.uid];
+      var src = cached || local || (!isCustom ? (user.photoURL || '') : '') || '';
       if (!src && user.photoURL) src = user.photoURL;
       var letter = (user.displayName || user.email || '?').charAt(0).toUpperCase();
       if (src) {
@@ -1114,23 +1115,7 @@ img { max-width: 100%; display: block; }
         window.location.href = 'login.html';
         return;
       }
-      try {
-        var p = null;
-        if (typeof fsGetProfile === 'function') p = await fsGetProfile(user.uid);
-        else {
-          var doc = await firebase.firestore().collection('profiles').doc(user.uid).get();
-          if (doc.exists) p = doc.data();
-        }
-        if (p && p.photo) {
-          localStorage.setItem('xinzuh-photo-' + user.uid, p.photo);
-          localStorage.setItem('xinzuh-photo', p.photo);
-          localStorage.setItem('xinzuh-photo-custom-' + user.uid, '1');
-          if (window.BloxzuhPhotos) BloxzuhPhotos.setLocal(user.uid, p.photo);
-        }
-        if (p && p.displayName) {
-          localStorage.setItem('xinzuh-username', p.displayName);
-        }
-      } catch (e) { console.warn(e); }
+      await BloxzuhPhotos.syncMyPhoto(user);
       fillForm(user);
     });
 
@@ -1143,24 +1128,16 @@ img { max-width: 100%; display: block; }
       }
       msg('Salvando foto…', 'ok');
       try {
+        const user = auth.currentUser;
         const dataUrl = await uploadProfilePhoto(file);
-        localStorage.setItem('xinzuh-photo-custom-' + auth.currentUser.uid, '1');
-        localStorage.setItem('xinzuh-photo-' + auth.currentUser.uid, dataUrl);
-        localStorage.setItem('xinzuh-photo', dataUrl);
-        if (window.BloxzuhPhotos) BloxzuhPhotos.setLocal(auth.currentUser.uid, dataUrl);
-        renderAvatar(auth.currentUser);
-        if (typeof fsSaveProfile === 'function') {
-          await fsSaveProfile({
-            photo: dataUrl,
-            displayName: (document.getElementById('username') && document.getElementById('username').value) || auth.currentUser.displayName || ''
-          });
-        } else {
-          await firebase.firestore().collection('profiles').doc(auth.currentUser.uid).set({
-            photo: dataUrl,
-            displayName: auth.currentUser.displayName || '',
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-          }, { merge: true });
-        }
+        if (!auth.currentUser || auth.currentUser.uid !== user.uid) throw new Error('A conta mudou. Entre novamente para salvar a foto.');
+        await fsSaveProfile({
+          photo: dataUrl,
+          photoSource: 'custom',
+          displayName: document.getElementById('username').value || user.displayName || ''
+        });
+        BloxzuhPhotos.setLocal(user.uid, dataUrl, true);
+        renderAvatar(user);
         msg('Foto salva com sucesso!', 'ok');
       } catch (err) {
         console.error(err);
@@ -1229,32 +1206,6 @@ img { max-width: 100%; display: block; }
       }
     });
   
-// Sync profile photo to Firestore (all devices)
-async function savePhotoToCloud(dataUrl) {
-  try {
-    if (typeof fsSaveProfile !== 'function') return;
-    await fsSaveProfile({ photo: dataUrl, displayName: localStorage.getItem('xinzuh-username') || '' });
-  } catch (e) {
-    console.warn(e);
-    alert(e.message || 'Não foi possível salvar a foto na nuvem.');
-  }
-}
-async function loadPhotoFromCloud() {
-  try {
-    var u = firebase.auth().currentUser;
-    if (!u || typeof fsGetProfile !== 'function') return;
-    var p = await fsGetProfile(u.uid);
-    if (p && p.photo) {
-      try{savePhotoToCloud(arguments&&0);}catch(e){}
-      localStorage.setItem('xinzuh-photo-' + u.uid, p.photo);
-      localStorage.setItem('xinzuh-photo', p.photo);
-      var img = document.getElementById('profilePhoto') || document.querySelector('.profile-photo img, #avatarImg, img.avatar');
-      if (img) img.src = p.photo;
-    }
-  } catch (e) { console.warn(e); }
-}
-firebase.auth().onAuthStateChanged(function(u){ if (u) loadPhotoFromCloud(); });
-
 </script>
 </body>
 </html>

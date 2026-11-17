@@ -285,13 +285,6 @@ async function uploadProfilePhoto(file) {
     reader.readAsDataURL(file);
   });
 
-  try {
-    localStorage.setItem('xinzuh-photo-' + user.uid, dataUrl);
-    localStorage.setItem('xinzuh-photo', dataUrl);
-    localStorage.setItem('xinzuh-photo-custom-' + user.uid, '1');
-  } catch (e) {
-    throw new Error('Espaço insuficiente no navegador. Use uma imagem menor.');
-  }
   return dataUrl;
 }
 

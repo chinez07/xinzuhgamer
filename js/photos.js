@@ -1,5 +1,7 @@
 window.BloxzuhPhotos = (function () {
   var cache = {};
+  var versions = {};
+  var syncing = {};
 
   function getLocal(uid) {
     try {
@@ -8,13 +10,17 @@ window.BloxzuhPhotos = (function () {
   }
 
   function setLocal(uid, url, isCustom) {
+    if (!uid || !url) return;
+    cache[uid] = url;
+    versions[uid] = (versions[uid] || 0) + 1;
     try {
-      if (!uid || !url) return;
       localStorage.setItem('xinzuh-photo-' + uid, url);
       var me = firebase.auth && firebase.auth().currentUser;
       if (me && me.uid === uid) localStorage.setItem('xinzuh-photo', url);
       if (isCustom) {
-        try { localStorage.setItem('xinzuh-photo-custom-' + uid, '1'); } catch (e2) {}
+        localStorage.setItem('xinzuh-photo-custom-' + uid, '1');
+      } else if (isCustom === false) {
+        localStorage.removeItem('xinzuh-photo-custom-' + uid);
       }
     } catch (e) {}
   }
@@ -28,6 +34,7 @@ window.BloxzuhPhotos = (function () {
     if (!uid) return '';
     if (cache[uid]) return cache[uid];
     // local first (fast)
+    var version = versions[uid] || 0;
     var local = getLocal(uid);
     if (local) {
       cache[uid] = local;
@@ -41,6 +48,7 @@ window.BloxzuhPhotos = (function () {
         var doc = await firebase.firestore().collection('profiles').doc(uid).get();
         if (doc.exists) p = Object.assign({ uid: uid }, doc.data());
       }
+      if ((versions[uid] || 0) !== version) return cache[uid] || getLocal(uid);
       var url = pickPhoto(p);
       if (url) {
         cache[uid] = url;
@@ -78,30 +86,56 @@ window.BloxzuhPhotos = (function () {
     return '<span class="bz-av" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#7c3aed;color:#fff;font-weight:700;font-size:' + Math.max(11, size * 0.4) + 'px;flex-shrink:0">' + letter + '</span>';
   }
 
-  async function syncMyPhoto(user) {
-    if (!user) return '';
-    var fromFs = await fetchProfile(user.uid);
-    if (fromFs) return fromFs;
-    var local = getLocal(user.uid);
-    if (local) return local;
-    if (user.photoURL) {
-      setLocal(user.uid, user.photoURL);
-      // grava no Firestore para outros verem
-      try {
-        if (typeof fsSaveProfile === 'function') {
-          await fsSaveProfile({ photo: user.photoURL, displayName: user.displayName || '' });
-        } else if (firebase.firestore) {
-          await firebase.firestore().collection('profiles').doc(user.uid).set({
-            photo: user.photoURL,
-            photoURL: user.photoURL,
-            displayName: user.displayName || '',
-            updatedAtMs: Date.now()
-          }, { merge: true });
-        }
-      } catch (e) { console.warn('sync photo profile', e); }
-      return user.photoURL;
+  async function syncFromCloud(user) {
+    var uid = user.uid;
+    var version = versions[uid] || 0;
+    var local = getLocal(uid);
+    var isCustom = false;
+    try { isCustom = localStorage.getItem('xinzuh-photo-custom-' + uid) === '1'; } catch (e) {}
+    var profile;
+    try {
+      if (typeof fsGetProfile === 'function') profile = await fsGetProfile(uid);
+      else {
+        var doc = await firebase.firestore().collection('profiles').doc(uid).get();
+        profile = doc.exists ? doc.data() : null;
+      }
+    } catch (e) {
+      console.warn('sync photo profile', e);
+      return local || user.photoURL || '';
     }
-    return '';
+    // Uma troca de foto durante a leitura deve prevalecer sobre a resposta antiga.
+    if ((versions[uid] || 0) !== version) return cache[uid] || getLocal(uid);
+    if (!firebase.auth().currentUser || firebase.auth().currentUser.uid !== uid) return '';
+    var remote = pickPhoto(profile);
+    if (profile && profile.photo) {
+      setLocal(uid, remote, profile.photoSource !== 'google');
+      return remote;
+    }
+    // Recupera a foto antiga do aparelho se a rotina anterior apagou a nuvem.
+    if (local && isCustom) {
+      try {
+        if (typeof fsSaveProfile === 'function') await fsSaveProfile({photo: local, photoSource: 'custom'});
+      } catch (e) { console.warn('recover profile photo', e); }
+      setLocal(uid, local, true);
+      return local;
+    }
+    var fallback = remote || local || user.photoURL || '';
+    if (fallback) setLocal(uid, fallback, false);
+    return fallback;
+  }
+
+  function syncMyPhoto(user) {
+    if (!user) return Promise.resolve('');
+    if (!syncing[user.uid]) {
+      syncing[user.uid] = syncFromCloud(user).finally(function () { delete syncing[user.uid]; });
+    }
+    return syncing[user.uid];
+  }
+
+  if (typeof firebase !== 'undefined' && firebase.auth && firebase.firestore) {
+    firebase.auth().onAuthStateChanged(function (user) {
+      if (user) syncMyPhoto(user).catch(function (e) { console.warn('sync photo', e); });
+    });
   }
 
   return {

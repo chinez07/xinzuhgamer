@@ -534,16 +534,25 @@ async function fsGetSellerPublic(uid) {
 
 async function fsSaveProfile(data) {
   const u = requireUser();
+  data = data || {};
   const payload = {
     displayName: data.displayName || u.displayName || '',
-    photo: data.photo || '',
-    bio: data.bio || '',
+
     email: u.email || '',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAtMs: Date.now(),
     lastSeenMs: Date.now(),
     online: true
   };
+  // Atualizações parciais não apagam foto/biografia já salvas.
+  ['photo', 'bio'].forEach(function (field) {
+    if (!Object.prototype.hasOwnProperty.call(data, field)) return;
+    if (typeof data[field] !== 'string') throw new Error('Valor inválido para ' + field + '.');
+    payload[field] = data[field];
+  });
+  if (Object.prototype.hasOwnProperty.call(data, 'photo')) {
+    payload.photoSource = data.photoSource === 'google' ? 'google' : 'custom';
+  }
   // memberSinceMs só na primeira vez
   try {
     var prev = await getDb().collection('profiles').doc(u.uid).get();
