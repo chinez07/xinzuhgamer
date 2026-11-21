@@ -9,6 +9,10 @@
     var style = ['none','solid','gradient','neon','image'].includes(value.style) ? value.style : 'none';
     return {style: style === 'image' && !image ? 'none' : style, image:image,
       ratio: typeof value.ratio === 'number' && value.ratio >= .5 && value.ratio <= 4 ? value.ratio : 1.6,
+      size: number('size',100,60,100), proportion: ['auto','wide','standard','square'].includes(value.proportion) ? value.proportion : 'auto',
+      backgroundStyle: ['none','color','image'].includes(value.backgroundStyle) ? value.backgroundStyle : 'none',
+      backgroundColor: color('backgroundColor','#0f0f14'), backgroundDim: number('backgroundDim',35,0,80),
+      backgroundImage: typeof value.backgroundImage === 'string' && value.backgroundImage.length <= 180000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value.backgroundImage) ? value.backgroundImage : '',
       inset: number('inset',8,0,24), fit: value.fit === 'contain' ? 'contain' : 'cover',
       color: color('color','#7c3aed'), secondary: color('secondary','#ec4899'), width: number('width',5,1,12), radius: number('radius',20,0,40)};
   }
@@ -16,7 +20,7 @@
     var frame = normalize(value);
     element.classList.remove('max-image-frame');
     element.removeAttribute('data-frame-style');
-    ['color','secondary','width','radius','image','ratio','inset','fit'].forEach(function (key) {element.style.removeProperty('--ad-frame-' + key);});
+    ['color','secondary','width','radius','image','ratio','inset','fit','size'].forEach(function (key) {element.style.removeProperty('--ad-frame-' + key);});
     if (!active || frame.style === 'none') return frame;
     element.classList.add('max-image-frame');
     element.setAttribute('data-frame-style', frame.style);
@@ -24,32 +28,45 @@
     element.style.setProperty('--ad-frame-secondary', frame.secondary);
     element.style.setProperty('--ad-frame-width', frame.width + 'px');
     element.style.setProperty('--ad-frame-radius', frame.radius + 'px');
+    element.style.setProperty('--ad-frame-size', frame.size + '%');
     if (frame.style === 'image') {
       element.style.setProperty('--ad-frame-image', 'url("' + frame.image + '")');
-      element.style.setProperty('--ad-frame-ratio', String(frame.ratio));
+      element.style.setProperty('--ad-frame-ratio', String({wide:16/9,standard:1.6,square:1}[frame.proportion] || frame.ratio));
       element.style.setProperty('--ad-frame-inset', frame.inset + '%');
       element.style.setProperty('--ad-frame-fit', frame.fit);
     }
     return frame;
   }
-  async function decorate(element, value, uid, lookup) {
+  function applyBackground(element, value, active) {
+    var settings = normalize(value);
+    element.classList.remove('ad-custom-background');
+    ['color','image','dim'].forEach(function (key) {element.style.removeProperty('--ad-background-' + key);});
+    if (!active || settings.backgroundStyle === 'none' || (settings.backgroundStyle === 'image' && !settings.backgroundImage)) return;
+    element.classList.add('ad-custom-background');
+    element.style.setProperty('--ad-background-color',settings.backgroundColor);
+    element.style.setProperty('--ad-background-image',settings.backgroundStyle === 'image' ? 'url("' + settings.backgroundImage + '")' : 'none');
+    element.style.setProperty('--ad-background-dim',settings.backgroundStyle === 'image' ? String(settings.backgroundDim/100) : '0');
+  }
+  async function decorate(element, value, uid, lookup, page) {
     apply(element, value, false);
-    if (!uid || normalize(value).style === 'none') return;
+    if (page) applyBackground(page,value,false);
+    var settings = normalize(value);
+    if (!uid || (settings.style === 'none' && settings.backgroundStyle === 'none')) return;
     try {
       var member = await lookup(uid);
       // An entitlement always comes from the MAX backend, never from the ad's plan field.
-      if (element.isConnected !== false) apply(element, value, member.active === true);
+      if (element.isConnected !== false) {apply(element, value, member.active === true); if (page) applyBackground(page,value,member.active === true);}
     } catch (e) { /* A membership outage must not hide photos or block purchasing. */ }
   }
   function editor(host, getCover) {
-    var value = normalize(), allowed = false, revision = 0, uploadRevision = 0, uploading = false;
+    var value = normalize(), allowed = false, revision = 0, uploadRevision = 0, uploading = false, backgroundUploading = false, backgroundRevision = 0;
     var controls = host.querySelector('fieldset'), status = host.querySelector('[data-frame-status]');
     var preview = host.querySelector('[data-frame-preview]'), image = preview.querySelector('img');
     var fields = {};
-    ['style','color','secondary','width','radius','inset','fit'].forEach(function (key) {
+    ['style','color','secondary','width','radius','inset','fit','size','proportion','backgroundStyle','backgroundColor','backgroundDim'].forEach(function (key) {
       fields[key] = host.querySelector('[data-frame-input="' + key + '"]');
       fields[key].addEventListener('input', function () {
-        value[key] = ['width','radius','inset'].includes(key) ? Number(fields[key].value) : fields[key].value;
+        value[key] = ['width','radius','inset','size','backgroundDim'].includes(key) ? Number(fields[key].value) : fields[key].value;
         paint();
       });
     });
@@ -64,6 +81,11 @@
       host.querySelector('[data-frame-secondary-label]').hidden = value.style !== 'gradient';
       host.querySelector('[data-frame-upload]').hidden = value.style !== 'image';
       host.querySelector('[data-frame-inset]').textContent = value.inset + '%';
+      host.querySelector('[data-frame-size]').textContent = value.size + '%';
+      host.querySelector('[data-background-dim]').textContent = value.backgroundDim + '%';
+      host.querySelector('[data-background-upload]').hidden = value.backgroundStyle !== 'image';
+      host.querySelector('[data-background-color-label]').hidden = value.backgroundStyle === 'none';
+      applyBackground(host.querySelector('[data-frame-stage]'),value,allowed);
       host.querySelectorAll('[data-frame-basic]').forEach(function (label) {label.hidden = value.style === 'image';});
       apply(preview, value, allowed);
       var cover = getCover();
@@ -103,23 +125,41 @@
     host.querySelector('[data-frame-remove]').addEventListener('click', function () {
       ++uploadRevision; uploading = false; value.image = ''; value.style = 'none'; uploadStatus.textContent = 'Imagem da moldura removida. Salve o anúncio para confirmar.'; paint();
     });
+    var backgroundInput = host.querySelector('[data-background-file]'), backgroundStatus = host.querySelector('[data-background-status]');
+    backgroundInput.addEventListener('change',async function () {
+      var file = backgroundInput.files[0], attempt = ++backgroundRevision;
+      if (!file || !allowed) return;
+      backgroundUploading = true; backgroundStatus.textContent = 'Preparando o fundo…';
+      try {
+        var result = await prepareImage(file,true);
+        if (attempt !== backgroundRevision) return;
+        value.backgroundImage = result.image; value.backgroundStyle = 'image';
+        backgroundStatus.textContent = 'Fundo carregado para este anúncio. Confira a prévia e salve as alterações.'; paint();
+      } catch (e) {if (attempt === backgroundRevision) backgroundStatus.textContent = e.message;}
+      finally {if (attempt === backgroundRevision) backgroundUploading = false; backgroundInput.value = '';}
+    });
+    host.querySelector('[data-background-remove]').addEventListener('click',function () {
+      ++backgroundRevision; backgroundUploading = false; value.backgroundImage = ''; value.backgroundStyle = 'none'; backgroundStatus.textContent = 'Fundo removido. Salve para confirmar.'; paint();
+    });
     // The image upload updates its preview asynchronously; follow only that subtree.
     var coverZone = document.getElementById('coverZone');
     if (coverZone) new MutationObserver(paint).observe(coverZone, {childList:true,subtree:true});
     paint();
     return {load: function (saved) {value = normalize(saved); paint();}, read: function () {
+      if (backgroundUploading) throw new Error('Aguarde o carregamento do fundo antes de salvar.');
+      if (value.backgroundStyle === 'image' && !value.backgroundImage) throw new Error('Envie uma imagem de fundo ou escolha outro tipo de fundo.');
       if (uploading) throw new Error('Aguarde o carregamento da moldura antes de salvar.');
       if (value.style === 'image' && !value.image) throw new Error('Envie a imagem da moldura ou escolha outro estilo.');
       return normalize(value);
     }};
   }
-  async function prepareImage(file) {
-    if (!['image/png','image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Escolha um PNG ou WebP de até 5 MB, com o centro transparente.');
+  async function prepareImage(file, background) {
+    if (!(background ? ['image/jpeg','image/png','image/webp'] : ['image/png','image/webp']).includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error(background ? 'Escolha JPG, PNG ou WebP de até 5 MB.' : 'Escolha um PNG ou WebP de até 5 MB, com o centro transparente.');
     var url = URL.createObjectURL(file);
     try {
       var picture = await new Promise(function (resolve,reject) {var img = new Image(); img.onload = function () {resolve(img);}; img.onerror = function () {reject(new Error('Não foi possível ler essa imagem.'));}; img.src = url;});
       var ratio = picture.naturalWidth / picture.naturalHeight;
-      if (ratio < .5 || ratio > 4) throw new Error('Use uma moldura com proporção entre 1:2 e 4:1.');
+      if (!background && (ratio < .5 || ratio > 4)) throw new Error('Use uma moldura com proporção entre 1:2 e 4:1.');
       var canvas = document.createElement('canvas'), size = Math.min(1400, Math.max(picture.naturalWidth,picture.naturalHeight));
       for (var i = 0; i < 6; i++) {
         canvas.width = Math.round(picture.naturalWidth * size / Math.max(picture.naturalWidth,picture.naturalHeight));
@@ -127,15 +167,15 @@
         var context = canvas.getContext('2d'); context.drawImage(picture,0,0,canvas.width,canvas.height);
         // Reject opaque centers rather than silently covering the product photo.
         var pixel = context.getImageData(Math.floor(canvas.width/2),Math.floor(canvas.height/2),1,1).data;
-        if (pixel[3] > 240) throw new Error('O centro dessa imagem não é transparente. Use um PNG ou WebP com o centro recortado para a foto aparecer.');
+        if (!background && pixel[3] > 240) throw new Error('O centro dessa imagem não é transparente. Use um PNG ou WebP com o centro recortado para a foto aparecer.');
         var encoded = canvas.toDataURL('image/webp',.9);
-        if (encoded.length <= 450000) return {image:encoded,ratio:ratio};
+        if (encoded.length <= (background ? 180000 : 450000)) return {image:encoded,ratio:ratio};
         size = Math.round(size * .75);
       }
-      throw new Error('A moldura ficou muito grande. Envie uma imagem menor.');
+      throw new Error('A imagem ficou muito grande. Envie uma imagem menor.');
     } finally {URL.revokeObjectURL(url);}
   }
-  var api = {normalize:normalize, apply:apply, decorate:decorate, editor:editor};
+  var api = {normalize:normalize, apply:apply, decorate:decorate, applyBackground:applyBackground, editor:editor};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.BloxzuhAdFrame = api;
 })(typeof window !== 'undefined' ? window : globalThis);

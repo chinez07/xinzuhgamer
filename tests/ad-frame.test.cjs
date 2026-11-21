@@ -49,6 +49,25 @@ test('Image overlays accept only bounded embedded raster images and clear comple
   assert.equal(frame.normalize({...saved,ratio:99,inset:100}).ratio,1.6);
   assert.equal(frame.normalize({...saved,ratio:99,inset:100}).inset,8);
 });
+test('A background without a frame still checks MAX and is removed on expiration or failure', async () => {
+  const photo=element(), page=element(), value={backgroundStyle:'image',backgroundImage:transparent,backgroundColor:'#123456',backgroundDim:50};
+  await frame.decorate(photo,value,'seller',async()=>({active:true}),page);
+  assert.equal(photo.classes.size,0);
+  assert.ok(page.classes.has('ad-custom-background'));
+  assert.equal(page.props.get('--ad-background-image'),'url("'+transparent+'")');
+  assert.equal(page.props.get('--ad-background-dim'),'0.5');
+  for(const lookup of [async()=>({active:false}),async()=>{throw Error('offline');}]) {
+    await frame.decorate(photo,value,'seller',lookup,page);
+    assert.equal(page.classes.size,0); assert.equal(page.props.size,0);
+  }
+});
+test('Backgrounds reject external and SVG images; size, proportions and corners are bounded', () => {
+  const value=frame.normalize({backgroundImage:'https://example.test/tracker.png',backgroundColor:'red;display:none',backgroundDim:200,size:900,proportion:'url(evil)',radius:99});
+  assert.equal(value.backgroundImage,''); assert.equal(value.backgroundColor,'#0f0f14'); assert.equal(value.backgroundDim,35);
+  assert.equal(value.size,100); assert.equal(value.proportion,'auto'); assert.equal(value.radius,20);
+  const el=element(); frame.apply(el,{style:'image',image:transparent,size:70,proportion:'wide',radius:24},true);
+  assert.equal(el.props.get('--ad-frame-size'),'70%'); assert.equal(el.props.get('--ad-frame-ratio'),String(16/9)); assert.equal(el.props.get('--ad-frame-radius'),'24px');
+});
 test('Creating, editing and reloading two ads preserves different frames and original gallery photos', async () => {
   const docs=new Map(); let seq=0;
   const firestore=()=>({collection:()=>({doc:id=>({
@@ -62,11 +81,13 @@ test('Creating, editing and reloading two ads preserves different frames and ori
   vm.runInContext(source,context);
   context.bloxzuhDocId=()=> 'AD'+(++seq);
   const data={title:'Test',price:10,cover:'original.jpg',gallery:['original.jpg','second.jpg']};
-  const a=await context.fsCreateAd({...data,imageFrame:{style:'image',image:transparent,ratio:1.64,inset:9}});
+  const a=await context.fsCreateAd({...data,imageFrame:{style:'image',image:transparent,ratio:1.64,inset:9,backgroundStyle:'image',backgroundImage:transparent,size:80,radius:24}});
   const b=await context.fsCreateAd({...data,imageFrame:{style:'solid',color:'#123456'}});
   const reloaded=await context.fsGetAdById(a);
   assert.equal(reloaded.raw.imageFrame.image,transparent);
   assert.equal(reloaded.raw.imageFrame.ratio,1.64);
+  assert.equal(reloaded.raw.imageFrame.backgroundImage,transparent);
+  assert.equal(reloaded.raw.imageFrame.size,80);
   await context.fsUpdateAd(a,{imageFrame:frame.normalize({style:'gradient',color:'#654321'})});
   assert.equal((await context.fsGetAdById(a)).raw.imageFrame.style,'gradient');
   assert.equal((await context.fsGetAdById(b)).raw.imageFrame.color,'#123456');

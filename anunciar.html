@@ -170,7 +170,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
-  <link rel="stylesheet" href="css/ad-frame.css?v=2">
+  <link rel="stylesheet" href="css/ad-frame.css?v=3">
 </head>
 <body>
   <div class="top">
@@ -361,20 +361,35 @@ html { color-scheme: dark; background-color: #0f0f14; }
             <label data-frame-basic>Cor da moldura<input type="color" data-frame-input="color" value="#7c3aed"></label>
             <label data-frame-secondary-label hidden>Segunda cor<input type="color" data-frame-input="secondary" value="#ec4899"></label>
             <label data-frame-basic>Espessura · <output data-frame-width>5 px</output><input type="range" data-frame-input="width" min="1" max="12" value="5"></label>
-            <label data-frame-basic>Cantos · <output data-frame-radius>20 px</output><input type="range" data-frame-input="radius" min="0" max="40" value="20"></label>
+            <label>Cantos arredondados · <output data-frame-radius>20 px</output><input type="range" data-frame-input="radius" min="0" max="40" value="20"></label>
           </div>
           <div class="ad-frame-upload" data-frame-upload hidden>
             <label>Imagem da moldura<input type="file" data-frame-file accept="image/png,image/webp"></label>
             <p>PNG ou WebP com o centro transparente, até 5 MB. A arte fica por cima das fotos e acompanha a galeria.</p>
             <p data-frame-upload-status role="status"></p>
             <div class="ad-frame-fields">
+              <label>Tamanho da moldura · <output data-frame-size>100%</output><input type="range" data-frame-input="size" min="60" max="100" value="100"></label>
+              <label>Proporção da moldura<select data-frame-input="proportion"><option value="auto">Original da imagem</option><option value="wide">Horizontal · 16:9</option><option value="standard">Horizontal · 16:10</option><option value="square">Quadrada · 1:1</option></select></label>
               <label>Espaço interno · <output data-frame-inset>8%</output><input type="range" data-frame-input="inset" min="0" max="24" value="8"></label>
               <label>Encaixe da foto<select data-frame-input="fit"><option value="cover">Preencher o espaço</option><option value="contain">Mostrar a foto inteira</option></select></label>
             </div>
             <button type="button" class="btn btn-outline" data-frame-remove>Remover imagem da moldura</button>
           </div>
+          <h3>Fundo deste anúncio</h3>
+          <p>Esta escolha aparece para quem abrir este anúncio. Cada anúncio pode ter seu próprio fundo.</p>
+          <div class="ad-frame-fields">
+            <label>Tipo de fundo<select data-frame-input="backgroundStyle"><option value="none">Padrão do site</option><option value="color">Cor personalizada</option><option value="image">Imagem personalizada</option></select></label>
+            <label data-background-color-label hidden>Cor do fundo<input type="color" data-frame-input="backgroundColor" value="#0f0f14"></label>
+          </div>
+          <div class="ad-frame-upload" data-background-upload hidden>
+            <label>Imagem de fundo<input type="file" data-background-file accept="image/jpeg,image/png,image/webp"></label>
+            <p>JPG, PNG ou WebP de até 5 MB.</p>
+            <p data-background-status role="status"></p>
+            <label>Escurecimento do fundo · <output data-background-dim>35%</output><input type="range" data-frame-input="backgroundDim" min="0" max="80" value="35"></label>
+            <button type="button" class="btn btn-outline" data-background-remove>Remover fundo personalizado</button>
+          </div>
         </fieldset>
-        <div class="ad-frame-preview" data-frame-preview><div class="ad-frame-preview-surface"><img alt="Prévia da moldura na capa do anúncio" hidden><span data-frame-placeholder>Adicione uma capa para visualizar</span></div></div>
+        <div class="ad-frame-stage" data-frame-stage><div class="ad-frame-preview-bound"><div class="ad-frame-preview" data-frame-preview><div class="ad-frame-preview-surface"><img alt="Prévia da moldura na capa do anúncio" hidden><span data-frame-placeholder>Adicione uma capa para visualizar</span></div></div></div></div>
         <p class="ad-frame-caption">Prévia deste anúncio. A moldura aparece ao redor da capa e de toda a galeria, sem modificar as imagens.</p>
         <div class="ad-frame-links"><button type="button" class="btn btn-outline" data-frame-retry>Verificar MAX novamente</button><a href="plano-max.html">Conhecer o Clube MAX</a></div>
       </section>
@@ -410,7 +425,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/firestore-db.js?v=ad-frame-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/cover-worker-patch.js"></script>
-  <script src="js/ad-frame.js?v=2"></script>
+  <script src="js/ad-frame.js?v=3"></script>
 <script src="js/brand.js"></script>
   <script>
   (function () {
