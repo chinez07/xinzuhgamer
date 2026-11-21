@@ -170,6 +170,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
+  <link rel="stylesheet" href="css/ad-frame.css?v=1">
 </head>
 <body>
   <div class="top">
@@ -326,7 +327,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         <div class="acc-head"><div class="ico"><i class="fas fa-star"></i></div> Plano <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
         <div class="acc-body">
           <div class="plan-opt sel" data-plan="none"><h4>Sem plano</h4><ul><li>Pagamento protegido</li><li>Saque padrão</li></ul></div>
-          <div class="plan-opt" data-plan="max" aria-disabled="true"><h4>Plano MAX <span class="badge-fee">Em breve</span></h4><p class="hint" style="margin:8px 0 0">Assinatura ainda indisponível. Seu anúncio será publicado sem plano e sem taxa adicional. <a href="plano-max.html" style="color:#c4b5fd">Conheça o Plano MAX</a>.</p></div>
+          <div class="plan-opt" data-plan="max" aria-disabled="true"><h4>Clube MAX</h4><p class="hint" style="margin:8px 0 0">O MAX é uma assinatura da sua conta. Com ela ativa, você pode personalizar a moldura de cada anúncio na etapa Imagens. <a href="plano-max.html" style="color:#c4b5fd">Conheça o Clube MAX</a>.</p></div>
           <button type="button" class="btn btn-primary" id="btnToImages">Próxima etapa — Imagens</button>
         </div>
       </div>
@@ -351,6 +352,22 @@ html { color-scheme: dark; background-color: #0f0f14; }
         <input type="file" id="galInput" accept="image/*" multiple hidden>
         <div id="galPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
       </div>
+      <section class="card ad-frame-editor" id="adFrameEditor" aria-labelledby="adFrameHeading">
+        <h2 id="adFrameHeading"><i class="fas fa-crown" aria-hidden="true"></i> Moldura do anúncio MAX</h2>
+        <p data-frame-status role="status">Verificando sua assinatura MAX…</p>
+        <fieldset disabled aria-label="Personalizar a moldura deste anúncio">
+          <div class="ad-frame-fields">
+            <label>Estilo<select data-frame-input="style"><option value="none">Sem moldura</option><option value="solid">Cor única</option><option value="gradient">Degradê</option><option value="neon">Neon</option></select></label>
+            <label>Cor da moldura<input type="color" data-frame-input="color" value="#7c3aed"></label>
+            <label data-frame-secondary-label hidden>Segunda cor<input type="color" data-frame-input="secondary" value="#ec4899"></label>
+            <label>Espessura · <output data-frame-width>5 px</output><input type="range" data-frame-input="width" min="1" max="12" value="5"></label>
+            <label>Cantos · <output data-frame-radius>20 px</output><input type="range" data-frame-input="radius" min="0" max="40" value="20"></label>
+          </div>
+        </fieldset>
+        <div class="ad-frame-preview" data-frame-preview><div class="ad-frame-preview-surface"><img alt="Prévia da moldura na capa do anúncio" hidden><span data-frame-placeholder>Adicione uma capa para visualizar</span></div></div>
+        <p class="ad-frame-caption">Prévia deste anúncio. A moldura aparece ao redor da capa e de toda a galeria, sem modificar as imagens.</p>
+        <div class="ad-frame-links"><button type="button" class="btn btn-outline" data-frame-retry>Verificar MAX novamente</button><a href="plano-max.html">Conhecer o Clube MAX</a></div>
+      </section>
       <div class="footer-nav">
         <button type="button" class="btn btn-outline" data-goto="2">Voltar</button>
         <button type="button" class="btn btn-primary" id="btnToSummary">Continuar</button>
@@ -380,9 +397,10 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js?v=secure-market-1"></script>
+  <script src="js/firestore-db.js?v=ad-frame-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/cover-worker-patch.js"></script>
+  <script src="js/ad-frame.js?v=1"></script>
 <script src="js/brand.js"></script>
   <script>
   (function () {
@@ -398,6 +416,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
       galleryFiles: [],
       faq: []
     };
+
+    const frameEditor = BloxzuhAdFrame.editor(document.getElementById('adFrameEditor'), function () {return state.cover;});
 
     function showMsg(t, type) {
       const el = document.getElementById('msg');
@@ -892,6 +912,7 @@ state.cover = await fileToDataUrl(f, 480);
             faq: (state.faq || []).filter(function(f){ return f.q && f.a; }),
             visibility: state.visibility || 'prata',
             plan: 'none',
+            imageFrame: frameEditor.read(),
             feePercent: fee,
             status: stockVal > 0 ? 'ativo' : 'pausado',
             updatedAtMs: Date.now()
@@ -938,6 +959,7 @@ state.cover = await fileToDataUrl(f, 480);
           faq: state.faq.filter(f => f.q && f.a),
           visibility: state.visibility,
           plan: 'none',
+          imageFrame: frameEditor.read(),
           feePercent: fee,
           cover: cover,
           gallery: (state.gallery || []).slice(0, 6)
@@ -1073,6 +1095,8 @@ state.cover = await fileToDataUrl(f, 480);
         if (n2) n2.style.display = 'block';
         if (dy2) dy2.style.display = 'none';
       }
+
+      frameEditor.load(d.imageFrame);
 
       // Capa
       if (d.cover) {

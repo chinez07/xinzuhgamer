@@ -1,0 +1,25 @@
+/* CSS / ad-frame.css / navegadores atuais / moldura MAX sem alterar a foto original. */
+.max-image-frame {box-sizing:border-box; padding:var(--ad-frame-width); border-radius:var(--ad-frame-radius); background:var(--ad-frame-color); margin:8px 0 14px; isolation:isolate;}
+.max-image-frame[data-frame-style="gradient"] {background:linear-gradient(135deg,var(--ad-frame-color),var(--ad-frame-secondary));}
+.max-image-frame[data-frame-style="neon"] {box-shadow:0 0 14px color-mix(in srgb,var(--ad-frame-color) 65%,transparent);}
+/* Outer wrapper leaves the existing gallery's image dimensions and swipe controls intact. */
+.max-image-frame > .cover,.max-image-frame > .cover-carousel {margin:0!important; border-radius:max(0px,calc(var(--ad-frame-radius) - var(--ad-frame-width)))!important;}
+.ad-frame-editor {padding:18px; margin-top:16px;}
+.ad-frame-editor h2 {font-size:1.1rem; margin:0 0 8px;}
+.ad-frame-editor p {font-size:.9rem; line-height:1.6; color:var(--muted,#b8b4c7);}
+.ad-frame-editor fieldset {border:0; margin:16px 0; padding:0; min-width:0;}
+.ad-frame-editor fieldset:disabled {opacity:.55;}
+.ad-frame-fields {display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.ad-frame-fields label {display:block; min-width:0; font-size:.9rem;}
+.ad-frame-fields select {width:100%; background:#111118; color:#f4f4f5;}
+.ad-frame-fields input[type="color"] {display:block; width:100%; height:42px; padding:4px; background:#111118; border:1px solid #3e3b4e; border-radius:8px;}
+.ad-frame-fields input[type="range"] {width:100%; padding:0; accent-color:#8b5cf6;}
+.ad-frame-preview {margin:16px auto; max-width:400px;}
+.ad-frame-preview-surface {aspect-ratio:16/10; background:#1e1b36; overflow:hidden; border-radius:12px; display:grid; place-items:center; color:#c4b5fd;}
+.ad-frame-preview-surface img {width:100%; height:100%; object-fit:cover; display:block;}
+.ad-frame-preview-surface img[hidden],.ad-frame-editor [hidden] {display:none!important;}
+.ad-frame-preview.max-image-frame .ad-frame-preview-surface {border-radius:max(0px,calc(var(--ad-frame-radius) - var(--ad-frame-width)));}
+.ad-frame-editor .ad-frame-caption {text-align:center; font-size:.8rem;}
+.ad-frame-links {display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
+.ad-frame-links a {color:#c4b5fd;}
+@media(max-width:380px) {.ad-frame-fields {grid-template-columns:1fr;}}

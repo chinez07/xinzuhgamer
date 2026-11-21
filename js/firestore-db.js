@@ -68,6 +68,7 @@ async function fsCreateAd(data) {
     plan: data.plan || 'none',
     cover: data.cover || '',
     gallery: data.gallery || [],
+    imageFrame: (window.BloxzuhAdFrame ? BloxzuhAdFrame.normalize(data.imageFrame) : {style:'none'}),
     status: 'ativo',
     sales: 0,
     sold: 0,

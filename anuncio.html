@@ -198,6 +198,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
+  <link rel="stylesheet" href="css/ad-frame.css?v=1">
 </head>
 <body>
   <div class="top">
@@ -218,6 +219,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
+  <script src="js/ad-frame.js?v=1"></script>
   <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
@@ -302,11 +304,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
       if (!galleryImgs.length) {
         cover = '<div class="cover"><i class="fas fa-gamepad" style="font-size:3rem;color:#fff;opacity:.5"></i></div>';
       } else if (galleryImgs.length === 1) {
-        cover = '<div class="cover"><img src="' + galleryImgs[0] + '" alt=""></div>';
+        cover = '<div class="cover"><img src="' + esc(galleryImgs[0]) + '" alt=""></div>';
       } else {
         cover = '<div class="cover-carousel" id="adGallery">' +
           '<div class="slides" id="adGallerySlides">' +
-          galleryImgs.map(function(src){ return '<div class="slide"><img src="' + src + '" alt=""></div>'; }).join('') +
+          galleryImgs.map(function(src){ return '<div class="slide"><img src="' + esc(src) + '" alt=""></div>'; }).join('') +
           '</div>' +
           '<button type="button" class="nav prev" id="galPrev" aria-label="Anterior">‹</button>' +
           '<button type="button" class="nav next" id="galNext" aria-label="Próxima">›</button>' +
@@ -374,7 +376,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
       page.innerHTML =
         '<a class="back" href="anuncios.html">← Voltar para anúncios</a>' +
-        cover +
+        '<div id="adImageFrame">' + cover + '</div>' +
         '<div class="title-row">' +
           '<button type="button" class="fav-float' + (favOn ? ' is-fav' : '') + '" id="favBtn" data-id="' + esc(ad.id) + '"><i class="' + (favOn ? 'fas' : 'far') + ' fa-heart"></i></button>' +
           '<h1>' + esc(ad.title) + '</h1>' +
@@ -447,6 +449,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
           '<div class="verify-row"><span>Login</span><span>Verificado</span></div>' +
         '</div></div>' +
         '<div class="section"><div class="card guarantee"><i class="fas fa-shield-alt"></i><h3>Entrega garantida</h3><p style="color:var(--muted);font-size:0.9rem;margin-top:6px">Ou o seu dinheiro de volta (quando o pagamento protegido estiver ativo).</p></div></div>';
+
+      BloxzuhAdFrame.decorate(document.getElementById('adImageFrame'), raw.imageFrame, sellerUid, function (uid) {return BloxzuhMax.publicMember(uid);});
 
       // Galeria: setas / bolinhas / swipe
       (function initAdGallery() {
