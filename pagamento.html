@@ -67,13 +67,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js"></script>
+  <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/mp-config.js"></script>
   <script>
 (function(){
   /** Tempo para pagar o Pix (10 minutos) */
-  var PIX_TTL_MS = 10 * 60 * 1000;
+  var PIX_TTL_MS = 30 * 60 * 1000;
 
   var app = document.getElementById('app');
   var params = new URLSearchParams(location.search);
@@ -95,55 +95,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
     return Object.assign({ id: doc.id }, doc.data());
   }
 
-  async function markPaid(orderId){
-    await firebase.firestore().collection('orders').doc(orderId).update({
-      status: 'pago',
-      paidAtMs: Date.now(),
-      updatedAtMs: Date.now()
-    });
-    // Atualiza Disponíveis e Vendidos na hora
-    try {
-      var odoc = await firebase.firestore().collection('orders').doc(orderId).get();
-      if (odoc.exists) {
-        var o = Object.assign({ id: odoc.id }, odoc.data());
-        if (typeof fsApplyOrderStock === 'function') {
-          await fsApplyOrderStock(o);
-        } else if (o.adId && !o.stockApplied) {
-          var aref = firebase.firestore().collection('ads').doc(o.adId);
-          var adoc = await aref.get();
-          if (adoc.exists) {
-            var ad = adoc.data();
-            var qty = Number(o.quantity) || 1;
-            var _ps = Number(ad.sold); if (isNaN(_ps)) _ps = Number(ad.sales) || 0; var sold = _ps + qty;
-            var items = Array.isArray(ad.items) ? ad.items.slice() : [];
-            var itemIndex = o.itemIndex != null ? Number(o.itemIndex) : -1;
-            var patch = { sold: sold, updatedAtMs: Date.now() };
-            if (String(ad.model||'').toLowerCase()==='dinamico' && items.length && itemIndex>=0 && items[itemIndex]) {
-              items[itemIndex] = Object.assign({}, items[itemIndex], { stock: Math.max(0, (Number(items[itemIndex].stock)||0) - qty) });
-              var sum=0; items.forEach(function(x){ sum += Math.max(0, Number(x.stock)||0); });
-              patch.items = items; patch.stock = sum;
-              if (sum <= 0) patch.status = 'pausado';
-            } else {
-              var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-              patch.stock = stock;
-              if (stock <= 0) patch.status = 'pausado';
-            }
-            await aref.update(patch);
-            await firebase.firestore().collection('orders').doc(orderId).update({ stockApplied: true });
-          }
-        }
-      }
-    } catch (e) { console.warn('stock on pay', e); }
+  async function markPaid(orderId) {
+    const result = await bloxzuhMarketApi('/status?orderId=' + encodeURIComponent(orderId));
+    if (!result.approved) throw new Error('O Pix ainda não foi confirmado pelo servidor.');
   }
 
-  async function markExpired(orderId){
-    try {
-      await firebase.firestore().collection('orders').doc(orderId).update({
-        status: 'expirado',
-        expiredAtMs: Date.now(),
-        updatedAtMs: Date.now()
-      });
-    } catch (e) { console.warn(e); }
+  async function markExpired() {
+    // O relógio do dispositivo não altera o estado financeiro no servidor.
   }
 
   function formatRemain(ms){
@@ -221,7 +179,6 @@ html { color-scheme: dark; background-color: #0f0f14; }
         '</div>' +
         '<p class="muted" id="statusLine" style="text-align:center;margin-top:14px">Aguardando pagamento…</p>' +
         '<div id="approvedMsg"></div>' +
-        (hasWorker ? '' : '<button type="button" class="btn" style="width:100%;margin-top:12px" id="btnSim">Simular aprovado</button>') +
         '<button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" id="btnOrder">Ver pedido</button>' +
       '</div>';
 
@@ -230,12 +187,6 @@ html { color-scheme: dark; background-color: #0f0f14; }
       try { navigator.clipboard.writeText(document.getElementById('pixIn').value); alert('Código Pix copiado!'); } catch(e) {}
     };
     document.getElementById('btnOrder').onclick = function(){
-      location.href = 'pedido.html?id=' + encodeURIComponent(id);
-    };
-    var sim = document.getElementById('btnSim');
-    if (sim) sim.onclick = async function(){
-      stopTimers();
-      await markPaid(id);
       location.href = 'pedido.html?id=' + encodeURIComponent(id);
     };
 
@@ -261,7 +212,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         return;
       }
       try {
-        var res = await fetch(base + '/status?paymentId=' + encodeURIComponent(paymentId));
+        var res = await fetch(base + '/status?orderId=' + encodeURIComponent(orderId), {headers:{Authorization:'Bearer ' + await firebase.auth().currentUser.getIdToken()}});
         var data = await res.json();
         var line = document.getElementById('statusLine');
         if (line) line.textContent = 'Status: ' + (data.status || '…') + (data.status_detail ? ' (' + data.status_detail + ')' : '');
@@ -303,21 +254,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
     }
 
     var base = workerBase();
-    if (!base) {
-      // modo simulação local
-      expiresAt = Date.now() + PIX_TTL_MS;
-      var fakePix = '00020126BLOXZUH-TEST-' + (o.code || o.id);
-      await firebase.firestore().collection('orders').doc(o.id).update({
-        pixCopyPaste: fakePix,
-        paymentExpiresAtMs: expiresAt,
-        updatedAtMs: Date.now()
-      });
-      o.pixCopyPaste = fakePix;
-      o.paymentExpiresAtMs = expiresAt;
-      var qr2 = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(fakePix);
-      renderPixUI(o, fakePix, qr2, expiresAt);
-      return;
-    }
+    if (!base) throw new Error('O serviço de pagamento está indisponível.');
 
     app.innerHTML = '<div class="box"><p class="muted">Gerando QR Code Pix…</p></div>';
     var user = firebase.auth().currentUser;
@@ -336,7 +273,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
     }
     var res = await fetch(base + '/create-pix', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization:'Bearer ' + await user.getIdToken() },
       body: JSON.stringify({
         orderId: o.id,
         amount: Number(o.total != null ? o.total : o.price) || 0,
@@ -365,13 +302,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       ? (String(qrB64).indexOf('data:') === 0 ? qrB64 : ('data:image/png;base64,' + qrB64))
       : ('https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(pix));
 
-    await firebase.firestore().collection('orders').doc(o.id).update({
-      mpPaymentId: String(data.paymentId || data.id || ''),
-      pixCopyPaste: pix,
-      pixQrBase64: qrB64 || '',
-      paymentExpiresAtMs: expiresAt,
-      updatedAtMs: Date.now()
-    });
+    // Dados do Pix já foram gravados pelo servidor.
     o.mpPaymentId = String(data.paymentId || data.id || '');
     o.pixCopyPaste = pix;
     o.paymentExpiresAtMs = expiresAt;

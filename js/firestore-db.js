@@ -112,65 +112,21 @@ function round2(n) {
 }
 
 async function fsGetWalletRaw(uid) {
-  const doc = await getDb().collection('wallets').doc(uid).get();
-  if (!doc.exists) {
-    return { saldo: 0, pending: 0, pendingItems: [], withdrawn: 0 };
-  }
-  const d = doc.data();
-  return {
-    saldo: Number(d.saldo) || 0,
-    pending: Number(d.pending) || 0,
-    pendingItems: Array.isArray(d.pendingItems) ? d.pendingItems : [],
-    withdrawn: Number(d.withdrawn) || 0
-  };
+  if (requireUser().uid !== uid) throw new Error('Sem permissão.');
+  return fsGetWallet();
 }
 
 /** Move itens vencidos de "a liberar" → "disponível" */
-async function fsProcessWalletReleases(uid) {
-  const w = await fsGetWalletRaw(uid);
-  const now = Date.now();
-  let moved = 0;
-  const items = (w.pendingItems || []).map(function (it) {
-    if (!it.released && it.releaseAtMs && it.releaseAtMs <= now) {
-      moved = round2(moved + (Number(it.amount) || 0));
-      return Object.assign({}, it, { released: true, releasedAtMs: now });
-    }
-    return it;
-  });
-  if (moved > 0) {
-    const saldo = round2(w.saldo + moved);
-    const pending = round2(items.filter(function (it) { return !it.released; })
-      .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
-    await getDb().collection('wallets').doc(uid).set({
-      saldo: saldo,
-      pending: pending,
-      pendingItems: items,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    return { saldo: saldo, pending: pending, pendingItems: items, withdrawn: w.withdrawn, moved: moved };
-  }
-  const pending = round2(items.filter(function (it) { return !it.released; })
-    .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
-  // keep pending in sync
-  if (pending !== w.pending) {
-    await getDb().collection('wallets').doc(uid).set({ pending: pending, pendingItems: items }, { merge: true });
-  }
-  return { saldo: w.saldo, pending: pending, pendingItems: items, withdrawn: w.withdrawn, moved: 0 };
+async function fsProcessWalletReleases() {
+  return fsGetWallet();
 }
 
 async function fsGetWallet() {
-  const u = requireUser();
-  // processa liberações vencidas
-  return await fsProcessWalletReleases(u.uid);
+  return bloxzuhMarketApi('/market/wallet');
 }
 
-async function fsSetWallet(saldo, pending) {
-  const u = requireUser();
-  await getDb().collection('wallets').doc(u.uid).set({
-    saldo: Number(saldo) || 0,
-    pending: Number(pending) || 0,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
+async function fsSetWallet() {
+  throw new Error('Saldos só podem ser alterados pelo serviço financeiro.');
 }
 
 /**
@@ -180,120 +136,11 @@ async function fsSetWallet(saldo, pending) {
 
 /** Aplica estoque/vendas dos pedidos pagos ainda não processados + sincroniza carteira */
 async function fsSyncSellerSalesAndWallet() {
-  const u = requireUser();
-  const releaseMs = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
-  let snap;
-  try {
-    snap = await getDb().collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
-  } catch (e) {
-    console.warn('orders query', e);
-    // fallback: get all and filter (if rules allow)
-    snap = await getDb().collection('orders').limit(80).get();
-  }
-
-  const orders = [];
-  snap.forEach(function (doc) {
-    const o = Object.assign({ id: doc.id }, doc.data());
-    if (o.sellerUid === u.uid) orders.push(o);
-  });
-
-  // 1) Estoque + vendas por anúncio
-  for (var i = 0; i < orders.length; i++) {
-    var o = orders[i];
-    var st = o.status || '';
-    if (st !== 'pago' && st !== 'em_entrega' && st !== 'concluido') continue;
-    if (o.stockApplied) continue;
-    if (!o.adId) {
-      try { await getDb().collection('orders').doc(o.id).update({ stockApplied: true }); } catch (e) {}
-      continue;
-    }
-    try {
-      var aref = getDb().collection('ads').doc(o.adId);
-      var adoc = await aref.get();
-      if (adoc.exists && adoc.data().sellerUid === u.uid) {
-        var ad = adoc.data();
-        var qty = Number(o.quantity) || 1;
-        var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-        var prevSold = Number(ad.sold); if (isNaN(prevSold)) prevSold = Number(ad.sales) || 0; var sold = prevSold + qty; // Vendidos no pagamento
-        var patch = { stock: stock, sold: sold, updatedAtMs: Date.now() };
-        // NÃO incrementa sales (Vendas) aqui — só na entrega confirmada
-        if (stock <= 0) patch.status = 'pausado';
-        await aref.update(patch);
-      }
-      await getDb().collection('orders').doc(o.id).update({ stockApplied: true });
-    } catch (e) {
-      console.warn('stock apply', o.id, e);
-    }
-  }
-
-  // 2) Carteira
-  return await fsSyncSellerWallet();
+  return fsGetWallet();
 }
 
 async function fsSyncSellerWallet() {
-  const u = requireUser();
-  const releaseMs = window.BLOXZUH_RELEASE_MS || (10 * 24 * 60 * 60 * 1000);
-  const snap = await getDb().collection('orders')
-    .where('sellerUid', '==', u.uid)
-    .limit(50)
-    .get();
-
-  let w = await fsGetWalletRaw(u.uid);
-  let items = (w.pendingItems || []).slice();
-  let changed = false;
-  const existingIds = {};
-  items.forEach(function (it) { if (it.orderId) existingIds[it.orderId] = true; });
-
-  const batchMarks = [];
-  snap.forEach(function (doc) {
-    const o = doc.data();
-    const st = o.status || '';
-    if (st !== 'pago' && st !== 'em_entrega' && st !== 'concluido') return;
-    if (o.sellerWalletApplied) return;
-    if (existingIds[doc.id]) return;
-
-    const gross = Number(o.total != null ? o.total : o.price) || 0;
-    const feePct = Number(o.feePercent) || 9.99;
-    const net = round2(gross * (1 - feePct / 100));
-    if (net <= 0) return;
-
-    const paidAt = Number(o.paidAtMs) || Number(o.updatedAtMs) || Date.now();
-    items.push({
-      orderId: doc.id,
-      code: o.code || '',
-      amount: net,
-      gross: gross,
-      feePercent: feePct,
-      releaseAtMs: paidAt + releaseMs,
-      released: false,
-      createdAtMs: Date.now()
-    });
-    existingIds[doc.id] = true;
-    batchMarks.push(doc.id);
-    changed = true;
-  });
-
-  if (changed) {
-    const pending = round2(items.filter(function (it) { return !it.released; })
-      .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
-    await getDb().collection('wallets').doc(u.uid).set({
-      saldo: w.saldo,
-      pending: pending,
-      pendingItems: items,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    // marca pedidos para não creditar 2x
-    for (var i = 0; i < batchMarks.length; i++) {
-      try {
-        await getDb().collection('orders').doc(batchMarks[i]).update({
-          sellerWalletApplied: true,
-          sellerNet: items.filter(function (it) { return it.orderId === batchMarks[i]; })[0].amount
-        });
-      } catch (e) { console.warn('mark order wallet', e); }
-    }
-  }
-
-  return await fsProcessWalletReleases(u.uid);
+  return fsGetWallet();
 }
 
 
@@ -602,42 +449,8 @@ function orderCode() {
 }
 
 async function fsCreateOrder(ad, extra) {
-  const u = requireUser();
-  if (!ad || !ad.id) throw new Error('Anúncio inválido.');
-  const sellerUid = (ad.raw && ad.raw.sellerUid) || ad.sellerUid || '';
-  if (!sellerUid) throw new Error('Vendedor não encontrado.');
-  if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
-
-  const price = Number(ad.price) || 0;
-  // ID do documento = código do pedido (ex: BZB8EQR6)
-  // NÃO faz .get() antes: regra do Firestore bloqueia leitura de doc inexistente
-  const code = orderCode();
-  const ref = getDb().collection('orders').doc(code);
-  const payload = {
-    code: code,
-    adId: ad.id,
-    adTitle: (ad.title || '') + ((extra && extra.itemName) ? (' — ' + extra.itemName) : ((window.__selectedItemName) ? (' — ' + window.__selectedItemName) : '')),
-    adCover: ad.cover || '',
-    price: price,
-    quantity: (extra && extra.quantity) || 1,
-    total: price * ((extra && extra.quantity) || 1),
-    status: 'aguardando_pagamento',
-    buyerUid: u.uid,
-    buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
-    buyerEmail: u.email || '',
-    sellerUid: sellerUid,
-    sellerName: ad.seller || 'Vendedor',
-    category: ad.category || '',
-    note: (extra && extra.note) || '',
-    itemIndex: (extra && extra.itemIndex != null) ? Number(extra.itemIndex) : (window.__selectedItemIndex != null ? Number(window.__selectedItemIndex) : null),
-    itemName: (extra && extra.itemName) || (window.__selectedItemName) || '',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    createdAtMs: Date.now(),
-    updatedAtMs: Date.now()
-  };
-  await ref.set(payload);
-  console.log('[Bloxzuh] pedido criado com ID=', code);
-  return Object.assign({ id: code }, payload);
+  requireUser(); extra = extra || {};
+  return bloxzuhMarketApi('/market/orders', {adId:ad.id,quantity:extra.quantity || 1,itemIndex:extra.itemIndex == null ? window.__selectedItemIndex : extra.itemIndex});
 }
 
 async function fsGetMyPurchases() {
@@ -678,76 +491,16 @@ async function fsGetOrder(id) {
 }
 
 async function fsUpdateOrderStatus(id, status) {
-  const u = requireUser();
-  const order = await fsGetOrder(id);
-  if (!order) throw new Error('Pedido não encontrado.');
-  if (order.buyerUid !== u.uid && order.sellerUid !== u.uid) {
-    throw new Error('Sem permissão.');
-  }
-  await getDb().collection('orders').doc(id).update({
-    status: status,
-    updatedAtMs: Date.now()
-  });
-  return true;
+  return bloxzuhMarketApi('/market/status', {orderId:id,status:status});
 }
 
 
 async function fsAddOrderMessage(orderId, text) {
-  const u = requireUser();
-  const order = await fsGetOrder(orderId);
-  if (!order) throw new Error('Pedido não encontrado.');
-  if (order.buyerUid !== u.uid && order.sellerUid !== u.uid) {
-    throw new Error('Sem permissão.');
-  }
-  const msg = {
-    id: 'm' + Date.now(),
-    text: String(text || '').slice(0, 2000),
-    senderUid: u.uid,
-    senderName: u.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
-    createdAtMs: Date.now()
-  };
-  const messages = Array.isArray(order.messages) ? order.messages.slice() : [];
-  messages.push(msg);
-  await getDb().collection('orders').doc(orderId).update({
-    messages: messages,
-    updatedAtMs: Date.now()
-  });
-  // notify the other party
-  try {
-    const other = u.uid === order.buyerUid ? order.sellerUid : order.buyerUid;
-    if (other && typeof fsAddNotification === 'function') {
-      fsAddNotification(other, {
-        type: 'venda',
-        title: 'Mensagem no pedido #' + (order.code || ''),
-        body: msg.text.slice(0, 120),
-        link: 'pedido.html?id=' + encodeURIComponent(orderId),
-        createdAtMs: Date.now()
-      });
-    }
-  } catch (e) {}
-  return msg;
+  return bloxzuhMarketApi('/market/message',{orderId:orderId,text:text});
 }
 
 async function fsSetOrderPayment(orderId, data) {
-  const u = requireUser();
-  const order = await fsGetOrder(orderId);
-  if (!order) throw new Error('Pedido não encontrado.');
-  if (order.buyerUid !== u.uid) throw new Error('Só o comprador pode pagar.');
-  const patch = {
-    paymentMethod: data.method || 'pix',
-    payerName: data.payerName || '',
-    payerCpf: data.payerCpf || '',
-    vipPlan: data.vipPlan || 'none',
-    total: data.total != null ? Number(data.total) : order.total,
-    status: 'aguardando_pagamento',
-    paymentId: 'PAY' + Date.now().toString().slice(-8),
-    paymentExpiresAtMs: Date.now() + 20 * 60 * 1000,
-    // placeholder copia-cola (estrutura — gateway real depois)
-    pixCopyPaste: data.pixCopyPaste || ('00020126BLOXZUH' + (order.code || '') + 'VAL' + String(order.total || 0).replace('.', '')),
-    updatedAtMs: Date.now()
-  };
-  await getDb().collection('orders').doc(orderId).update(patch);
-  return Object.assign(order, patch);
+  return bloxzuhMarketApi('/market/payment-data', {orderId:orderId,payerName:data.payerName,payerCpf:data.payerCpf,vipPlan:data.vipPlan || 'none'});
 }
 
 
@@ -756,71 +509,13 @@ async function fsSetOrderPayment(orderId, data) {
 window.requireUser = requireUser;
 
 /** Baixa estoque + Vendidos assim que o pedido fica pago (qualquer um autenticado com regras) */
-async function fsApplyOrderStock(order) {
-  if (!order || !order.adId) return;
-  if (order.stockApplied) return;
-  try {
-    var aref = getDb().collection('ads').doc(order.adId);
-    var adoc = await aref.get();
-    if (!adoc.exists) {
-      await getDb().collection('orders').doc(order.id).update({ stockApplied: true });
-      return;
-    }
-    var ad = adoc.data();
-    var qty = Number(order.quantity) || 1;
-    var items = Array.isArray(ad.items) ? ad.items.slice() : [];
-    var itemIndex = (order.itemIndex != null ? Number(order.itemIndex) : (order.selectedItemIndex != null ? Number(order.selectedItemIndex) : -1));
-    // Dinâmico: baixa só o item escolhido
-    if (String(ad.model || '').toLowerCase() === 'dinamico' && items.length && itemIndex >= 0 && items[itemIndex]) {
-      var it = Object.assign({}, items[itemIndex]);
-      it.stock = Math.max(0, (Number(it.stock) || 0) - qty);
-      items[itemIndex] = it;
-      var sumStock = 0;
-      items.forEach(function (x) { sumStock += Math.max(0, Number(x.stock) || 0); });
-      var prevSold = Number(ad.sold); if (isNaN(prevSold)) prevSold = Number(ad.sales) || 0;
-      var patch = {
-        items: items,
-        stock: sumStock,
-        sold: prevSold + qty,
-        updatedAtMs: Date.now()
-      };
-      // só pausa o anúncio inteiro se TODOS os itens zeram
-      if (sumStock <= 0) patch.status = 'pausado';
-      await aref.update(patch);
-    } else {
-      var stock = Math.max(0, (Number(ad.stock) || 0) - qty);
-      var prevSold2 = Number(ad.sold); if (isNaN(prevSold2)) prevSold2 = Number(ad.sales) || 0;
-      var patch2 = { stock: stock, sold: prevSold2 + qty, updatedAtMs: Date.now() };
-      if (stock <= 0) patch2.status = 'pausado';
-      await aref.update(patch2);
-    }
-    await getDb().collection('orders').doc(order.id).update({ stockApplied: true });
-    console.log('[Bloxzuh] estoque/vendidos atualizados ad=', order.adId, 'item=', itemIndex);
-  } catch (e) {
-    console.warn('fsApplyOrderStock', e && e.message, e);
-  }
+async function fsApplyOrderStock() {
+  // Estoque é atualizado atomicamente com a confirmação real do Pix no servidor.
 }
 
 /** Vendas (entregas concluídas) — só quando status = concluido */
-async function fsApplyDeliverySale(order) {
-  if (!order || !order.adId) return;
-  if (order.saleCounted) return;
-  try {
-    var aref = getDb().collection('ads').doc(order.adId);
-    var adoc = await aref.get();
-    if (!adoc.exists) {
-      await getDb().collection('orders').doc(order.id).update({ saleCounted: true });
-      return;
-    }
-    var ad = adoc.data();
-    var qty = Number(order.quantity) || 1;
-    var sales = (Number(ad.sales) || 0) + qty;
-    await aref.update({ sales: sales, updatedAtMs: Date.now() });
-    await getDb().collection('orders').doc(order.id).update({ saleCounted: true });
-    console.log('[Bloxzuh] vendas +1 ad=', order.adId, 'sales=', sales);
-  } catch (e) {
-    console.warn('fsApplyDeliverySale', e);
-  }
+async function fsApplyDeliverySale() {
+  // Contadores financeiros não são gravados pelo navegador.
 }
 
 window.fsApplyOrderStock = fsApplyOrderStock;
@@ -832,90 +527,7 @@ window.fsGetSellerReviews = fsGetSellerReviews;
 window.fsGetAdReviews = fsGetAdReviews;
 
 async function fsAddReview(order, stars, comment) {
-  const u = requireUser();
-  if (!order || !order.id) throw new Error('Pedido inválido.');
-  if (order.buyerUid !== u.uid) throw new Error('Só o comprador pode avaliar.');
-  if (order.status !== 'concluido') throw new Error('Avalie após a entrega confirmada.');
-  if (order.reviewed) throw new Error('Você já avaliou este pedido.');
-  stars = Math.min(5, Math.max(1, parseInt(stars, 10) || 5));
-  comment = String(comment || '').slice(0, 500);
-  var rid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('RV') : ('RV' + Date.now().toString(36).toUpperCase());
-  var buyerName = u.displayName || localStorage.getItem('xinzuh-username') || (u.email ? u.email.split('@')[0] : 'Comprador');
-  var buyerPhoto = '';
-  try {
-    buyerPhoto = localStorage.getItem('xinzuh-photo-' + u.uid) || localStorage.getItem('xinzuh-photo') || '';
-    if (typeof fsGetProfile === 'function') {
-      var bp = await fsGetProfile(u.uid);
-      if (bp && (bp.photo || bp.photoURL)) buyerPhoto = bp.photo || bp.photoURL;
-    }
-  } catch (e) {}
-  await getDb().collection('reviews').doc(rid).set({
-    type: 'ad',
-    orderId: order.id,
-    adId: order.adId || '',
-    adTitle: order.adTitle || '',
-    itemName: order.itemName || '',
-    sellerUid: order.sellerUid || '',
-    buyerUid: u.uid,
-    buyerName: buyerName,
-    buyerPhoto: buyerPhoto,
-    fromUid: u.uid,
-    fromName: buyerName,
-    fromPhoto: buyerPhoto,
-    stars: stars,
-    comment: comment,
-    createdAtMs: Date.now(),
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await getDb().collection('orders').doc(order.id).update({
-    reviewed: true,
-    reviewStars: stars,
-    reviewComment: comment,
-    updatedAtMs: Date.now()
-  });
-  // média do anúncio
-  if (order.adId) {
-    try {
-      var snap = await getDb().collection('reviews').where('adId', '==', order.adId).limit(200).get();
-      var sum = 0, n = 0;
-      snap.forEach(function (d) { sum += Number(d.data().stars) || 0; n++; });
-      if (n > 0) {
-        await getDb().collection('ads').doc(order.adId).update({
-          rating: Math.round((sum / n) * 10) / 10,
-          ratingCount: n,
-          updatedAtMs: Date.now()
-        });
-      }
-    } catch (e) { console.warn('ad rating', e); }
-  }
-  // média do vendedor no perfil
-  if (order.sellerUid) {
-    try {
-      var snap2 = await getDb().collection('reviews').where('sellerUid', '==', order.sellerUid).limit(200).get();
-      var sum2 = 0, n2 = 0;
-      snap2.forEach(function (d) { sum2 += Number(d.data().stars) || 0; n2++; });
-      if (n2 > 0) {
-        await getDb().collection('profiles').doc(order.sellerUid).set({
-          rating: Math.round((sum2 / n2) * 10) / 10,
-          ratingCount: n2,
-          updatedAtMs: Date.now()
-        }, { merge: true });
-      }
-    } catch (e) { console.warn('seller rating', e); }
-  }
-  // notifica vendedor
-  try {
-    if (typeof fsAddNotification === 'function' && order.sellerUid) {
-      await fsAddNotification(order.sellerUid, {
-        type: 'review',
-        title: 'Nova avaliação ' + stars + '★',
-        body: buyerName + (order.itemName ? (' · ' + order.itemName) : '') + (comment ? (': ' + comment.slice(0, 80)) : ''),
-        link: order.adId ? ('anuncio.html?id=' + encodeURIComponent(order.adId)) : 'painel.html',
-        createdAtMs: Date.now()
-      });
-    }
-  } catch (e) {}
-  return rid;
+  return (await bloxzuhMarketApi('/market/review',{orderId:order.id,stars:stars,comment:comment})).id;
 }
 
 async function fsGetAdReviews(adId, limit) {
@@ -952,61 +564,7 @@ async function fsGetSellerReviews(sellerUid, limit) {
 
 /** Vendedor avalia o comprador */
 async function fsAddBuyerReview(order, stars, comment) {
-  const u = requireUser();
-  if (!order || !order.id) throw new Error('Pedido inválido.');
-  if (order.sellerUid !== u.uid) throw new Error('Só o vendedor pode avaliar o comprador.');
-  if (order.status !== 'concluido') throw new Error('Avalie após a entrega concluída.');
-  if (order.buyerReviewed) throw new Error('Você já avaliou este comprador.');
-  stars = Math.min(5, Math.max(1, parseInt(stars, 10) || 5));
-  comment = String(comment || '').slice(0, 500);
-  var rid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('RB') : ('RB' + Date.now().toString(36).toUpperCase());
-  var fromName = u.displayName || localStorage.getItem('xinzuh-username') || 'Vendedor';
-  var fromPhoto = '';
-  try {
-    fromPhoto = localStorage.getItem('xinzuh-photo-' + u.uid) || localStorage.getItem('xinzuh-photo') || '';
-    if (typeof fsGetProfile === 'function') {
-      var pr = await fsGetProfile(u.uid);
-      if (pr && (pr.photo || pr.photoURL)) fromPhoto = pr.photo || pr.photoURL;
-    }
-  } catch (e) {}
-  await getDb().collection('reviews').doc(rid).set({
-    type: 'buyer',
-    orderId: order.id,
-    adId: order.adId || '',
-    adTitle: order.adTitle || '',
-    itemName: order.itemName || '',
-    sellerUid: order.sellerUid || '',
-    buyerUid: order.buyerUid || '',
-    fromUid: u.uid,
-    fromName: fromName,
-    fromPhoto: fromPhoto,
-    toUid: order.buyerUid || '',
-    buyerName: order.buyerName || 'Comprador',
-    stars: stars,
-    comment: comment,
-    createdAtMs: Date.now(),
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await getDb().collection('orders').doc(order.id).update({
-    buyerReviewed: true,
-    buyerReviewStars: stars,
-    buyerReviewComment: comment,
-    updatedAtMs: Date.now()
-  });
-  // (média do comprador fica só nas reviews; perfil do comprador só ele mesmo pode escrever)
-
-  try {
-    if (typeof fsAddNotification === 'function' && order.buyerUid) {
-      await fsAddNotification(order.buyerUid, {
-        type: 'review',
-        title: 'O vendedor te avaliou ' + stars + '★',
-        body: fromName + (comment ? (': ' + comment.slice(0, 80)) : ''),
-        link: 'pedido.html?id=' + encodeURIComponent(order.id),
-        createdAtMs: Date.now()
-      });
-    }
-  } catch (e) {}
-  return rid;
+  return (await bloxzuhMarketApi('/market/review',{orderId:order.id,stars:stars,comment:comment})).id;
 }
 
 async function attachReviewerPhotos(list) {
@@ -1033,74 +591,15 @@ async function attachReviewerPhotos(list) {
 
 
 async function fsRequestWithdraw(amount, pixKey, opts) {
-  const u = requireUser();
-  opts = opts || {};
-  amount = Number(amount) || 0;
-  if (amount < 1) throw new Error('Valor minimo de saque: R$ 1.');
-  pixKey = String(pixKey || '').trim();
-  if (!pixKey) throw new Error('Informe a chave Pix.');
-  var mode = (opts.mode === 'turbo') ? 'turbo' : 'normal';
-  // Normal: 3 dias | Turbo: 30 min
-  var NORMAL_MS = (typeof window.BLOXZUH_SAQUE_NORMAL_MS === 'number') ? window.BLOXZUH_SAQUE_NORMAL_MS : (3 * 24 * 60 * 60 * 1000);
-  var TURBO_MS = (typeof window.BLOXZUH_SAQUE_TURBO_MS === 'number') ? window.BLOXZUH_SAQUE_TURBO_MS : (30 * 60 * 1000);
-  var TURBO_FEE = (typeof window.BLOXZUH_SAQUE_TURBO_FEE === 'number') ? window.BLOXZUH_SAQUE_TURBO_FEE : 2.00;
-  var fee = mode === 'turbo' ? TURBO_FEE : 0;
-  var delayMs = mode === 'turbo' ? TURBO_MS : NORMAL_MS;
-  var totalDebit = Math.round((amount + fee) * 100) / 100;
-
-  var wref = getDb().collection('wallets').doc(u.uid);
-  var wdoc = await wref.get();
-  var saldo = wdoc.exists ? (Number(wdoc.data().saldo) || 0) : 0;
-  if (totalDebit > saldo) throw new Error('Saldo disponivel insuficiente' + (fee ? ' (valor + taxa turbo R$ ' + fee.toFixed(2).replace('.',',') + ')' : '') + '.');
-
-  var wid = (typeof bloxzuhDocId === 'function') ? bloxzuhDocId('WD') : ('WD' + Date.now().toString(36).toUpperCase());
-  var now = Date.now();
-  await getDb().collection('withdrawals').doc(wid).set({
-    userId: u.uid,
-    userName: u.displayName || opts.holderName || '',
-    userEmail: u.email || '',
-    holderName: opts.holderName || u.displayName || '',
-    holderCpf: opts.cpf || '',
-    pixType: opts.pixType || 'cpf',
-    amount: Math.round(amount * 100) / 100,
-    fee: fee,
-    mode: mode,
-    pixKey: pixKey,
-    status: 'processando',
-    availableAtMs: now + delayMs,
-    createdAtMs: now,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  await wref.set({
-    saldo: Math.round((saldo - totalDebit) * 100) / 100,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-  return { id: wid, availableAtMs: now + delayMs, mode: mode, fee: fee };
+  return bloxzuhMarketApi('/market/withdraw', Object.assign({},opts || {},{amount:amount,pixKey:pixKey}));
 }
 
 /** Libera saques cujo tempo ja passou (processando -> aprovado) */
 async function fsProcessMyWithdrawals() {
-  const u = requireUser();
-  var snap = await getDb().collection('withdrawals').where('userId', '==', u.uid).limit(50).get();
-  var now = Date.now();
-  var list = [];
-  var updates = [];
-  snap.forEach(function (d) {
-    var w = Object.assign({ id: d.id }, d.data());
-    if (w.status === 'processando' && w.availableAtMs && w.availableAtMs <= now) {
-      updates.push(getDb().collection('withdrawals').doc(d.id).update({
-        status: 'aprovado',
-        paidAtMs: now,
-        updatedAtMs: now
-      }));
-      w.status = 'aprovado';
-      w.paidAtMs = now;
-    }
-    list.push(w);
-  });
-  if (updates.length) await Promise.all(updates);
-  list.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
-  return list;
+  const user = requireUser();
+  const snapshots = await Promise.all(['secureWithdrawals','withdrawals'].map(function(collection) {return getDb().collection(collection).where('userId','==',user.uid).limit(50).get();}));
+  const list = []; snapshots.forEach(function(snap,index) {snap.forEach(function(doc) {list.push(Object.assign({},doc.data(),{id:doc.id,legacyRecord:index===1}));});});
+  return list.sort(function(a,b) {return (b.createdAtMs || 0)-(a.createdAtMs || 0);});
 }
 
 async function fsGetMyWithdrawals() {
@@ -1349,27 +848,20 @@ window.fsSyncSellerSalesAndWallet = fsSyncSellerSalesAndWallet;
 console.log('[Bloxzuh] firestore-db v-readable-ids-3');
 
 
-async function trySaquePayout(w) {
-  var url = window.BLOXZUH_SAQUE_WORKER_URL || window.MP_WORKER_URL || '';
-  if (!url || !w) return null;
-  try {
-    var res = await fetch(String(url).replace(/\/$/, '') + '/payout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        withdrawalId: w.id,
-        amount: w.amount,
-        pixKey: w.pixKey,
-        pixType: w.pixType || 'cpf',
-        holderName: w.holderName || '',
-        holderCpf: w.holderCpf || '',
-        email: w.userEmail || ''
-      })
-    });
-    return await res.json();
-  } catch (e) {
-    console.warn('payout', e);
-    return { ok: false, status: 'pending_manual' };
-  }
+async function trySaquePayout() {
+  throw new Error('Transferências são conferidas e processadas pelo administrador.');
 }
 window.trySaquePayout = trySaquePayout;
+
+async function bloxzuhMarketApi(route, body) {
+  const user = requireUser();
+  const response = await fetch('https://bloxzuh-pix.hskkaj48.workers.dev' + route, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: {'Content-Type':'application/json', Authorization:'Bearer ' + await user.getIdToken()},
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Serviço temporariamente indisponível.');
+  return result;
+}
+window.bloxzuhMarketApi = bloxzuhMarketApi;

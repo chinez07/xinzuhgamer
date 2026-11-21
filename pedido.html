@@ -75,7 +75,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js"></script>
+  <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script>
     function bloxzuhStatusLabel(st) {
@@ -122,40 +122,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
     if (!doc.exists) return null;
     return Object.assign({ id: doc.id }, doc.data());
   }
-  async function setStatus(status){
-    await firebase.firestore().collection('orders').doc(orderId).update({
-      status: status,
-      updatedAtMs: Date.now()
-    });
+  async function setStatus(status) {
+    return fsUpdateOrderStatus(orderId,status);
   }
-  async function sendMsg(text){
-    var myPhoto = '';
-    try {
-      myPhoto = (window.BloxzuhPhotos && BloxzuhPhotos.getLocal(currentUser.uid)) || localStorage.getItem('xinzuh-photo') || '';
-    } catch (e) {}
-    var msg = {
-      id: 'm' + Date.now() + Math.random().toString(36).slice(2, 6),
-      text: String(text).slice(0, 2000),
-      senderUid: currentUser.uid,
-      senderName: currentUser.displayName || localStorage.getItem('xinzuh-username') || 'Usuário',
-      senderPhoto: myPhoto || '',
-      createdAtMs: Date.now(),
-      read: false
-    };
-    var ref = firebase.firestore().collection('orders').doc(orderId);
-    // transaction evita sobrescrever mensagem do outro lado
-    await firebase.firestore().runTransaction(async function (tx) {
-      var snap = await tx.get(ref);
-      if (!snap.exists) throw new Error('Pedido não encontrado');
-      var data = snap.data() || {};
-      var messages = Array.isArray(data.messages) ? data.messages.slice() : [];
-      messages.push(msg);
-      tx.update(ref, {
-        messages: messages,
-        updatedAtMs: Date.now(),
-        lastMessageAtMs: Date.now()
-      });
-    });
+  async function sendMsg(text) {
+    return fsAddOrderMessage(orderId,text);
   }
 
   function renderChat(){
@@ -182,34 +153,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
     }).join('') + '</div>';
   }
 
-  async function markMessagesRead(){
-    try {
-      if (!order || !currentUser) return;
-      var msgs = Array.isArray(order.messages) ? order.messages.slice() : [];
-      var changed = false;
-      for (var i = 0; i < msgs.length; i++) {
-        if (msgs[i].senderUid && msgs[i].senderUid !== currentUser.uid && !msgs[i].read) {
-          msgs[i] = Object.assign({}, msgs[i], { read: true, readAtMs: Date.now() });
-          changed = true;
-        }
-      }
-      if (!changed) return;
-      await firebase.firestore().collection('orders').doc(orderId).update({
-        messages: msgs,
-        updatedAtMs: Date.now()
-      });
-      order.messages = msgs;
-    } catch (e) { console.warn('mark read', e); }
+  async function markMessagesRead() {
+    if (order && order.paymentVerified) await bloxzuhMarketApi('/market/read',{orderId:orderId});
   }
 
   async function reload(){
     order = await loadOrder(orderId);
-    if (order.status === 'aguardando_pagamento' && order.paymentExpiresAtMs && Date.now() >= Number(order.paymentExpiresAtMs)) {
-        try {
-          await firebase.firestore().collection('orders').doc(order.id).update({ status: 'expirado', expiredAtMs: Date.now(), updatedAtMs: Date.now() });
-          order.status = 'expirado';
-        } catch (ex) {}
-      }
+
       if (order.status === 'pago' || order.status === 'em_entrega' || order.status === 'concluido') {
         if (typeof fsApplyOrderStock === 'function') await fsApplyOrderStock(order);
       }
@@ -380,19 +330,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
     if ((b = document.getElementById('btnDone'))) b.onclick = async function(){
       await setStatus('concluido');
-      try {
-        if (typeof fsApplyDeliverySale === 'function') await fsApplyDeliverySale(order);
-        else if (order && order.adId && !order.saleCounted) {
-          var aref = firebase.firestore().collection('ads').doc(order.adId);
-          var adoc = await aref.get();
-          if (adoc.exists) {
-            var ad = adoc.data();
-            var qty = Number(order.quantity) || 1;
-            await aref.update({ sales: (Number(ad.sales)||0) + qty, updatedAtMs: Date.now() });
-            await firebase.firestore().collection('orders').doc(orderId).update({ saleCounted: true });
-          }
-        }
-      } catch (e) { console.warn(e); }
+
       await reload();
     };
     

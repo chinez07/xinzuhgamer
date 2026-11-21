@@ -54,7 +54,7 @@ updateModeLabels(savedMode);
 
 // ===== Login state (mock) =====
 let isLoggedIn = localStorage.getItem('xinzuh-logged') === 'true';
-const userName = localStorage.getItem('xinzuh-username') || 'Jogador';
+const userName = String(localStorage.getItem('xinzuh-username') || 'Jogador').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function renderUserMenu() {
   const dropdown = document.getElementById('userMenuDropdown');

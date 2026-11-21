@@ -1393,7 +1393,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js"></script>
+  <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/search-overlay.js"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
@@ -1457,7 +1457,7 @@ function renderUserMenu() {
   if (isLoggedIn) {
     dropdown.innerHTML = `
       <a class="user-menu-header" href="painel.html" style="color:inherit;text-decoration:none">
-        <strong>Olá, ${userName}!</strong>
+        <strong>Olá, ${escapeHtmlHome(userName)}!</strong>
         <span>VER MINHA CONTA</span>
       </a>
       <a href="compras.html" class="user-menu-item"><i class="fas fa-shopping-bag"></i> Minhas Compras</a>
@@ -1742,18 +1742,18 @@ function createProductCard(ad) {
   const heart = favOn ? 'fas fa-heart' : 'far fa-heart';
   const favCls = favOn ? 'fav is-fav' : 'fav';
   const img = ad.cover
-    ? '<img src="' + ad.cover + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0">'
+    ? '<img src="' + escapeHtmlHome(ad.cover) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px 12px 0 0">'
     : '<i class="fas ' + (ad.icon || 'fa-gamepad') + '"></i>';
   var photo = ad.sellerPhoto || '';
   var avatarHtml = photo
-    ? '<span class="avatar" style="padding:0;overflow:hidden"><img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>'
-    : '<span class="avatar">' + initial + '</span>';
+    ? '<span class="avatar" style="padding:0;overflow:hidden"><img src="' + escapeHtmlHome(photo) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block"></span>'
+    : '<span class="avatar">' + escapeHtmlHome(initial) + '</span>';
   return (
     '<a href="anuncio.html?id=' + encodeURIComponent(id) + '" class="product-card">' +
       '<div class="product-img ' + (ad.imgClass || 'prod-default') + '" style="overflow:hidden;position:relative">' +
         img +
-        '<button class="' + favCls + '" type="button" data-id="' + id + '" title="' + (favOn ? 'Remover dos favoritos' : 'Adicionar aos favoritos') + '" ' +
-          'onclick="event.preventDefault();event.stopPropagation();toggleFav(\'' + id + '\', this)">' +
+        '<button class="' + favCls + '" type="button" data-id="' + escapeHtmlHome(id) + '" title="' + (favOn ? 'Remover dos favoritos' : 'Adicionar aos favoritos') + '" ' +
+          'onclick="event.preventDefault();event.stopPropagation();toggleFav(this.getAttribute(\'data-id\'), this)">' +
           '<i class="' + heart + '"></i>' +
         '</button>' +
       '</div>' +
@@ -1763,7 +1763,7 @@ function createProductCard(ad) {
         '<div class="product-seller">' +
           avatarHtml + ' <span data-max-uid="' + escapeHtmlHome(ad.sellerUid || (ad.raw && ad.raw.sellerUid) || '') + '" data-max-name>' + escapeHtmlHome(ad.seller) + '</span>' +
           ' <span class="rating"><i class="fas fa-star"></i> ' + (Number(ad.rating)||5).toFixed(1).replace(/\.0$/,'') + '</span>' +
-          ' <span>(' + (ad.sold != null ? ad.sold : (ad.sales || 0)) + ')</span>' +
+          ' <span>(' + (Number(ad.sold != null ? ad.sold : ad.sales) || 0) + ')</span>' +
         '</div>' +
       '</div>' +
     '</a>'

@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signed() { return request.auth != null; }
+    function admin() { return signed() && request.auth.uid == 'cQaqR7WBJVZGodL23p6Csi7vrEn2'; }
+    function own(uid) { return signed() && request.auth.uid == uid; }
+    function sellerAllowed() {
+      return !exists(/databases/$(database)/documents/settings/security)
+        || get(/databases/$(database)/documents/settings/security).data.get('requireSellerIdentity', false) == false
+        || (exists(/databases/$(database)/documents/identityVerifications/$(request.auth.uid))
+          && get(/databases/$(database)/documents/identityVerifications/$(request.auth.uid)).data.status == 'approved');
+    }
+    match /ads/{id} {
+      allow read: if true;
+      allow create: if signed() && own(request.resource.data.sellerUid) && sellerAllowed()
+        && request.resource.data.sales == 0 && request.resource.data.sold == 0
+        && !request.resource.data.keys().hasAny(['rating','ratingCount','secureRatingCount','secureRatingSum']);
+      allow update: if (admin() || own(resource.data.sellerUid))
+        && request.resource.data.sellerUid == resource.data.sellerUid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales','sold','rating','ratingCount','secureRatingCount','secureRatingSum']);
+      allow delete: if admin() || own(resource.data.sellerUid);
+    }
+    match /wallets/{uid} {
+      allow read: if own(uid) || admin();
+      allow write: if false;
+    }
+    match /financialWallets/{uid} {
+      allow read: if own(uid) || admin();
+      allow write: if false;
+    }
+    match /orders/{id} {
+      allow read: if admin() || (signed() && request.auth.uid in [resource.data.buyerUid,resource.data.sellerUid]);
+      allow write: if false;
+    }
+    match /sales/{id} {
+      allow read: if admin() || own(resource.data.sellerUid);
+      allow write: if false;
+    }
+    match /withdrawals/{id} {
+      allow read: if admin() || own(resource.data.userId);
+      allow write: if false;
+    }
+    match /secureWithdrawals/{id} {
+      allow read: if admin() || own(resource.data.userId);
+      allow create, delete: if false;
+      // Pagamento manual somente pelo administrador; valores e destinatário são imutáveis.
+      allow update: if admin() && resource.data.get('secureVersion',0) == 1
+        && get(/databases/$(database)/documents/financialWallets/$(resource.data.userId)).data.get('securityHold',false) == false
+        && resource.data.status == 'processando' && request.resource.data.status == 'pago'
+        && request.time.toMillis() >= resource.data.availableAtMs
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','paidAtMs','updatedAtMs']);
+    }
+    match /reviews/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /profiles/{uid} {
+      allow read: if true;
+      allow create: if own(uid) && request.resource.data.keys().hasOnly(['displayName','name','email','photo','photoURL','avatar','photoSource','bio','lastSeenMs','online','updatedAt','updatedAtMs','memberSinceMs','experimental','experimentalOn','experimentalBg','experimentalBgMobile','experimentalBgDesktop','backgroundDesktop','backgroundMobile','customBg','customBgMobile','customBgDesktop']);
+      allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','name','email','photo','photoURL','avatar','photoSource','bio','lastSeenMs','online','updatedAt','updatedAtMs','memberSinceMs','experimental','experimentalOn','experimentalBg','experimentalBgMobile','experimentalBgDesktop','backgroundDesktop','backgroundMobile','customBg','customBgMobile','customBgDesktop']);
+      allow delete: if false;
+    }
+    match /notifications/{id} {
+      allow read, delete: if admin() || own(resource.data.userId);
+      allow update: if own(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read','readAtMs']);
+      allow create: if false;
+    }
+    match /adQuestions/{id} {
+      allow read: if true;
+      allow create: if signed() && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userUid == request.auth.uid
+        && request.resource.data.sellerUid == get(/databases/$(database)/documents/ads/$(request.resource.data.adId)).data.sellerUid
+        && request.resource.data.text is string && request.resource.data.text.size() <= 1000
+        && request.resource.data.reply == '';
+      allow update: if own(resource.data.sellerUid) && request.resource.data.replyUid == request.auth.uid
+        && request.resource.data.reply is string && request.resource.data.reply.size() <= 2000
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply','replyName','replyUid','replyPhoto','repliedAtMs']);
+      allow delete: if admin() || own(resource.data.userId) || own(resource.data.sellerUid);
+    }
+    match /identityVerifications/{uid} {
+      allow read: if own(uid) || admin();
+      allow write: if false;
+    }
+    match /settings/{id} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

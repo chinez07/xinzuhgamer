@@ -71,7 +71,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js"></script>
+  <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
 <script>
 
@@ -109,62 +109,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
   // Fallback se firestore-db não exportar
   async function createOrderLocal(ad, extra) {
-    extra = Object.assign({ itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName }, extra || {});
-    if (typeof fsCreateOrder === 'function') return fsCreateOrder(ad, extra);
-    if (typeof window.fsCreateOrder === 'function') return window.fsCreateOrder(ad, extra);
-    var u = firebase.auth().currentUser;
-    if (!u) throw new Error('Faça login primeiro.');
-    var sellerUid = (ad.raw && ad.raw.sellerUid) || ad.sellerUid || '';
-    if (!sellerUid) throw new Error('Vendedor não encontrado neste anúncio. Peça ao vendedor republicar o anúncio.');
-    if (sellerUid === u.uid) throw new Error('Você não pode comprar o próprio anúncio.');
-    var price = Number(ad.price) || 0;
-    var code = 'BZ' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4);
-    var ref = firebase.firestore().collection('orders').doc(code);
-    var payload = {
-      code: code,
-      adId: ad.id,
-      adTitle: ad.title || '',
-      adCover: ad.cover || '',
-      price: price,
-      quantity: 1,
-      total: price,
-      status: 'aguardando_pagamento',
-      buyerUid: u.uid,
-      buyerName: u.displayName || localStorage.getItem('xinzuh-username') || 'Comprador',
-      buyerEmail: u.email || '',
-      sellerUid: sellerUid,
-      sellerName: ad.seller || 'Vendedor',
-      category: ad.category || '',
-      itemIndex: (extra && extra.itemIndex != null) ? Number(extra.itemIndex) : null,
-      itemName: (extra && extra.itemName) || '',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAtMs: Date.now(),
-      updatedAtMs: Date.now()
-    };
-    await ref.set(payload);
-    console.log('[Bloxzuh] pedido criado com ID=', code);
-    return Object.assign({ id: code }, payload);
+    if (typeof fsCreateOrder !== 'function') throw new Error('Atualize a página para carregar o checkout protegido.');
+    return fsCreateOrder(ad,extra);
   }
   async function setPaymentLocal(orderId, data) {
-    if (typeof fsSetOrderPayment === 'function') return fsSetOrderPayment(orderId, data);
-    if (typeof window.fsSetOrderPayment === 'function') return window.fsSetOrderPayment(orderId, data);
-    var u = firebase.auth().currentUser;
-    var patch = {
-      paymentMethod: data.method || 'pix',
-      payerName: data.payerName || '',
-      payerCpf: String(data.payerCpf || '').replace(/\D/g, ''),
-      buyerEmail: (u && u.email) || data.buyerEmail || '',
-      payerEmail: (u && u.email) || data.buyerEmail || '',
-      vipPlan: data.vipPlan || 'none',
-      total: data.total != null ? Number(data.total) : undefined,
-      status: 'aguardando_pagamento',
-      paymentId: 'PAY' + Date.now().toString().slice(-8),
-      paymentExpiresAtMs: Date.now() + 10 * 60 * 1000,
-      pixCopyPaste: data.pixCopyPaste || ('00020126BLOXZUH' + orderId + 'PIX'),
-      updatedAtMs: Date.now()
-    };
-    await firebase.firestore().collection('orders').doc(orderId).update(patch);
-    return patch;
+    if (typeof fsSetOrderPayment !== 'function') throw new Error('Atualize a página para carregar o checkout protegido.');
+    return fsSetOrderPayment(orderId,data);
   }
 
 
@@ -181,7 +131,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   function render(){
     var app=document.getElementById('app');
     if(!ad){ app.innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
-    var img = ad.cover ? '<img class="thumb" src="'+ad.cover+'" alt="">' : '';
+    var img = ad.cover ? '<img class="thumb" src="'+esc(ad.cover)+'" alt="">' : '';
     var itemLine = (window.__selectedItemName ? ('<div class="row"><span>Item</span><strong>'+esc(window.__selectedItemName)+'</strong></div>') : '');
     app.innerHTML =
       '<div class="step on" id="step1">'+
@@ -197,10 +147,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
         '</div>'+
         '<div class="box">'+
           '<h1>Plano adicional (opcional)</h1>'+
-          '<p class="muted" style="margin-bottom:10px">Proteção extra — ainda em estrutura, sem cobrança real de gateway.</p>'+
+          '<p class="muted" style="margin-bottom:10px">Planos adicionais ainda não estão disponíveis. Sua compra segue sem taxa de plano adicional.</p>'+
           '<div class="vip'+(vip==='none'?' sel':'')+'" data-vip="none"><h3>Sem plano adicional</h3><ul><li>Fluxo padrão da Bloxzuh</li></ul></div>'+
-          '<div class="vip'+(vip==='basico'?' sel':'')+'" data-vip="basico"><h3>VIP Básico · +2,99%</h3><ul><li>Suporte prioritário (estrutura)</li><li>Taxa extra 2,99%</li></ul></div>'+
-          '<div class="vip'+(vip==='premium'?' sel':'')+'" data-vip="premium"><h3>VIP Premium · +4,99%</h3><ul><li>Suporte prioritário (estrutura)</li><li>Taxa extra 4,99%</li></ul></div>'+
           '<button type="button" class="btn" id="btnToPay">Continuar · '+money(finalTotal())+'</button>'+
         '</div>'+
       '</div>'+
@@ -216,7 +164,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
             '<button type="button" class="pay" disabled style="opacity:.45"><i class="fas fa-wallet"></i>Saldo (em breve)</button>'+
           '</div>'+
           '<div id="pixFields" style="margin-top:14px">'+
-            '<p class="muted" style="margin-bottom:8px">Na próxima etapa geramos o QR Code / copia e cola Pix (estrutura). Gateway real entra depois.</p>'+
+            '<p class="muted" style="margin-bottom:8px">Na próxima etapa geramos o QR Code e o código Pix do seu pedido.</p>'+
             '<label>Nome completo</label><input id="payerName" placeholder="Digite o seu nome completo" autocomplete="name">'+
             '<label>CPF</label><input id="payerCpf" placeholder="000.000.000-00" inputmode="numeric">'+
             '<button type="button" class="btn" id="btnPix">Gerar QR Code e copia/cola</button>'+

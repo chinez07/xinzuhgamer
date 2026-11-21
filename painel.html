@@ -1562,7 +1562,7 @@ img { max-width: 100%; display: block; }
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
   <script src="js/experimental.js"></script>
-  <script src="js/firestore-db.js"></script>
+  <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/notificacoes.js"></script>
   <script src="js/painel-settings.js?v=settings-1"></script>
@@ -1591,150 +1591,7 @@ img { max-width: 100%; display: block; }
     let cacheWallet = { saldo: 0, pending: 0, pendingItems: [] };
 
     async function syncSellerEverything() {
-      var u = firebase.auth().currentUser;
-      if (!u) return { saldo: 0, pending: 0, pendingItems: [] };
-      var db = firebase.firestore();
-      var releaseMs = (typeof window.BLOXZUH_RELEASE_MS === "number") ? window.BLOXZUH_RELEASE_MS : (10 * 24 * 60 * 60 * 1000);
-      function r2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
-
-      var snap;
-      try {
-        snap = await db.collection('orders').where('sellerUid', '==', u.uid).limit(80).get();
-      } catch (e) {
-        console.warn(e);
-        snap = { forEach: function () {} };
-      }
-      var orders = [];
-      snap.forEach(function (doc) {
-        orders.push(Object.assign({ id: doc.id }, doc.data()));
-      });
-
-      // estoque + vendas
-      for (var i = 0; i < orders.length; i++) {
-        var o = orders[i];
-        var st = o.status || '';
-        if (st !== 'pago' && st !== 'em_entrega' && st !== 'concluido') continue;
-        if (o.stockApplied) continue;
-        if (!o.adId) {
-          try { await db.collection('orders').doc(o.id).update({ stockApplied: true }); } catch (e) {}
-          continue;
-        }
-        try {
-          var aref = db.collection('ads').doc(o.adId);
-          var adoc = await aref.get();
-          if (adoc.exists && adoc.data().sellerUid === u.uid) {
-            var ad = adoc.data();
-            var stock = Math.max(0, (Number(ad.stock) || 0) - (Number(o.quantity) || 1));
-            var sales = (Number(ad.sales) || 0) + (Number(o.quantity) || 1);
-            var patch = { stock: stock, sales: sales };
-            if (stock <= 0) patch.status = 'pausado';
-            await aref.update(patch);
-          }
-          await db.collection('orders').doc(o.id).update({ stockApplied: true });
-        } catch (e) { console.warn('stock', e); }
-      }
-
-      // carteira
-      var wref = db.collection('wallets').doc(u.uid);
-      var wdoc = await wref.get();
-      var w = wdoc.exists ? wdoc.data() : {};
-      var saldo = Number(w.saldo) || 0;
-      var items = Array.isArray(w.pendingItems) ? w.pendingItems.slice() : [];
-      var existing = {};
-      items.forEach(function (it) { if (it.orderId) existing[it.orderId] = true; });
-      var now = Date.now();
-      var marked = [];
-
-      for (var j = 0; j < orders.length; j++) {
-        var ord = orders[j];
-        var ost = ord.status || '';
-        if (ost !== 'pago' && ost !== 'em_entrega' && ost !== 'concluido') continue;
-        if (existing[ord.id]) continue;
-        // credita mesmo se sellerWalletApplied (pode ter falhado antes)
-        var gross = Number(ord.total != null ? ord.total : ord.price) || 0;
-        var feePct = Number(ord.feePercent) || 9.99;
-        var net = r2(gross * (1 - feePct / 100));
-        if (net <= 0) net = r2(gross); // se taxa zerar, usa bruto mínimo
-        if (net <= 0) continue;
-        var paidAt = Number(ord.paidAtMs) || Number(ord.updatedAtMs) || now;
-        var relAt = paidAt + releaseMs;
-        var already = relAt <= now;
-        items.push({
-          orderId: ord.id,
-          code: ord.code || '',
-          amount: net,
-          gross: gross,
-          feePercent: feePct,
-          releaseAtMs: relAt,
-          released: already,
-          releasedAtMs: already ? now : null,
-          createdAtMs: now
-        });
-        if (already) saldo = r2(saldo + net);
-        existing[ord.id] = true;
-        marked.push(ord.id);
-      }
-
-
-      // NUNCA reinicia o prazo. releaseAtMs só é definido na criação do item.
-      // Se faltar releaseAtMs (dado antigo), usa paidAt/createdAt + 10 dias uma única vez.
-      // Se o timer foi "resetado" por bug antigo (releaseAt ≈ now+10d), corrige 1x pelo paidAt do pedido.
-      var orderPaid = {};
-      orders.forEach(function (o) {
-        orderPaid[o.id] = Number(o.paidAtMs) || Number(o.updatedAtMs) || Number(o.createdAtMs) || 0;
-      });
-      items = items.map(function (it) {
-        if (it.released) return it;
-        var rel = Number(it.releaseAtMs) || 0;
-        var paid = Number(it.paidAtMs) || orderPaid[it.orderId] || Number(it.createdAtMs) || 0;
-        // se não tem prazo, cria a partir do pagamento
-        if (!rel) {
-          var base = paid || now;
-          return Object.assign({}, it, { releaseAtMs: base + releaseMs, paidAtMs: paid || base });
-        }
-        // se o prazo parece ter sido reiniciado (falta quase 10 dias de novo), e temos paidAt real
-        if (paid > 0 && !it.releaseLocked) {
-          var correct = paid + releaseMs;
-          var almostFull = (rel - now) > (releaseMs - 2 * 60 * 60 * 1000); // falta > 10d - 2h
-          var paidWasAgo = (now - paid) > 5 * 60 * 1000; // pagamento há mais de 5 min
-          if (almostFull && paidWasAgo) {
-            return Object.assign({}, it, {
-              releaseAtMs: correct,
-              paidAtMs: paid,
-              releaseLocked: true
-            });
-          }
-        }
-        return Object.assign({}, it, { releaseLocked: true });
-      });
-
-      // liberar vencidos
-      var moved = 0;
-      items = items.map(function (it) {
-        if (!it.released && it.releaseAtMs && it.releaseAtMs <= now) {
-          moved = r2(moved + (Number(it.amount) || 0));
-          return Object.assign({}, it, { released: true, releasedAtMs: now });
-        }
-        return it;
-      });
-      saldo = r2(saldo + moved);
-      var pending = r2(items.filter(function (it) { return !it.released; })
-        .reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0));
-
-      await wref.set({
-        saldo: saldo,
-        pending: pending,
-        pendingItems: items,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-
-      for (var k = 0; k < marked.length; k++) {
-        try {
-          await db.collection('orders').doc(marked[k]).update({ sellerWalletApplied: true });
-        } catch (e) {}
-      }
-
-      return { saldo: saldo, pending: pending, pendingItems: items };
+      return fsGetWallet();
     }
 
 
@@ -1914,6 +1771,9 @@ img { max-width: 100%; display: block; }
     }
 
     function renderWallet() {
+      var notice = document.getElementById('walletSecurityNotice');
+      if (!notice) {notice = document.createElement('p'); notice.id = 'walletSecurityNotice'; notice.className = 'sub'; notice.setAttribute('role','status'); document.getElementById('panel-wallet').prepend(notice);}
+      notice.textContent = cacheWallet.securityHold ? 'Sua carteira está em análise. Entre em contato com o suporte antes de solicitar um saque.' : (cacheWallet.legacyBalanceReview ? 'Há valores do sistema anterior aguardando conferência. Eles foram preservados e precisam ser conciliados pelo administrador.' : 'Saldo calculado pelo servidor a partir de pagamentos comprovados.');
       var elS = document.getElementById('walletSaldo');
       var elP = document.getElementById('walletPending');
       if (elS) elS.textContent = money(cacheWallet.saldo);
@@ -2109,9 +1969,9 @@ img { max-width: 100%; display: block; }
             left = s > 60 ? (Math.ceil(s/60) + ' min restantes') : (s + 's restantes');
           }
           return '<div class="wd-item"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">' +
-            '<strong>#' + (w.id||'') + '</strong> <span class="st ' + stClass + '">' + stLabel + '</span></div>' +
+            '<strong>#' + escapeHtml(w.id||'') + '</strong> <span class="st ' + stClass + '">' + stLabel + '</span></div>' +
             '<div style="margin-top:6px;font-size:0.9rem">Retirada Pix (' + (w.mode==='turbo'?'Turbo':'Normal') + ')</div>' +
-            '<div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px">Para: ' + (w.pixKey||'') + ' · Valor: R$ ' + (Number(w.amount)||0).toFixed(2).replace('.',',') +
+            '<div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px">Para: ' + escapeHtml(w.pixKey||'') + ' · Valor: R$ ' + (Number(w.amount)||0).toFixed(2).replace('.',',') +
             (w.fee ? (' · Taxa: R$ ' + Number(w.fee).toFixed(2).replace('.',',')) : '') + '</div>' +
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">Solicitado em ' + when + (left ? (' · ' + left) : '') + '</div></div>';
         }).join('');
@@ -2122,65 +1982,6 @@ img { max-width: 100%; display: block; }
 
 
     
-    // Fallback local se firestore-db nao exportar fsRequestWithdraw
-    if (typeof window.fsRequestWithdraw !== 'function') {
-      window.fsRequestWithdraw = async function(amount, pixKey, opts) {
-        opts = opts || {};
-        var u = firebase.auth().currentUser;
-        if (!u) throw new Error('Faça login.');
-        amount = Number(amount) || 0;
-        if (amount < 1) throw new Error('Valor minimo de saque: R$ 1.');
-        pixKey = String(pixKey || '').trim();
-        if (!pixKey) throw new Error('Informe a chave Pix.');
-        var mode = opts.mode === 'turbo' ? 'turbo' : 'normal';
-        var fee = mode === 'turbo' ? 2 : 0;
-        var delayMs = mode === 'turbo' ? (30 * 60 * 1000) : (3 * 24 * 60 * 60 * 1000);
-        var total = Math.round((amount + fee) * 100) / 100;
-        var wref = firebase.firestore().collection('wallets').doc(u.uid);
-        var wdoc = await wref.get();
-        var saldo = wdoc.exists ? (Number(wdoc.data().saldo) || 0) : 0;
-        if (total > saldo) throw new Error('Saldo disponivel insuficiente.');
-        var wid = 'WD' + Math.random().toString(36).slice(2,6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4);
-        var now = Date.now();
-        await firebase.firestore().collection('withdrawals').doc(wid).set({
-          userId: u.uid,
-          userName: u.displayName || opts.holderName || '',
-          userEmail: u.email || '',
-          holderName: opts.holderName || '',
-          holderCpf: opts.cpf || '',
-          pixType: opts.pixType || 'cpf',
-          amount: Math.round(amount * 100) / 100,
-          fee: fee,
-          mode: mode,
-          pixKey: pixKey,
-          status: 'processando',
-          availableAtMs: now + delayMs,
-          createdAtMs: now
-        });
-        await wref.set({ saldo: Math.round((saldo - total) * 100) / 100 }, { merge: true });
-        return { id: wid, availableAtMs: now + delayMs, mode: mode, fee: fee };
-      };
-      window.fsGetMyWithdrawals = async function() {
-        var u = firebase.auth().currentUser;
-        if (!u) return [];
-        var snap = await firebase.firestore().collection('withdrawals').where('userId', '==', u.uid).limit(50).get();
-        var now = Date.now();
-        var list = [];
-        var ops = [];
-        snap.forEach(function(d) {
-          var w = Object.assign({ id: d.id }, d.data());
-          if (w.status === 'processando' && w.availableAtMs && w.availableAtMs <= now) {
-            ops.push(firebase.firestore().collection('withdrawals').doc(d.id).update({ status: 'aprovado', paidAtMs: now }));
-            w.status = 'aprovado';
-          }
-          list.push(w);
-        });
-        if (ops.length) await Promise.all(ops);
-        list.sort(function(a,b){ return (b.createdAtMs||0)-(a.createdAtMs||0); });
-        return list;
-      };
-      console.log('[Bloxzuh] saque fallback ativo no painel');
-    }
 
 
     document.getElementById('btnSaque').addEventListener('click', async function () {

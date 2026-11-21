@@ -263,178 +263,346 @@ async function handleMaxRequest(request, env, fetcher = fetch) {
 }
 
 
-/**
- *  * Bloxzuh – Cloudflare Worker (Mercado Pago Pix)
-  *
-   * Secrets (wrangler secret / Dashboard):
-    *   MP_ACCESS_TOKEN   = Access Token do Mercado Pago (APP_USR-...)
-     *   WEBHOOK_SECRET    = texto aleatório (opcional, para validar)
-      *
-       * Rotas:
-        *   POST /create-pix   body: { orderId, amount, email, name, cpf, description, notificationUrl? }
-         *   GET  /status?paymentId=123
-          *   POST /webhook      (notificação MP)
-           */
+// JavaScript / firestore-service.mjs / Cloudflare Workers / acesso privado ao Firestore.
+let serviceToken;
+const projectId = 'xinzuhgamer-87ff5';
+const root = 'projects/' + projectId + '/databases/(default)/documents';
+function base64url(bytes) {return btoa(String.fromCharCode(...bytes)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');}
+function encoded(value) {return base64url(new TextEncoder().encode(JSON.stringify(value)));}
+function firestoreValue(value) {
+  if (value === null) return {nullValue:null};
+  if (typeof value === 'boolean') return {booleanValue:value};
+  if (typeof value === 'number') {if (!Number.isFinite(value)) throw Error('Número inválido.'); return Number.isInteger(value) ? {integerValue:String(value)} : {doubleValue:value};}
+  if (typeof value === 'string') return {stringValue:value};
+  if (Array.isArray(value)) return {arrayValue:{values:value.map(firestoreValue)}};
+  return {mapValue:{fields:Object.fromEntries(Object.entries(value).map(([key,item]) => [key,firestoreValue(item)]))}};
+}
+function firestoreDecode(value) {
+  if ('nullValue' in value) return null;
+  if ('integerValue' in value) return Number(value.integerValue);
+  if ('doubleValue' in value) return value.doubleValue;
+  if ('booleanValue' in value) return value.booleanValue;
+  if ('stringValue' in value) return value.stringValue;
+  if ('timestampValue' in value) return value.timestampValue;
+  if ('arrayValue' in value) return (value.arrayValue.values || []).map(firestoreDecode);
+  if ('mapValue' in value) return Object.fromEntries(Object.entries(value.mapValue.fields || {}).map(([key,item]) => [key,firestoreDecode(item)]));
+  throw Error('Campo Firestore não suportado.');
+}
+async function firestoreAccess(env, fetcher) {
+  if (!env.FIREBASE_SERVICE_ACCOUNT) {const error = Error('A proteção financeira está em configuração. Tente mais tarde.'); error.status = 503; throw error;}
+  const account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+  if (account.project_id !== projectId || !account.client_email || !account.private_key) throw Error('Credencial do projeto inválida.');
+  if (serviceToken && serviceToken.email === account.client_email && serviceToken.expires > Date.now()) return serviceToken.token;
+  const now = Math.floor(Date.now()/1000);
+  const assertion = encoded({alg:'RS256',typ:'JWT'}) + '.' + encoded({iss:account.client_email,scope:'https://www.googleapis.com/auth/datastore',aud:'https://oauth2.googleapis.com/token',iat:now,exp:now+3600});
+  const pem = account.private_key.replace(/-----[^-]+-----/g,'').replace(/\s/g,'');
+  const key = await crypto.subtle.importKey('pkcs8',Uint8Array.from(atob(pem),c=>c.charCodeAt(0)),{name:'RSASSA-PKCS1-v1_5',hash:'SHA-256'},false,['sign']);
+  const signature = await crypto.subtle.sign('RSASSA-PKCS1-v1_5',key,new TextEncoder().encode(assertion));
+  const response = await fetcher('https://oauth2.googleapis.com/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'urn:ietf:params:oauth:grant-type:jwt-bearer',assertion:assertion+'.'+base64url(new Uint8Array(signature))})});
+  const result = await response.json();
+  if (!response.ok || !result.access_token) throw Error('Não foi possível autenticar o serviço financeiro.');
+  serviceToken = {email:account.client_email,token:result.access_token,expires:Date.now()+Math.max(60,Number(result.expires_in)-120)*1000};
+  return result.access_token;
+}
+function firestoreService(env, fetcher = fetch) {
+  async function call(path, options = {}) {
+    const token = await firestoreAccess(env,fetcher);
+    const response = await fetcher('https://firestore.googleapis.com/v1/'+root+path,{...options,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:options.body ? JSON.stringify(options.body) : undefined});
+    const data = await response.json();
+    if (!response.ok) {const error = Error('Não foi possível atualizar os dados agora.'); error.status = response.status === 404 ? 404 : 503; error.conflict = [409,412].includes(response.status) || ['ABORTED','FAILED_PRECONDITION','ALREADY_EXISTS'].includes(data.error?.status); throw error;}
+    return data;
+  }
+  return {
+    async get(path) {
+      if (!/^[A-Za-z][A-Za-z0-9]*\/[A-Za-z0-9_-]{1,128}$/.test(path)) throw Error('Documento inválido.');
+      try {const data = await call('/'+path); return {path,version:data.updateTime,data:firestoreDecode({mapValue:{fields:data.fields}})};} catch(error) {if(error.status===404) return {path,version:null,data:null}; throw error;}
+    },
+    async commit(changes) {
+      return call(':commit',{method:'POST',body:{writes:changes.map(({doc,patch}) => ({update:{name:root+'/'+doc.path,fields:firestoreValue(patch).mapValue.fields},updateMask:{fieldPaths:Object.keys(patch)},currentDocument:doc.version ? {updateTime:doc.version} : {exists:false}}))}});
+    }
+  };
+}
 
-           export default {
-             async fetch(request, env, ctx) {
-                 const url = new URL(request.url);
-                     const path = url.pathname.replace(/\/$/, '') || '/';
-    if (path.startsWith('/max/')) return handleMaxRequest(request, env);
 
-                         // CORS
-                             if (request.method === 'OPTIONS') {
-                                   return new Response(null, { status: 204, headers: corsHeaders() });
-                                       }
+// JavaScript / market-core.mjs / Cloudflare Workers / pedidos e carteira com autoridade no servidor.
+const MARKET_RELEASE = 10*86400000;
+let marketRateReady;
+function marketError(text,status=400) {const error=Error(text); error.status=status; throw error;}
+function marketId(value) {if (!/^[A-Za-z0-9_-]{1,128}$/.test(String(value||''))) marketError('Identificador inválido.'); return String(value);}
+function marketCents(value) {const number=Number(value); if(!Number.isFinite(number)||number<0.01||number>100000) marketError('Valor inválido.'); return Math.round(number*100);}
+function marketParty(order,user) {if (!order || ![order.buyerUid,order.sellerUid].includes(user.uid)) marketError('Sem permissão para este pedido.',403);}
+async function marketSecure(db,order) {
+  if(order?.secureVersion!==1) marketError('Este pedido antigo precisa de conferência administrativa.',409);
+  const proof=await db.get('marketOrderProofs/'+marketId(order.code));
+  if(!proof.data) marketError('Este pedido não tem registro financeiro comprovado.',409);
+  for(const field of ['code','adId','buyerUid','sellerUid','total','price','quantity','feePercent','itemIndex']) if(proof.data[field]!==order[field]) marketError('Pedido divergente do registro financeiro.',409);
+  if(!!order.paymentVerified!==!!proof.data.paymentVerified) marketError('Pagamento divergente do registro financeiro.',409);
+  return proof;
+}
+function marketQuote(ad, input, user) {
+  if (!ad || ad.status!=='ativo' || !ad.sellerUid) marketError('Anúncio indisponível.',409);
+  if(ad.sellerUid===user.uid) marketError('Você não pode comprar o próprio anúncio.');
+  const quantity = input.quantity == null ? 1 : Number(input.quantity);
+  if(!Number.isInteger(quantity)||quantity<1||quantity>100) marketError('Quantidade inválida.');
+  let item=null,index=null;
+  if(String(ad.model).toLowerCase()==='dinamico') {
+    index=Number(input.itemIndex);
+    if(input.itemIndex==null||!Number.isInteger(index)||index<0||!ad.items?.[index]) marketError('Escolha um item válido.');
+    item=ad.items[index];
+  }
+  const stock=Number(item ? item.stock : ad.stock);
+  if(!Number.isInteger(stock)||stock<quantity) marketError('Estoque insuficiente.',409);
+  const cents=marketCents(item ? item.price : ad.price);
+  if(cents*quantity>10000000) marketError('Pedido acima do limite.');
+  const fees={prata:9.99,ouro:11.99,diamante:12.99};
+  const feePercent=fees[String(ad.visibility||'prata').toLowerCase()] || fees.prata;
+  return {price:cents/100,quantity,total:cents*quantity/100,feePercent,itemIndex:index,itemName:item ? String(item.name||item.title||'Item').slice(0,120) : ''};
+}
+async function marketAtomic(db, work) {
+  for(let attempt=0;attempt<5;attempt++) {try {return await work();} catch(error) {if(!error.conflict||attempt===4) throw error;}}
+}
+async function marketRate(env,key,limit) {
+  if(!env.MAX_DB) marketError('Proteção contra abuso indisponível.',503);
+  if(!marketRateReady) marketRateReady=env.MAX_DB.exec('CREATE TABLE IF NOT EXISTS market_rate (key TEXT PRIMARY KEY, bucket INTEGER NOT NULL, count INTEGER NOT NULL)').catch(error=>{marketRateReady=null;throw error;});
+  await marketRateReady;
+  const bucket=Math.floor(Date.now()/60000);
+  const row=await env.MAX_DB.prepare('INSERT INTO market_rate(key,bucket,count) VALUES(?,?,1) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN bucket=excluded.bucket THEN count+1 ELSE 1 END,bucket=excluded.bucket RETURNING count').bind(key,bucket).first();
+  if(row.count>limit) marketError('Muitas tentativas. Aguarde um minuto.',429);
+}
+function marketWalletState(data,now=Date.now()) {
+  const wallet=data||{};
+  let available=wallet.secureVersion===1 ? Number(wallet.secureSaldoCents)||0 : 0;
+  let pending=0;
+  const items=(wallet.securePendingItems||[]).map(item=>{
+    if(!Number.isSafeInteger(item.cents)||item.cents<0) marketError('Carteira exige conferência.',409);
+    if(!item.released&&item.releaseAtMs<=now) {available+=item.cents; return {...item,released:true};}
+    if(!item.released) pending+=item.cents;
+    return item;
+  });
+  if(!Number.isSafeInteger(available)||available<0) marketError('Carteira exige conferência.',409);
+  return {available,pending,items,withdrawn:Number(wallet.secureWithdrawnCents)||0,blocked:!!wallet.securityHold};
+}
+function marketWalletPatch(state) {return {secureVersion:1,secureSaldoCents:state.available,securePendingItems:state.items,secureWithdrawnCents:state.withdrawn,updatedAtMs:Date.now()};}
+function marketNotification(uid,order,title,body) {
+  return {doc:{path:'notifications/NT'+crypto.randomUUID().replace(/-/g,''),version:null},patch:{userId:uid,type:'venda',title,body:String(body||'').slice(0,120),link:'pedido.html?id='+encodeURIComponent(order.code),read:false,createdAtMs:Date.now()}};
+}
+async function marketWallet(db,uid) {
+  return marketAtomic(db,async()=>{
+    const doc=await db.get('financialWallets/'+uid),state=marketWalletState(doc.data);
+    const legacy=await db.get('wallets/'+uid);
+    await db.commit([{doc,patch:marketWalletPatch(state)}]);
+    return {saldo:state.available/100,pending:state.pending/100,withdrawn:state.withdrawn/100,pendingItems:state.items.map(item=>({...item,amount:item.cents/100})),securityHold:state.blocked,legacyBalanceReview:!!(legacy.data?.saldo||legacy.data?.pending)};
+  });
+}
+function marketCheckPayment(payment,order,id) {
+  if(String(payment.id)!==String(id)||String(order.mpPaymentId)!==String(id)||payment.external_reference!==order.code||payment.metadata?.bloxzuh_order!==order.code||payment.metadata?.buyer_uid!==order.buyerUid||marketCents(payment.transaction_amount)!==marketCents(order.total)||payment.currency_id!=='BRL'||payment.payment_method_id!=='pix') marketError('O pagamento não corresponde ao pedido.',409);
+  if(payment.status==='approved'&&payment.live_mode!==true) marketError('Pagamento de teste não libera uma compra real.',409);
+  if(Number(payment.transaction_amount_refunded)>0||['refunded','charged_back'].includes(payment.status)) return 'refunded';
+  return payment.status;
+}
+async function marketMP(env,fetcher,id) {
+  const response=await fetcher('https://api.mercadopago.com/v1/payments/'+encodeURIComponent(marketId(id)),{headers:{Authorization:'Bearer '+env.MP_ACCESS_TOKEN}});
+  if(!response.ok) marketError('Não foi possível consultar o Pix.',502);
+  return response.json();
+}
+async function marketSettle(db,payment,orderId) {
+  return marketAtomic(db,async()=>{
+    const doc=await db.get('orders/'+marketId(orderId)),order=doc.data;
+    if(!order) marketError('Pedido não encontrado.',404);
+    const proof=await marketSecure(db,order);
+    const status=marketCheckPayment(payment,order,payment.id);
+    if(status==='refunded') {
+      const wallet=await db.get('financialWallets/'+marketId(order.sellerUid));
+      await db.commit([{doc,patch:{status:'reembolsado',paymentVerified:false,updatedAtMs:Date.now()}},{doc:proof,patch:{paymentVerified:false}},{doc:wallet,patch:{securityHold:true,securityHoldReason:'Pagamento estornado: '+order.code}}]);
+      return {status:'refunded',approved:false};
+    }
+    if(status!=='approved') return {status,approved:false};
+    if(order.paymentVerified) return {status:'approved',approved:true};
+    if(order.sellerWalletApplied) marketError('Pagamento em conferência administrativa.',409);
+    const paidAt=Date.parse(payment.date_approved||'');
+    if(!Number.isFinite(paidAt)||paidAt<=0||paidAt>Date.now()+300000) marketError('Data de pagamento inválida.',409);
+    const wallet=await db.get('financialWallets/'+marketId(order.sellerUid));
+    const state=marketWalletState(wallet.data);
+    if(state.items.length>=400) marketError('Carteira exige consolidação administrativa.',409);
+    const cents=Math.round(marketCents(order.total)*(1-order.feePercent/100));
+    state.items.push({orderId:order.code,code:order.code,cents,releaseAtMs:paidAt+MARKET_RELEASE,released:false});
+    const adDoc=await db.get('ads/'+marketId(order.adId)),ad=adDoc.data;
+    const changes=[{doc:wallet,patch:marketWalletPatch(state)}];
+    let stockIssue=false;
+    if(ad) {
+      const qty=order.quantity,patch={sold:(Number(ad.sold)||0)+qty,updatedAtMs:Date.now()};
+      if(order.itemIndex!=null&&ad.items?.[order.itemIndex]) {
+        const items=ad.items.map(item=>({...item}));
+        stockIssue=Number(items[order.itemIndex].stock)<qty;
+        items[order.itemIndex].stock=Math.max(0,(Number(items[order.itemIndex].stock)||0)-qty);
+        patch.items=items; patch.stock=items.reduce((sum,item)=>sum+Math.max(0,Number(item.stock)||0),0);
+      } else {stockIssue=Number(ad.stock)<qty; patch.stock=Math.max(0,(Number(ad.stock)||0)-qty);}
+      if(!patch.stock) patch.status='pausado';
+      changes.push({doc:adDoc,patch});
+    } else stockIssue=true;
+    if(stockIssue) changes[0].patch={...changes[0].patch,securityHold:true,securityHoldReason:'Estoque em conferência: '+order.code};
+    changes.push({doc,patch:{status:'pago',paymentVerified:true,paidAtMs:paidAt,stockApplied:true,stockNeedsReview:stockIssue,sellerWalletApplied:true,sellerNet:cents/100,updatedAtMs:Date.now()}});
+    changes.push({doc:proof,patch:{paymentVerified:true}});
+    changes.push(marketNotification(order.sellerUid,order,'Pagamento confirmado',order.adTitle));
+    await db.commit(changes);
+    return {status:'approved',approved:true};
+  });
+}
+async function marketWithdraw(db,user,input) {
+  const amount=marketCents(input.amount);
+  if(amount<100) marketError('Valor mínimo de saque: R$ 1.');
+  const mode=input.mode==='turbo'?'turbo':'normal',fee=mode==='turbo'?200:0;
+  const pixKey=String(input.pixKey||'').trim(),cpf=String(input.cpf||'').replace(/\D/g,'');
+  if(!pixKey||pixKey.length>200||!maxValidCPF(cpf)) marketError('Confira a chave Pix e o CPF.');
+  const withdrawalId='WD'+crypto.randomUUID().replace(/-/g,'').toUpperCase();
+  return marketAtomic(db,async()=>{
+    const wallet=await db.get('financialWallets/'+user.uid),state=marketWalletState(wallet.data);
+    if(state.blocked) marketError('Saque em análise administrativa.',409);
+    if(amount+fee>state.available) marketError('Saldo disponível insuficiente.',409);
+    state.available-=amount+fee; state.withdrawn+=amount;
+    const withdrawal=await db.get('secureWithdrawals/'+withdrawalId),now=Date.now();
+    const availableAtMs=now+(mode==='turbo'?1800000:3*86400000);
+    await db.commit([{doc:wallet,patch:marketWalletPatch(state)},{doc:withdrawal,patch:{secureVersion:1,userId:user.uid,userName:user.name,userEmail:user.email,holderName:String(input.holderName||user.name).slice(0,120),holderCpf:cpf,pixKey,pixType:String(input.pixType||'cpf').slice(0,30),amount:amount/100,fee:fee/100,mode,status:'processando',availableAtMs,createdAtMs:now}}]);
+    return {id:withdrawalId,availableAtMs,mode,fee:fee/100};
+  });
+}
+async function marketChangeStatus(db,user,id,next) {
+  return marketAtomic(db,async()=>{
+    const doc=await db.get('orders/'+marketId(id)),order=doc.data;
+    marketParty(order,user); await marketSecure(db,order);
+    if(next===order.status) return {ok:true};
+    const seller=order.sellerUid===user.uid,buyer=order.buyerUid===user.uid;
+    const allowed=(next==='cancelado'&&buyer&&order.status==='aguardando_pagamento'&&!order.mpPaymentId)||(next==='em_entrega'&&seller&&order.status==='pago'&&order.paymentVerified)||(next==='concluido'&&buyer&&['pago','em_entrega'].includes(order.status)&&order.paymentVerified);
+    if(!allowed) marketError('Esta alteração de pedido não é permitida.',409);
+    const changes=[{doc,patch:{status:next,updatedAtMs:Date.now(),...(next==='concluido'?{completedAtMs:Date.now(),saleCounted:true}:{})}},marketNotification(buyer?order.sellerUid:order.buyerUid,order,'Pedido atualizado',next)];
+    if(next==='concluido') {const ad=await db.get('ads/'+marketId(order.adId)); if(ad.data) changes.push({doc:ad,patch:{sales:(Number(ad.data.sales)||0)+order.quantity,updatedAtMs:Date.now()}});}
+    await db.commit(changes);
+    return {ok:true};
+  });
+}
+async function marketCreate(db,user,input) {
+  const doc=await db.get('ads/'+marketId(input.adId));
+  const quote=marketQuote(doc.data,input,user),code='BZ'+crypto.randomUUID().replace(/-/g,'').toUpperCase();
+  const order=await db.get('orders/'+code),now=Date.now(),ad=doc.data;
+  const payload={secureVersion:1,code,adId:input.adId,adTitle:String(ad.title||'').slice(0,200)+(quote.itemName?' — '+quote.itemName:''),adCover:String(ad.cover||''),sellerUid:ad.sellerUid,sellerName:String(ad.sellerName||'Vendedor'),buyerUid:user.uid,buyerName:user.name,buyerEmail:user.email,category:String(ad.category||''),...quote,status:'aguardando_pagamento',createdAtMs:now,updatedAtMs:now};
+  const proof={path:'marketOrderProofs/'+code,version:null};
+  const immutable=Object.fromEntries(['code','adId','buyerUid','sellerUid','total','price','quantity','feePercent','itemIndex'].map(field=>[field,payload[field]]));
+  await db.commit([{doc:order,patch:payload},{doc:proof,patch:{...immutable,paymentVerified:false}},marketNotification(ad.sellerUid,payload,'Novo pedido',payload.adTitle)]); return {id:code,...payload};
+}
+async function marketMessage(db,user,input,read=false) {
+  return marketAtomic(db,async()=>{
+    const doc=await db.get('orders/'+marketId(input.orderId)),order=doc.data;
+    marketParty(order,user);
+    await marketSecure(db,order);
+    if(!order.paymentVerified||order.secureVersion!==1||!['pago','em_entrega','concluido'].includes(order.status)) marketError('O chat é liberado após a confirmação real do pagamento.',409);
+    let messages=Array.isArray(order.messages)?order.messages.slice():[];
+    const changes=[];
+    if(read) messages=messages.map(item=>item.senderUid!==user.uid?{...item,read:true,readAtMs:Date.now()}:item);
+    else {
+      const text=String(input.text||'').trim();
+      if(!text||text.length>2000) marketError('Mensagem deve ter entre 1 e 2000 caracteres.');
+      if(messages.length>=250) marketError('Limite do chat atingido. Entre em contato com o suporte.',409);
+      messages.push({id:crypto.randomUUID(),senderUid:user.uid,senderName:user.name,text,createdAtMs:Date.now(),read:false});
+      changes.push(marketNotification(user.uid===order.buyerUid?order.sellerUid:order.buyerUid,order,'Nova mensagem',text));
+    }
+    changes.push({doc,patch:{messages,updatedAtMs:Date.now()}});
+    await db.commit(changes); return {ok:true};
+  });
+}
+async function marketReview(db,user,input) {
+  const stars=Number(input.stars),comment=String(input.comment||'').trim();
+  if(!Number.isInteger(stars)||stars<1||stars>5||comment.length>500) marketError('Avaliação inválida.');
+  return marketAtomic(db,async()=>{
+    const doc=await db.get('orders/'+marketId(input.orderId)),order=doc.data;
+    marketParty(order,user); await marketSecure(db,order);
+    if(!order.paymentVerified||order.status!=='concluido') marketError('Aguarde a conclusão da compra para avaliar.',409);
+    const buyer=order.buyerUid===user.uid,flag=buyer?'reviewed':'buyerReviewed';
+    if(order[flag]) marketError('Este pedido já foi avaliado.',409);
+    const review=await db.get('reviews/'+(buyer?'RV':'RB')+order.code),now=Date.now();
+    if(review.data) marketError('Este pedido já foi avaliado.',409);
+    const payload={type:buyer?'ad':'buyer',orderId:order.code,adId:order.adId,adTitle:order.adTitle,itemName:order.itemName||'',sellerUid:order.sellerUid,buyerUid:order.buyerUid,buyerName:order.buyerName,fromUid:user.uid,fromName:user.name,toUid:buyer?order.sellerUid:order.buyerUid,stars,comment,createdAtMs:now};
+    const patch=buyer?{reviewed:true,reviewStars:stars,reviewComment:comment}:{buyerReviewed:true,buyerReviewStars:stars,buyerReviewComment:comment};
+    const changes=[{doc:review,patch:payload},{doc,patch:{...patch,updatedAtMs:now}},marketNotification(payload.toUid,order,'Nova avaliação',stars+' estrelas')];
+    if(buyer) {
+      const ad=await db.get('ads/'+marketId(order.adId));
+      if(ad.data) {const count=(Number(ad.data.secureRatingCount)||0)+1,sum=(Number(ad.data.secureRatingSum)||0)+stars; changes.push({doc:ad,patch:{secureRatingCount:count,secureRatingSum:sum,rating:Math.round(sum/count*10)/10,ratingCount:count}});}
+    }
+    await db.commit(changes); return {id:review.path.split('/')[1]};
+  });
+}
+async function marketCreatePix(db,env,user,input,request,fetcher) {
+  const id=marketId(input.orderId),doc=await db.get('orders/'+id),order=doc.data;
+  marketParty(order,user); await marketSecure(db,order);
+  if(order.buyerUid!==user.uid) marketError('Só o comprador pode gerar o Pix.',403);
+  if(order.mpPaymentId) {const payment=await marketMP(env,fetcher,order.mpPaymentId); marketCheckPayment(payment,order,payment.id); return marketPixResponse(payment);}
+  if(order.status!=='aguardando_pagamento') marketError('Pedido não está aguardando pagamento.',409);
+  const cpf=String(input.cpf||order.payerCpf||'').replace(/\D/g,'');
+  if(!maxValidCPF(cpf)||!user.email) marketError('Confira o CPF e o e-mail da conta.');
+  const response=await fetcher('https://api.mercadopago.com/v1/payments',{method:'POST',headers:{Authorization:'Bearer '+env.MP_ACCESS_TOKEN,'Content-Type':'application/json','X-Idempotency-Key':'market-'+id},body:JSON.stringify({transaction_amount:order.total,description:'Pedido Bloxzuh '+id,payment_method_id:'pix',external_reference:id,metadata:{bloxzuh_order:id,buyer_uid:user.uid},payer:{email:user.email,identification:{type:'CPF',number:cpf}},date_of_expiration:new Date(Date.now()+30*60000).toISOString(),notification_url:new URL('/webhook',request.url).href})});
+  const payment=await response.json();
+  if(!response.ok||!payment.id) marketError('Não foi possível gerar o Pix. Confira os dados e tente novamente.',502);
+  const patch={mpPaymentId:String(payment.id),pixCopyPaste:payment.point_of_interaction?.transaction_data?.qr_code||'',pixQrBase64:payment.point_of_interaction?.transaction_data?.qr_code_base64||'',paymentExpiresAtMs:Date.parse(payment.date_of_expiration),payerCpf:cpf,updatedAtMs:Date.now()};
+  // Um Pix concorrente usa a mesma chave idempotente. Nunca substitui uma confirmação por dados antigos.
+  await marketAtomic(db,async()=>{const current=await db.get('orders/'+id); if(current.data.mpPaymentId) {if(current.data.mpPaymentId!==patch.mpPaymentId) marketError('Pagamento divergente.',409); return;} if(current.data.status!=='aguardando_pagamento') marketError('Pedido não está aguardando pagamento.',409); await db.commit([{doc:current,patch}]);});
+  return marketPixResponse(payment);
+}
+function marketPixResponse(payment) {return {paymentId:String(payment.id),id:String(payment.id),qr_code:payment.point_of_interaction?.transaction_data?.qr_code||'',qr_code_base64:payment.point_of_interaction?.transaction_data?.qr_code_base64||'',date_of_expiration:payment.date_of_expiration};}
+async function marketHandle(request,env,dependencies={}) {
+  const fetcher=dependencies.fetcher||fetch,db=dependencies.db||firestoreService(env,fetcher),url=new URL(request.url),path=url.pathname.replace(/\/$/,'');
+  const origin=request.headers.get('Origin');
+  const allowed=['https://bloxzuh.store','https://www.bloxzuh.store'];
+  const headers={'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',Vary:'Origin',...(allowed.includes(origin)?{'Access-Control-Allow-Origin':origin}:{})};
+  function reply(data,status=200) {return new Response(JSON.stringify(data),{status,headers});}
+  try {
+    if(origin&&!allowed.includes(origin)) marketError('Origem não permitida.',403);
+    if(request.method==='OPTIONS') return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization'}});
+  if(path==='/market/health') return reply({service:'bloxzuh-market',configured:!!env.FIREBASE_SERVICE_ACCOUNT});
+    if(Number(request.headers.get('Content-Length')||0)>16000) marketError('Requisição muito grande.',413);
+    if(path==='/webhook'&&request.method==='POST') {
+      // A notificação é apenas um aviso. Estado, valor e destinatário sempre vêm da API autenticada do MP.
+      const text=await request.text(); if(text.length>16000) marketError('Requisição muito grande.',413);
+      const body=JSON.parse(text||'{}'),paymentId=body.data?.id||url.searchParams.get('data.id');
+      if(!paymentId) return reply({ok:true});
+      await (dependencies.rate||marketRate)(env,'webhook:'+(request.headers.get('CF-Connecting-IP')||'unknown'),300);
+      const payment=await marketMP(env,fetcher,String(paymentId));
+      if(!payment.metadata?.bloxzuh_order) return reply({ok:true});
+      await marketSettle(db,payment,marketId(payment.metadata.bloxzuh_order));
+      return reply({ok:true});
+    }
+    const user=await (dependencies.auth||maxUser)(request,fetcher);
+    await (dependencies.rate||marketRate)(env,user.uid+':'+path,path==='/create-pix'||path==='/market/orders'?10:60);
+    if(path==='/market/wallet'&&request.method==='GET') return reply(await marketWallet(db,user.uid));
+    if(path==='/status'&&request.method==='GET') {
+      const id=marketId(url.searchParams.get('orderId')),doc=await db.get('orders/'+id); marketParty(doc.data,user); await marketSecure(db,doc.data);
+      if(!doc.data.mpPaymentId) return reply({status:doc.data.status,approved:false});
+      return reply(await marketSettle(db,await marketMP(env,fetcher,doc.data.mpPaymentId),id));
+    }
+    if(request.method!=='POST') marketError('Rota não encontrada.',404);
+    const raw=await request.text(); if(raw.length>16000) marketError('Requisição muito grande.',413);
+    const body=JSON.parse(raw||'{}');
+    if(path==='/market/orders') return reply(await marketCreate(db,user,body));
+    if(path==='/market/status') return reply(await marketChangeStatus(db,user,body.orderId,body.status));
+    if(path==='/market/message') return reply(await marketMessage(db,user,body));
+    if(path==='/market/read') return reply(await marketMessage(db,user,body,true));
+    if(path==='/market/review') return reply(await marketReview(db,user,body));
+    if(path==='/market/withdraw') return reply(await marketWithdraw(db,user,body));
+    if(path==='/market/payment-data') {
+      const doc=await db.get('orders/'+marketId(body.orderId)); marketParty(doc.data,user); await marketSecure(db,doc.data);
+      if(doc.data.buyerUid!==user.uid||doc.data.status!=='aguardando_pagamento'||doc.data.mpPaymentId) marketError('Não é possível alterar os dados deste pagamento.',409);
+      // Planos adicionais sem serviço configurado não são cobrados.
+      if(body.vipPlan&&body.vipPlan!=='none') marketError('Planos adicionais ainda não estão disponíveis. Selecione sem plano.');
+      const cpf=String(body.payerCpf||'').replace(/\D/g,''); if(!maxValidCPF(cpf)) marketError('CPF inválido.');
+      await db.commit([{doc,patch:{paymentMethod:'pix',payerName:String(body.payerName||user.name).slice(0,120),payerCpf:cpf,vipPlan:'none',updatedAtMs:Date.now()}}]);
+      return reply({ok:true});
+    }
+    if(path==='/create-pix') return reply(await marketCreatePix(db,env,user,body,request,fetcher));
+    marketError('Rota não encontrada.',404);
+  } catch(error) {return reply({error:error.status&&error.status<500?error.message:'O serviço financeiro está temporariamente indisponível.'},error.status||503);}
+}
 
-                                           try {
-                                                 if (path.endsWith('/create-pix') && request.method === 'POST') {
-                                                         return await createPix(request, env);
-                                                               }
-                                                                     if (path.endsWith('/status') && request.method === 'GET') {
-                                                                             return await paymentStatus(url, env);
-                                                                                   }
-                                                                                         if (path.endsWith('/webhook') && request.method === 'POST') {
-                                                                                                 return await handleWebhook(request, env);
-                                                                                                       }
-                                                                                                             return json({ ok: true, service: 'bloxzuh-mp-pix', routes: ['/create-pix', '/status', '/webhook'] });
-                                                                                                                 } catch (e) {
-                                                                                                                       return json({ error: e.message || 'Erro interno' }, 500);
-                                                                                                                           }
-                                                                                                                             }
-                                                                                                                             };
 
-                                                                                                                             function corsHeaders() {
-                                                                                                                               return {
-                                                                                                                                   'Access-Control-Allow-Origin': '*',
-                                                                                                                                       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                                                                                                                                           'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                                                                                                                                             };
-                                                                                                                                             }
-
-                                                                                                                                             function json(data, status = 200) {
-                                                                                                                                               return new Response(JSON.stringify(data), {
-                                                                                                                                                   status,
-                                                                                                                                                       headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-                                                                                                                                                         });
-                                                                                                                                                         }
-
-                                                                                                                                                         async function createPix(request, env) {
-                                                                                                                                                           if (!env.MP_ACCESS_TOKEN) {
-                                                                                                                                                               return json({ error: 'MP_ACCESS_TOKEN não configurado no Worker' }, 500);
-                                                                                                                                                                 }
-                                                                                                                                                                   const body = await request.json();
-                                                                                                                                                                     const amount = Number(body.amount);
-                                                                                                                                                                       const email = String(body.email || '').trim();
-                                                                                                                                                                         const name = String(body.name || 'Comprador').trim();
-                                                                                                                                                                           const cpf = String(body.cpf || '').replace(/\D/g, '');
-                                                                                                                                                                             const orderId = String(body.orderId || '');
-                                                                                                                                                                               const description = String(body.description || 'Pedido Bloxzuh').slice(0, 200);
-
-                                                                                                                                                                                 if (!amount || amount < 0.01) return json({ error: 'Valor inválido' }, 400);
-                                                                                                                                                                                   if (!email) return json({ error: 'E-mail obrigatório' }, 400);
-                                                                                                                                                                                     if (cpf.length !== 11) return json({ error: 'CPF inválido' }, 400);
-                                                                                                                                                                                       if (!orderId) return json({ error: 'orderId obrigatório' }, 400);
-
-                                                                                                                                                                                         const parts = name.split(/\s+/);
-                                                                                                                                                                                           const firstName = parts[0] || 'Comprador';
-                                                                                                                                                                                             const lastName = parts.slice(1).join(' ') || 'Bloxzuh';
-
-                                                                                                                                                                                               const idempotency = crypto.randomUUID();
-                                                                                                                                                                                                 const payload = {
-                                                                                                                                                                                                     transaction_amount: Math.round(amount * 100) / 100,
-                                                                                                                                                                                                         description,
-                                                                                                                                                                                                             payment_method_id: 'pix',
-                                                                                                                                                                                                                 external_reference: orderId,
-                                                                                                                                                                                                                     payer: {
-                                                                                                                                                                                                                           email,
-                                                                                                                                                                                                                                 first_name: firstName,
-                                                                                                                                                                                                                                       last_name: lastName,
-                                                                                                                                                                                                                                             identification: { type: 'CPF', number: cpf },
-                                                                                                                                                                                                                                                 },
-                                                                                                                                                                                                                                                   };
-
-                                                                                                                                                                                                                                                     // notification_url se informado (webhook)
-                                                                                                                                                                                                                                                       if (body.notificationUrl) {
-                                                                                                                                                                                                                                                           payload.notification_url = body.notificationUrl;
-                                                                                                                                                                                                                                                             }
-
-                                                                                                                                                                                                                                                               const res = await fetch('https://api.mercadopago.com/v1/payments', {
-                                                                                                                                                                                                                                                                   method: 'POST',
-                                                                                                                                                                                                                                                                       headers: {
-                                                                                                                                                                                                                                                                             'Content-Type': 'application/json',
-                                                                                                                                                                                                                                                                                   Authorization: 'Bearer ' + env.MP_ACCESS_TOKEN,
-                                                                                                                                                                                                                                                                                         'X-Idempotency-Key': idempotency,
-                                                                                                                                                                                                                                                                                             },
-                                                                                                                                                                                                                                                                                                 body: JSON.stringify(payload),
-                                                                                                                                                                                                                                                                                                   });
-
-                                                                                                                                                                                                                                                                                                     const data = await res.json();
-                                                                                                                                                                                                                                                                                                       if (!res.ok) {
-                                                                                                                                                                                                                                                                                                           const msg = (data && data.message) || (data && data.cause && data.cause[0] && data.cause[0].description) || 'Erro Mercado Pago';
-                                                                                                                                                                                                                                                                                                               return json({ error: msg, details: data }, res.status);
-                                                                                                                                                                                                                                                                                                                 }
-
-                                                                                                                                                                                                                                                                                                                   const td = (data.point_of_interaction && data.point_of_interaction.transaction_data) || {};
-                                                                                                                                                                                                                                                                                                                     return json({
-                                                                                                                                                                                                                                                                                                                         paymentId: data.id,
-                                                                                                                                                                                                                                                                                                                             status: data.status,
-                                                                                                                                                                                                                                                                                                                                 status_detail: data.status_detail,
-                                                                                                                                                                                                                                                                                                                                     qr_code: td.qr_code || null,
-                                                                                                                                                                                                                                                                                                                                         qr_code_base64: td.qr_code_base64 || null,
-                                                                                                                                                                                                                                                                                                                                             ticket_url: td.ticket_url || null,
-                                                                                                                                                                                                                                                                                                                                                 external_reference: data.external_reference,
-                                                                                                                                                                                                                                                                                                                                                     date_of_expiration: data.date_of_expiration || null,
-                                                                                                                                                                                                                                                                                                                                                       });
-                                                                                                                                                                                                                                                                                                                                                       }
-
-                                                                                                                                                                                                                                                                                                                                                       async function paymentStatus(url, env) {
-                                                                                                                                                                                                                                                                                                                                                         if (!env.MP_ACCESS_TOKEN) return json({ error: 'MP_ACCESS_TOKEN não configurado' }, 500);
-                                                                                                                                                                                                                                                                                                                                                           const paymentId = url.searchParams.get('paymentId');
-                                                                                                                                                                                                                                                                                                                                                             if (!paymentId) return json({ error: 'paymentId obrigatório' }, 400);
-
-                                                                                                                                                                                                                                                                                                                                                               const res = await fetch('https://api.mercadopago.com/v1/payments/' + encodeURIComponent(paymentId), {
-                                                                                                                                                                                                                                                                                                                                                                   headers: { Authorization: 'Bearer ' + env.MP_ACCESS_TOKEN },
-                                                                                                                                                                                                                                                                                                                                                                     });
-                                                                                                                                                                                                                                                                                                                                                                       const data = await res.json();
-                                                                                                                                                                                                                                                                                                                                                                         if (!res.ok) return json({ error: data.message || 'Erro ao consultar' }, res.status);
-
-                                                                                                                                                                                                                                                                                                                                                                           return json({
-                                                                                                                                                                                                                                                                                                                                                                               paymentId: data.id,
-                                                                                                                                                                                                                                                                                                                                                                                   status: data.status,
-                                                                                                                                                                                                                                                                                                                                                                                       status_detail: data.status_detail,
-                                                                                                                                                                                                                                                                                                                                                                                           external_reference: data.external_reference,
-                                                                                                                                                                                                                                                                                                                                                                                               approved: data.status === 'approved',
-                                                                                                                                                                                                                                                                                                                                                                                                 });
-                                                                                                                                                                                                                                                                                                                                                                                                 }
-
-                                                                                                                                                                                                                                                                                                                                                                                                 async function handleWebhook(request, env) {
-                                                                                                                                                                                                                                                                                                                                                                                                   // MP envia query ?topic=payment&id= or body type/data
-                                                                                                                                                                                                                                                                                                                                                                                                     const url = new URL(request.url);
-                                                                                                                                                                                                                                                                                                                                                                                                       let paymentId = url.searchParams.get('data.id') || url.searchParams.get('id');
-                                                                                                                                                                                                                                                                                                                                                                                                         try {
-                                                                                                                                                                                                                                                                                                                                                                                                             const body = await request.json();
-                                                                                                                                                                                                                                                                                                                                                                                                                 if (body && body.data && body.data.id) paymentId = body.data.id;
-                                                                                                                                                                                                                                                                                                                                                                                                                     if (body && body.resource) {
-                                                                                                                                                                                                                                                                                                                                                                                                                           const m = String(body.resource).match(/(\d+)/);
-                                                                                                                                                                                                                                                                                                                                                                                                                                 if (m) paymentId = m[1];
-                                                                                                                                                                                                                                                                                                                                                                                                                                     }
-                                                                                                                                                                                                                                                                                                                                                                                                                                       } catch (e) {}
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                         if (!paymentId || !env.MP_ACCESS_TOKEN) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                             return json({ ok: true, skipped: true });
-                                                                                                                                                                                                                                                                                                                                                                                                                                               }
-
-                                                                                                                                                                                                                                                                                                                                                                                                                                                 const res = await fetch('https://api.mercadopago.com/v1/payments/' + encodeURIComponent(paymentId), {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                     headers: { Authorization: 'Bearer ' + env.MP_ACCESS_TOKEN },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                       });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                         const data = await res.json();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                           // Frontend faz polling; webhook só confirma recebimento
-                                                                                                                                                                                                                                                                                                                                                                                                                                                             return json({
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ok: true,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                     paymentId: data.id,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                         status: data.status,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                             external_reference: data.external_reference,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 approved: data.status === 'approved',
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   }
+export default {async fetch(request,env) {
+  const path = new URL(request.url).pathname.replace(/\/$/,'');
+  if (path.startsWith('/max/')) return handleMaxRequest(request,env);
+  return marketHandle(request,env);
+}};

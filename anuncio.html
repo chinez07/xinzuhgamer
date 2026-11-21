@@ -218,7 +218,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js"></script>
+  <script src="js/firestore-db.js?v=secure-market-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
@@ -558,7 +558,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           var photo = '';
           if (uid && window.BloxzuhPhotos) photo = await BloxzuhPhotos.fetch(uid);
           if (photo) {
-            el.innerHTML = '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+            el.innerHTML = '<img src="' + esc(photo) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
             el.style.padding = '0';
             el.style.overflow = 'hidden';
           }
@@ -590,7 +590,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         } catch (e) { console.warn('seller photo', e); }
         var av = document.getElementById('sellerAv');
         if (av && photo) {
-          av.innerHTML = '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+          av.innerHTML = '<img src="' + esc(photo) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
           av.style.padding = '0';
           av.style.overflow = 'hidden';
           av.style.background = 'transparent';
@@ -606,7 +606,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
                 try { ph = await BloxzuhPhotos.fetch(uid); } catch(e){}
               }
               if (ph) {
-                el.innerHTML = '<img src="' + ph + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+                el.innerHTML = '<img src="' + esc(ph) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
                 el.style.padding = '0';
                 el.style.overflow = 'hidden';
               }
@@ -616,7 +616,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         }
         document.querySelectorAll('.bz-seller-av').forEach(function(el) {
           if (photo && !el.querySelector('img')) {
-            el.innerHTML = '<img src="' + photo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
+            el.innerHTML = '<img src="' + esc(photo) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">';
             el.style.padding = '0';
             el.style.overflow = 'hidden';
           }

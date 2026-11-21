@@ -161,9 +161,9 @@ body {
 
   async function loadWithdrawals() {
     if (!cacheWithdrawals.length) {
-      var snap = await firebase.firestore().collection('withdrawals').limit(120).get();
+      var snapshots = await Promise.all(['secureWithdrawals','withdrawals'].map(function(collection) {return firebase.firestore().collection(collection).limit(120).get();}));
       cacheWithdrawals = [];
-      snap.forEach(function (d) { cacheWithdrawals.push(Object.assign({ id: d.id }, d.data())); });
+      snapshots.forEach(function(snap,index) {snap.forEach(function(d) {cacheWithdrawals.push(Object.assign({},d.data(),{id:d.id,legacyRecord:index===1}));});});
       cacheWithdrawals.sort(function (a, b) { return (b.createdAtMs || 0) - (a.createdAtMs || 0); });
     }
     var list = cacheWithdrawals.filter(function (w) {
@@ -171,12 +171,12 @@ body {
     });
     var html = '<div class="box"><h1>Saques (' + list.length + (qWithdrawals ? ' filtrados' : '') + ')</h1>' +
       searchBox('qWithdrawals', 'Pesquisar saque por código, Pix, nome, usuário...', qWithdrawals) +
-      '<p class="muted" style="margin-bottom:12px">Defina <strong>Normal</strong> ou <strong>Turbo</strong>. Depois de enviar o Pix, clique em <strong>Marcar pago</strong>.</p>';
+      '<p class="muted" style="margin-bottom:12px">Confira a solicitação e o comprovante da transferência antes de marcar como pago. Registros antigos exigem conciliação separada.</p>';
     if (!list.length) html += '<p class="muted">Nenhum saque ainda.</p>';
     list.forEach(function (w) {
       var st = String(w.status || 'processando');
       var mode = (w.mode === 'turbo') ? 'turbo' : 'normal';
-      var canPay = st === 'pendente' || st === 'processando' || st === 'aprovado';
+      var canPay = !w.legacyRecord && w.secureVersion === 1 && st === 'processando' && Number(w.availableAtMs) <= Date.now();
       html += '<div class="row"><div><strong>' + esc(w.id) + '</strong> · ' + money(w.amount) +
         (w.fee ? ' <span class="muted">(taxa ' + money(w.fee) + ')</span>' : '') +
         '<div class="muted">' + esc(w.userName || w.userEmail || w.userId || '') +
@@ -184,10 +184,10 @@ body {
         (w.nome ? ' · ' + esc(w.nome) : '') +
         '</div>' +
         '<div style="margin-top:8px">' +
-          '<button type="button" class="mode-btn' + (mode === 'normal' ? ' on' : '') + '" data-mode="normal" data-wid="' + esc(w.id) + '">Normal</button>' +
-          '<button type="button" class="mode-btn turbo' + (mode === 'turbo' ? ' on' : '') + '" data-mode="turbo" data-wid="' + esc(w.id) + '">Turbo</button>' +
+          '<button disabled type="button" class="mode-btn' + (mode === 'normal' ? ' on' : '') + '" data-mode="normal" data-wid="' + esc(w.id) + '">Normal</button>' +
+          '<button disabled type="button" class="mode-btn turbo' + (mode === 'turbo' ? ' on' : '') + '" data-mode="turbo" data-wid="' + esc(w.id) + '">Turbo</button>' +
         '</div></div><div style="text-align:right">' +
-        '<span class="' + badgeClass(st) + '">' + esc(st) + ' · ' + (mode === 'turbo' ? 'Turbo' : 'Normal') + '</span>' +
+        '<span class="' + badgeClass(st) + '">' + esc(w.legacyRecord ? 'Registro antigo · conferência necessária' : st) + ' · ' + (mode === 'turbo' ? 'Turbo' : 'Normal') + '</span>' +
         (canPay ? '<br><button type="button" class="btn" style="margin-top:8px" data-pay="' + esc(w.id) + '">Marcar pago</button>' : '') +
         '</div></div>';
     });
@@ -232,7 +232,7 @@ body {
       btn.addEventListener('click', async function () {
         btn.disabled = true;
         try {
-          await firebase.firestore().collection('withdrawals').doc(btn.getAttribute('data-pay')).update({
+          await firebase.firestore().collection('secureWithdrawals').doc(btn.getAttribute('data-pay')).update({
             status: 'pago',
             paidAtMs: Date.now()
           });

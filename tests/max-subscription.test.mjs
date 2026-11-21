@@ -149,15 +149,15 @@ test('An unverified JWT payload cannot bypass Firebase token validation', async 
   const response = await handleMaxRequest(request, f.env, async () => Response.json({error: {message: 'INVALID_ID_TOKEN'}}, {status: 400}));
   assert.equal(response.status, 401);
 });
-test('Combined deployment preserves legacy Pix endpoints without requiring D1', async () => {
+test('Combined deployment rejects unauthenticated legacy Pix while preserving MAX configuration', async () => {
   const code = fs.readFileSync(new URL('../workers/mp-pix.js', import.meta.url), 'utf8');
   const worker = (await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'))).default;
-  const home = await worker.fetch(new Request('https://worker.example/'), {}, {});
-  assert.equal((await home.json()).service, 'bloxzuh-mp-pix');
+  const home = await worker.fetch(new Request('https://worker.example/market/health'), {}, {});
+  assert.equal((await home.json()).service, 'bloxzuh-market');
   const create = await worker.fetch(new Request('https://worker.example/create-pix', {method: 'POST', body: '{}'}), {}, {});
-  assert.equal(create.status, 500);
+  assert.equal(create.status, 401);
   const webhook = await worker.fetch(new Request('https://worker.example/webhook', {method: 'POST', body: '{}'}), {}, {});
-  assert.equal((await webhook.json()).skipped, true);
+  assert.equal((await webhook.json()).ok, true);
   const config = await worker.fetch(new Request('https://worker.example/max/config'), {}, {});
   assert.equal((await config.json()).salesEnabled, false);
 });

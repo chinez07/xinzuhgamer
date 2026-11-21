@@ -55,7 +55,7 @@ async function maxTrialEligible(db, uid) {
   const paid = await db.prepare('SELECT payment_id FROM max_payments WHERE uid = ? AND paid_at IS NOT NULL LIMIT 1').bind(uid).first();
   return !used && !paid;
 }
-async function maxUser(request, fetcher) {
+export async function maxUser(request, fetcher) {
   const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
   if (!token || token.length > 15000) maxError('Entre na sua conta para continuar.', 401);
   let claims;
