@@ -1,6 +1,16 @@
-# Proteção financeira — implantação pendente
+# Proteção financeira — publicada
 
-Este documento descreve o pacote de proteção. Ter os arquivos no GitHub não ativa as regras nem publica o Worker. A implantação precisa dos passos abaixo, coordenados com o front.
+O backend, as regras do Firestore e o front deste pacote foram publicados em 21/11/2026. Os passos abaixo documentam a operação e as próximas implantações. Arquivos no GitHub, isoladamente, não publicam Workers nem regras.
+
+## Verificações da publicação
+
+- Carteira carregada pelo site com a conta administrativa: token Firebase, limite D1, troca OAuth e leitura/gravação do Firestore funcionaram em produção.
+- Regras publicadas: criação direta de carteira e pedido negada no laboratório do Firebase com usuário autenticado. As simulações não gravaram documentos.
+- Acesso anônimo a carteira, consulta de pagamento e criação de Pix retornou HTTP 401; origem externa retornou 403. Configuração pública do MAX continuou respondendo 200.
+- Cabeçalhos `nosniff`, `DENY` e CSP conferidos na resposta do Pages.
+- Worker legado de saques substituído por `workers/saque-locked.mjs`: informa processamento manual e recusa POST com HTTP 403, sem chamar o Mercado Pago.
+- A chave gerada pelo Google cujo download não chegou foi revogada. Existe apenas o certificado público enviado para a conta dedicada. A chave privada correspondente permanece no secret Cloudflare; não foi salva no repositório.
+- 86 testes automatizados aprovados e sintaxe de 78 scripts conferida. Nenhum Pix foi pago e nenhuma transferência foi executada pela automação; o primeiro fluxo financeiro completo ainda exige validação do operador.
 
 ## O que muda
 
@@ -17,9 +27,9 @@ Este documento descreve o pacote de proteção. Ter os arquivos no GitHub não a
 
 ## Acesso privado necessário
 
-Criar uma conta de serviço dedicada, `bloxzuh-finance`, no projeto `xinzuhgamer-87ff5`, com papel **Cloud Datastore User** (`roles/datastore.user`). Esse papel permite acesso aos dados do Firestore pelo backend, fora das regras de cliente. Não concede administração do IAM.
+A conta de serviço dedicada `bloxzuh-finance` foi criada no projeto `xinzuhgamer-87ff5`, com papel **Cloud Datastore User** (`roles/datastore.user`), com autorização explícita do titular. Esse papel permite acesso aos dados do Firestore pelo backend, fora das regras de cliente. Não concede administração do IAM.
 
-Criar uma chave JSON dessa conta e armazenar o JSON integral somente no secret **FIREBASE_SERVICE_ACCOUNT** do Worker **bloxzuh-pix**, na conta Cloudflare já utilizada. Nunca colocar a chave no GitHub, HTML, imagens, mensagens ou arquivo de configuração público. O Worker usa OAuth com escopo Datastore e cache curto. Manter os secrets existentes do Mercado Pago.
+O certificado público do par criado localmente foi enviado ao Google. O JSON da credencial privada está somente no secret **FIREBASE_SERVICE_ACCOUNT** do Worker **bloxzuh-pix**, na conta Cloudflare já utilizada. O certificado vence em **17/11/2027**: substituir o par e atualizar o secret antes disso. Nunca colocar a chave no GitHub, HTML, imagens, mensagens ou arquivo de configuração público. O Worker usa OAuth com escopo Datastore e cache curto. Os secrets existentes do Mercado Pago foram preservados.
 
 Esse acesso é sensível e precisa de autorização explícita antes de criar a conta, conceder o papel e gerar/transferir a credencial. Preferir federação sem chave em uma evolução posterior.
 
@@ -30,7 +40,7 @@ Esse acesso é sensível e precisa de autorização explícita antes de criar a 
 3. Publicar `workers/mp-pix.js` no Worker. Rotas antigas sem autenticação deixam de gerar/consultar Pix; `/max/*` continua funcionando.
 4. Publicar `firestore.rules` no Firebase e o front correspondente no Pages em sequência. Durante a troca pode haver indisponibilidade curta do checkout em abas antigas; não deixar combinações de regras e front antigas.
 5. Conferir login, catálogo, perfil/foto, MAX, carteira vazia, negativas de permissão, cabeçalhos e chamadas autenticadas. Primeiro Pix real precisa ser conferido pelo operador, sem simular aprovação no banco.
-6. Inspecionar e restringir o Worker **bloxzuh-saque** separadamente: o código dele não foi encontrado no repositório. O front novo não chama `/payout`.
+6. Manter o Worker **bloxzuh-saque** no bloqueio de `workers/saque-locked.mjs`. O front novo não chama `/payout`. Não restaurar o endpoint antigo, que aceitava pedidos de transferência sem autenticação.
 
 ## Regras e identidade futura
 
@@ -40,8 +50,7 @@ Isso não implementa coleta/validação de documentos. Documentos não devem ser
 
 ## Conferências que ainda precisam de ambiente real
 
-- Permissões da nova conta, troca OAuth e commit Firestore com a credencial configurada.
-- Publicação coordenada e testes contra regras ativas; teste local não prova a configuração de produção.
+- Primeiro pagamento real, liberação após dez dias, conciliação com Mercado Pago e processamento manual de um saque completo; teste local não comprova liquidação real.
 - Histórico financeiro antigo e pedidos simulados exigem conciliação; não migrar por confiança nos valores do navegador.
 - A carteira retém até 400 lançamentos antes de exigir consolidação; chats limitam 250 mensagens. Não é uma implementação de alta escala.
 - O estoque é baixado na confirmação do Pix, sem reserva durante o checkout. Concorrência acima do estoque gera `stockNeedsReview` para tratamento administrativo; não promete reserva automática.
