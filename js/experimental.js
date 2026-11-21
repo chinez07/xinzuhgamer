@@ -127,6 +127,10 @@
     try { return (location.pathname || '').toLowerCase().indexOf('painel') !== -1; } catch (e) { return false; }
   }
 
+  function isAdDetailPage() {
+    try { return /(?:^|\/)anuncio(?:\.html)?\/?$/i.test(location.pathname || ''); } catch (e) { return false; }
+  }
+
   function injectCoverFix() {
     var id = 'bz-cover-fix';
     if (document.getElementById(id)) return;
@@ -226,7 +230,8 @@
     injectCoverFix();
     injectCatFix();
     forceDarkBg();
-    if (isPainelPage()) {
+    // The public ad background belongs to that ad, never to the visitor's experimental preferences.
+    if (isPainelPage() || isAdDetailPage()) {
       var b = document.getElementById('bgChangeBtn');
       if (b) { b.classList.remove('show'); b.style.display = 'none'; }
       clearBg();
