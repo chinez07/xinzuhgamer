@@ -2,6 +2,14 @@
 .max-image-frame {box-sizing:border-box; padding:var(--ad-frame-width); border-radius:var(--ad-frame-radius); background:var(--ad-frame-color); margin:8px 0 14px; isolation:isolate;}
 .max-image-frame[data-frame-style="gradient"] {background:linear-gradient(135deg,var(--ad-frame-color),var(--ad-frame-secondary));}
 .max-image-frame[data-frame-style="neon"] {box-shadow:0 0 14px color-mix(in srgb,var(--ad-frame-color) 65%,transparent);}
+.max-image-frame[data-frame-style="image"] {position:relative; aspect-ratio:var(--ad-frame-ratio); padding:0; background:transparent; border-radius:0;}
+.max-image-frame[data-frame-style="image"]::after {content:""; position:absolute; inset:0; z-index:10; background-image:var(--ad-frame-image); background-size:100% 100%; background-repeat:no-repeat; pointer-events:none;}
+.max-image-frame[data-frame-style="image"] > .cover,
+.max-image-frame[data-frame-style="image"] > .cover-carousel,
+.ad-frame-preview.max-image-frame[data-frame-style="image"] > .ad-frame-preview-surface {position:absolute!important; inset:var(--ad-frame-inset)!important; width:calc(100% - 2 * var(--ad-frame-inset))!important; height:calc(100% - 2 * var(--ad-frame-inset))!important; min-height:0!important; aspect-ratio:auto!important; margin:0!important; border-radius:0!important;}
+.max-image-frame[data-frame-style="image"] > .cover img,
+.max-image-frame[data-frame-style="image"] .slide img,
+.ad-frame-preview.max-image-frame[data-frame-style="image"] .ad-frame-preview-surface img {object-fit:var(--ad-frame-fit)!important;}
 /* Outer wrapper leaves the existing gallery's image dimensions and swipe controls intact. */
 .max-image-frame > .cover,.max-image-frame > .cover-carousel {margin:0!important; border-radius:max(0px,calc(var(--ad-frame-radius) - var(--ad-frame-width)))!important;}
 .ad-frame-editor {padding:18px; margin-top:16px;}
@@ -22,4 +30,7 @@
 .ad-frame-editor .ad-frame-caption {text-align:center; font-size:.8rem;}
 .ad-frame-links {display:flex; flex-wrap:wrap; align-items:center; gap:12px;}
 .ad-frame-links a {color:#c4b5fd;}
+.ad-frame-upload {margin-top:16px; padding:14px; border:1px dashed #6d568f; border-radius:12px;}
+.ad-frame-upload input[type="file"] {max-width:100%; font-size:.85rem;}
+.ad-frame-upload .ad-frame-fields {margin-top:14px;}
 @media(max-width:380px) {.ad-frame-fields {grid-template-columns:1fr;}}

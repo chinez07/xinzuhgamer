@@ -170,7 +170,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
-  <link rel="stylesheet" href="css/ad-frame.css?v=1">
+  <link rel="stylesheet" href="css/ad-frame.css?v=2">
 </head>
 <body>
   <div class="top">
@@ -357,11 +357,21 @@ html { color-scheme: dark; background-color: #0f0f14; }
         <p data-frame-status role="status">Verificando sua assinatura MAX…</p>
         <fieldset disabled aria-label="Personalizar a moldura deste anúncio">
           <div class="ad-frame-fields">
-            <label>Estilo<select data-frame-input="style"><option value="none">Sem moldura</option><option value="solid">Cor única</option><option value="gradient">Degradê</option><option value="neon">Neon</option></select></label>
-            <label>Cor da moldura<input type="color" data-frame-input="color" value="#7c3aed"></label>
+            <label>Estilo<select data-frame-input="style"><option value="none">Sem moldura</option><option value="solid">Cor única</option><option value="gradient">Degradê</option><option value="neon">Neon</option><option value="image">Imagem personalizada</option></select></label>
+            <label data-frame-basic>Cor da moldura<input type="color" data-frame-input="color" value="#7c3aed"></label>
             <label data-frame-secondary-label hidden>Segunda cor<input type="color" data-frame-input="secondary" value="#ec4899"></label>
-            <label>Espessura · <output data-frame-width>5 px</output><input type="range" data-frame-input="width" min="1" max="12" value="5"></label>
-            <label>Cantos · <output data-frame-radius>20 px</output><input type="range" data-frame-input="radius" min="0" max="40" value="20"></label>
+            <label data-frame-basic>Espessura · <output data-frame-width>5 px</output><input type="range" data-frame-input="width" min="1" max="12" value="5"></label>
+            <label data-frame-basic>Cantos · <output data-frame-radius>20 px</output><input type="range" data-frame-input="radius" min="0" max="40" value="20"></label>
+          </div>
+          <div class="ad-frame-upload" data-frame-upload hidden>
+            <label>Imagem da moldura<input type="file" data-frame-file accept="image/png,image/webp"></label>
+            <p>PNG ou WebP com o centro transparente, até 5 MB. A arte fica por cima das fotos e acompanha a galeria.</p>
+            <p data-frame-upload-status role="status"></p>
+            <div class="ad-frame-fields">
+              <label>Espaço interno · <output data-frame-inset>8%</output><input type="range" data-frame-input="inset" min="0" max="24" value="8"></label>
+              <label>Encaixe da foto<select data-frame-input="fit"><option value="cover">Preencher o espaço</option><option value="contain">Mostrar a foto inteira</option></select></label>
+            </div>
+            <button type="button" class="btn btn-outline" data-frame-remove>Remover imagem da moldura</button>
           </div>
         </fieldset>
         <div class="ad-frame-preview" data-frame-preview><div class="ad-frame-preview-surface"><img alt="Prévia da moldura na capa do anúncio" hidden><span data-frame-placeholder>Adicione uma capa para visualizar</span></div></div>
@@ -400,7 +410,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/firestore-db.js?v=ad-frame-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/cover-worker-patch.js"></script>
-  <script src="js/ad-frame.js?v=1"></script>
+  <script src="js/ad-frame.js?v=2"></script>
 <script src="js/brand.js"></script>
   <script>
   (function () {

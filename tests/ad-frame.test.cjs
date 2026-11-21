@@ -2,6 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
 const frame = require('../js/ad-frame.js');
+const transparent = 'data:image/webp;base64,YWJj';
 function element() {
   const classes = new Set(), props = new Map(), attrs = new Map();
   return {classes, props, attrs, isConnected:true,
@@ -32,6 +33,22 @@ test('No frame is the default and never requires a subscription request', async 
   frame.apply(el,{style:'neon'},true); frame.apply(el,{style:'none'},true);
   assert.equal(el.classes.size,0); assert.equal(el.attrs.size,0);
 });
+test('Image overlays accept only bounded embedded raster images and clear completely when MAX expires', async () => {
+  const el=element(), saved={style:'image',image:transparent,ratio:1.64,inset:9,fit:'contain'};
+  await frame.decorate(el,saved,'seller',async()=>({active:true}));
+  assert.equal(el.attrs.get('data-frame-style'),'image');
+  assert.equal(el.props.get('--ad-frame-image'),'url("'+transparent+'")');
+  assert.equal(el.props.get('--ad-frame-ratio'),'1.64');
+  assert.equal(el.props.get('--ad-frame-inset'),'9%');
+  assert.equal(el.props.get('--ad-frame-fit'),'contain');
+  await frame.decorate(el,saved,'seller',async()=>({active:false}));
+  assert.equal(el.props.size,0);
+  for(const image of ['https://example.test/tracker.png','data:image/svg+xml;base64,YWJj','data:image/png;base64,'+'A'.repeat(450000),'data:image/png;base64,YWJj");display:none']) {
+    assert.equal(frame.normalize({style:'image',image}).style,'none');
+  }
+  assert.equal(frame.normalize({...saved,ratio:99,inset:100}).ratio,1.6);
+  assert.equal(frame.normalize({...saved,ratio:99,inset:100}).inset,8);
+});
 test('Creating, editing and reloading two ads preserves different frames and original gallery photos', async () => {
   const docs=new Map(); let seq=0;
   const firestore=()=>({collection:()=>({doc:id=>({
@@ -45,8 +62,11 @@ test('Creating, editing and reloading two ads preserves different frames and ori
   vm.runInContext(source,context);
   context.bloxzuhDocId=()=> 'AD'+(++seq);
   const data={title:'Test',price:10,cover:'original.jpg',gallery:['original.jpg','second.jpg']};
-  const a=await context.fsCreateAd({...data,imageFrame:{style:'neon',color:'#abcdef'}});
+  const a=await context.fsCreateAd({...data,imageFrame:{style:'image',image:transparent,ratio:1.64,inset:9}});
   const b=await context.fsCreateAd({...data,imageFrame:{style:'solid',color:'#123456'}});
+  const reloaded=await context.fsGetAdById(a);
+  assert.equal(reloaded.raw.imageFrame.image,transparent);
+  assert.equal(reloaded.raw.imageFrame.ratio,1.64);
   await context.fsUpdateAd(a,{imageFrame:frame.normalize({style:'gradient',color:'#654321'})});
   assert.equal((await context.fsGetAdById(a)).raw.imageFrame.style,'gradient');
   assert.equal((await context.fsGetAdById(b)).raw.imageFrame.color,'#123456');
