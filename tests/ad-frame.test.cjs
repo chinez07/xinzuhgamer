@@ -111,12 +111,17 @@ test('Creating, editing and reloading two ads preserves different frames and ori
   assert.equal((await context.fsGetAdById(b)).raw.imageFrame.color,'#123456');
   assert.equal(docs.get(a).cover,data.cover);
   assert.deepEqual(docs.get(a).gallery,data.gallery);
+  docs.set(b,{...docs.get(b),status:'ativo',moderationReviewId:'server-approved'});
   await context.fsUpdateAd(b,{status:'pausado'});
   assert.equal(docs.get(b).status,'pausado');
   context.BloxzuhAdModeration.review=async()=>({reviewId:'test-pending',decision:'review'});
   const pending=await context.fsCreateAd({...data,imageFrame:{style:'none'}});
   assert.equal(docs.get(pending).status,'pendente');
   await assert.rejects(()=>context.fsUpdateAd(pending,{status:'ativo'}),/Aguarde a revisão/);
+  context.BloxzuhAdModeration.review=async id=>{assert.equal(docs.get(id).status,'pendente');throw Error('Service offline');};
+  const offline=await context.fsCreateAd(data);
+  assert.equal(docs.get(offline).status,'pendente');
+  assert.equal(docs.get(offline).moderationReviewId,'');
   // Authentication is also checked by Firestore rules in production.
   context.requireUser=()=>({uid:'other-seller'});
   await assert.rejects(()=>context.fsUpdateAd(a,{imageFrame:{style:'none'}}),/Sem permissão/);

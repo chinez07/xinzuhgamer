@@ -52,3 +52,7 @@ A fila fica em revisao-anuncios.html, acessível pelo painel administrativo. Bus
 - A revisão manual também verifica as incompatibilidades determinísticas antes de aprovar. A fila mostra a descrição para conferência.
 - O exemplo local de Robux em Blox Fruits foi reclassificado como reprovado, com o motivo visível. O arquivo anterior foi preservado em `.local-preview/ads.before-text-review.json`.
 - Telefones com espaços entre todos os dígitos também são mascarados; preços e datas comuns são cobertos pelos testes de regressão.
+
+## Revisão depois de salvar — 22/11/2026
+
+O front salva primeiro o anúncio com status pendente e uma revisão nova. O Worker recebe apenas o ID, lê o conteúdo salvo com a identidade do proprietário, registra o recibo e executa a análise em segundo plano. A decisão e o motivo são gravados pelo servidor; somente aprovado fica ativo com estoque. Reprovado permanece desativado e editável. Correções retornam a pendente. Falhas de rede, consumo ou processamento mantêm o anúncio na fila administrativa, inclusive quando ainda não há recibo. Resultados antigos não substituem uma edição ou decisão manual posterior.

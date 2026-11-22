@@ -222,12 +222,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/max-client.js?v=max-benefits-2"></script>
   <script src="js/store-theme.js?v=ad-panels-1"></script>
   <script src="js/ad-frame.js?v=4"></script>
-  <script src="js/content-policy.js?v=moderation-prod-1"></script><script src="js/ad-catalog.js?v=moderation-prod-1"></script><script src="js/ad-moderation.js?v=moderation-prod-1"></script><script src="js/firestore-db.js?v=moderation-prod-1"></script>
+  <script src="js/content-policy.js?v=moderation-queue-2"></script><script src="js/ad-catalog.js?v=moderation-queue-2"></script><script src="js/ad-moderation.js?v=moderation-queue-2"></script><script src="js/firestore-db.js?v=moderation-queue-2"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js?v=ad-background-isolated-1"></script>
   <script src="js/notificacoes.js"></script>
-  <script src="js/ad-faq.js?v=moderation-prod-1"></script>
+  <script src="js/ad-faq.js?v=moderation-queue-2"></script>
   <script>
   (function () {
     if (localStorage.getItem('xinzuh-mode') === 'dark' || document.documentElement.getAttribute('data-mode') === 'dark') {
@@ -259,6 +259,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         page.innerHTML = '<p class="loading">Anúncio não encontrado. <a href="anuncios.html">Ver anúncios</a></p>';
         return;
       }
+      await new Promise(function(resolve){var stop=firebase.auth().onAuthStateChanged(function(){if(stop)stop();resolve();});});
       let ad;
       try {
         ad = await fsGetAdById(id);
@@ -398,7 +399,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           var html = '<div class="dyn-pick" id="dynPick">';
           items.forEach(function(it, idx){
             var st = Number(it.stock)||0;
-            var dis = st <= 0;
+            var dis = st <= 0 || raw.status !== 'ativo';
             html += '<button type="button" class="dyn-pick-item'+(dis?' is-out':'')+'" data-idx="'+idx+'" data-price="'+Number(it.price)+'" data-stock="'+st+'" '+(dis?'disabled':'')+'>' +
               '<span class="dyn-pick-name">'+esc(it.name)+'</span>' +
               '<span class="dyn-pick-meta">'+(dis ? 'Esgotado' : (st+' em estoque'))+' · '+money(it.price)+'</span></button>';
@@ -414,7 +415,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           var anyItemStock = itemsArr.some(function(it){ return (Number(it.stock)||0) > 0; });
           var blocked = st !== 'ativo' || (model === 'dinamico' ? !anyItemStock : stock <= 0);
           if (blocked) {
-            return '<button type="button" class="btn-buy" id="btnBuy" disabled style="opacity:.55;cursor:not-allowed;background:#4b5563">ANÚNCIO DESATIVADO</button>';
+            return '<div role="status" style="padding:12px 0"><strong>'+ (st==='pendente'?'Em revisão':st==='reprovado'?'Reprovado — anúncio desativado':'Anúncio desativado') +'</strong><p>'+esc(raw.moderationReason || (st==='pendente'?'As compras serão liberadas somente após a aprovação.':'Este anúncio não pode receber compras.'))+'</p>'+(isOwner&&st==='reprovado'?'<a href="anunciar.html?edit='+encodeURIComponent(ad.id)+'">Corrigir e reenviar para revisão</a>':'')+'</div><button type="button" class="btn-buy" id="btnBuy" disabled style="opacity:.55;cursor:not-allowed;background:#4b5563">'+(st==='pendente'?'EM REVISÃO':'ANÚNCIO DESATIVADO')+'</button>';
           }
           return '<button type="button" class="btn-buy" id="btnBuy"' + (model === 'dinamico' ? ' disabled' : '') + '>COMPRAR · ' + money(ad.price) + '</button>';
         })() +
@@ -698,7 +699,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       }
       const itemSel = document.getElementById('itemSel');
       const btnBuy = document.getElementById('btnBuy');
-      if (btnBuy) {
+      if (btnBuy && raw.status === 'ativo') {
         var pick = document.getElementById('dynPick');
         if (pick) {
           pick.querySelectorAll('.dyn-pick-item').forEach(function(btn){
@@ -867,6 +868,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
         };
       }
 
+      if(raw.status==='pendente') {
+        var stopModeration=firebase.firestore().collection('ads').doc(ad.id).onSnapshot(function(snapshot){
+          if(snapshot.exists&&snapshot.data().status!=='pendente')location.reload();
+        },function(){});
+        window.addEventListener('pagehide',stopModeration,{once:true});
+      }
       // Tempo real: novas perguntas/respostas
       if (typeof fsListenAdQuestions === 'function') {
         try {

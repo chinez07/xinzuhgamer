@@ -45,6 +45,12 @@ async function fsGetMyAds() {
   return list;
 }
 
+async function requestSavedAdReview(adId) {
+  try {await BloxzuhAdModeration.review(adId);} catch(e) {
+    // O anúncio já está salvo e bloqueado para compra, inclusive se o serviço falhar.
+    console.warn('[Bloxzuh] Anúncio salvo em revisão; análise automática indisponível.');
+  }
+}
 async function fsCreateAd(data) {
   const u = requireUser();
   const payload = {
@@ -71,7 +77,7 @@ async function fsCreateAd(data) {
     cover: data.cover || '',
     gallery: data.gallery || [],
     imageFrame: (window.BloxzuhAdFrame ? BloxzuhAdFrame.normalize(data.imageFrame) : {style:'none'}),
-    status: 'ativo',
+    status: 'pendente',
     sales: 0,
     sold: 0,
     feePercent: data.feePercent || 9.99,
@@ -81,9 +87,10 @@ async function fsCreateAd(data) {
   // ID legível do anúncio, ex: AD7K2M9A3B (nunca usar .add)
   var adId = (typeof bloxzuhDocId === 'function' ? bloxzuhDocId('AD') : ('AD' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4)));
   payload.code = adId;
-  var review=await BloxzuhAdModeration.review(payload);
-  payload.moderationReviewId=review.reviewId;payload.status=review.decision==='approved'?'ativo':'pendente';
+  payload.moderationRevision=bloxzuhDocId('REV')+'_'+Date.now();
+  payload.moderationReviewId='';payload.moderationReason='';
   await getDb().collection('ads').doc(adId).set(payload);
+  await requestSavedAdReview(adId);
   console.log('[Bloxzuh] anúncio criado com ID=', adId, 'model=', payload.model, 'items=', (payload.items||[]).length);
   return adId;
 }
@@ -96,13 +103,14 @@ async function fsUpdateAd(adId, patch) {
   if (doc.data().sellerUid !== u.uid) throw new Error('Sem permissão.');
   var old=doc.data(),next=Object.assign({},old,patch);
   var changed=['title','desc','cover','gallery','category','subcategory','section','gameName','experienceName','productType','imageFrame'].some(function(key){return JSON.stringify(old[key]||'')!==JSON.stringify(next[key]||'');});
+  if(old.status==='pendente'&&!changed&&patch.status&&patch.status!=='pendente')throw new Error('Aguarde a revisão antes de ativar o anúncio.');
   if (changed || (!old.moderationReviewId && patch.status!=='pausado') || old.status==='reprovado') {
-    var review=await BloxzuhAdModeration.review(next);
-    patch=Object.assign({},patch,{moderationReviewId:review.reviewId,status:review.decision==='approved'?(patch.status==='pausado'||Number(next.stock)<=0?'pausado':'ativo'):'pendente'});
+    patch=Object.assign({},patch,{moderationRevision:bloxzuhDocId('REV')+'_'+Date.now(),moderationReviewId:'',moderationReason:'',status:'pendente'});
   } else if(old.status==='pendente' && patch.status && patch.status!=='pendente') {
     throw new Error('Aguarde a revisão das imagens antes de ativar o anúncio.');
   }
   await ref.update(patch);
+  if(patch.status==='pendente')await requestSavedAdReview(adId);
 }
 
 async function fsDeleteAd(adId) {

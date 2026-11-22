@@ -782,31 +782,51 @@ async function reviewImages(data, ai, fetcher=fetch) {
   const status=results.some(r=>r.decision==='rejected')?'rejected':results.some(r=>r.decision==='review')?'review':'approved';
   return {decision:status,results,message:status==='rejected'?results.find(r=>r.decision==='rejected').reason:status==='review'?'Anúncio enviado para revisão de texto e imagens. Não ficará público antes da aprovação.':'Texto e imagens aprovados automaticamente.'};
 }
-async function handleModeration(request,env) {
-    const origin=request.headers.get('Origin'),allowed=env.ALLOWED_ORIGIN||'https://xinzuhgamer.pages.dev';
-    const headers={'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':allowed,'Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'};
-    const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
-    try {
-      if(origin!==allowed)failure('Origem não autorizada.',403);
-      if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
-      if(request.method!=='POST'||!['/review','/moderation/review'].includes(new URL(request.url).pathname))failure('Rota não encontrada.',404);
-      const user=await maxUser(request,fetch);
-      await moderationCounter(env,'user:'+user.uid,Math.floor(Date.now()/3600000),6);
-      if(Number(request.headers.get('Content-Length')||0)>900000)failure('Solicitação muito grande.',413);
-      const raw=await request.text();if(raw.length>900000)failure('Solicitação muito grande.',413);
-      const data=input(JSON.parse(raw)), result=await reviewImages(data,moderationAI(env));
-      if(result.decision==='rejected')return json(result);
-      const db=firestoreService(env),reviewId='IR'+crypto.randomUUID().replace(/-/g,'');
-      const doc=await db.get('imageReviews/'+reviewId);
-      await db.commit([{doc,patch:{...data,sellerUid:user.uid,decision:result.decision,results:result.results,model:MODEL,createdAtMs:Date.now(),reviewedBy:'automatic'}}]);
-      return json({...result,reviewId});
-    } catch(error) {return json({error:error.status?error.message:'Não foi possível analisar agora. Nenhum anúncio foi liberado.'},error.status||503);}
+function moderationSnapshot(ad) {
+  return Object.fromEntries(['title','desc','category','subcategory','section','gameName','experienceName','productType','cover','gallery','imageFrame'].map(key=>[key,ad[key]??(key==='gallery'?[]:key==='imageFrame'?{}:'')]));
+}
+async function processSavedModeration(db,adId,revision,reviewId,ai,fetcher=fetch) {
+  try {
+    const original=await db.get('ads/'+adId);
+    if(!original.data||original.data.status!=='pendente'||original.data.moderationRevision!==revision||original.data.moderationReviewId!==reviewId)return;
+    let result;
+    try {result=await reviewImages(input(original.data),ai,fetcher);}
+    catch(error){result={decision:error.status===400?'rejected':'review',message:error.status===400?error.message:'Análise automática indisponível. Aguardando revisão administrativa.',results:[]};}
+    const current=await db.get('ads/'+adId),receipt=await db.get('imageReviews/'+reviewId);
+    if(!current.data||current.data.status!=='pendente'||current.data.moderationRevision!==revision||current.data.moderationReviewId!==reviewId||receipt.data?.decision!=='review')return;
+    const stock=current.data.model==='dinamico'?(current.data.items||[]).some(item=>Number(item.stock)>0):Number(current.data.stock)>0;
+    await db.commit([{doc:receipt,patch:{decision:result.decision,results:result.results,reason:result.message,reviewedAtMs:Date.now()}},{doc:current,patch:{status:result.decision==='approved'?(stock?'ativo':'pausado'):result.decision==='rejected'?'reprovado':'pendente',moderationReason:result.message,moderationCheckedAtMs:Date.now()}}]);
+  }catch(error){console.error('moderation_background_failed',{status:error.status||503,conflict:!!error.conflict});}
+}
+async function handleModeration(request,env,ctx) {
+  const origin=request.headers.get('Origin'),allowed=env.ALLOWED_ORIGIN||'https://xinzuhgamer.pages.dev';
+  const headers={'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':allowed,'Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'};
+  const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});let stage='auth';
+  try {
+    if(origin!==allowed)failure('Origem não autorizada.',403);
+    if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+    if(request.method!=='POST'||!['/review','/moderation/review'].includes(new URL(request.url).pathname))failure('Rota não encontrada.',404);
+    const user=await maxUser(request,fetch);
+    const raw=await request.text();if(raw.length>1000)failure('Solicitação muito grande.',413);
+    const {adId}=JSON.parse(raw);if(!/^[A-Za-z0-9_-]{1,128}$/.test(adId||''))failure('Anúncio inválido.');
+    stage='rate';await moderationCounter(env,'user:'+user.uid,Math.floor(Date.now()/3600000),6);
+    stage='read';const db=firestoreService(env),ad=await db.get('ads/'+adId);
+    if(!ad.data||ad.data.sellerUid!==user.uid)failure('Anúncio não encontrado.',404);
+    if(ad.data.status!=='pendente')return json({status:ad.data.status});
+    const revision=ad.data.moderationRevision;if(!revision)failure('Reenvie o anúncio pelo editor.');
+    if(ad.data.moderationReviewId)return json({status:'pendente',message:'O anúncio já está em revisão.'},202);
+    stage='queue';const reviewId='IR'+crypto.randomUUID().replace(/-/g,''),receipt=await db.get('imageReviews/'+reviewId);
+    await db.commit([{doc:receipt,patch:{...moderationSnapshot(ad.data),sellerUid:user.uid,adId,revision,decision:'review',results:[],model:MODEL,createdAtMs:Date.now(),reviewedBy:'automatic'}},{doc:ad,patch:{moderationReviewId:reviewId,moderationReason:'Em revisão. As compras serão liberadas somente após a aprovação.'}}]);
+    const work=processSavedModeration(db,adId,revision,reviewId,moderationAI(env));
+    if(ctx?.waitUntil)ctx.waitUntil(work);else await work;
+    return json({status:'pendente',reviewId,message:'Anúncio salvo em revisão.'},202);
+  }catch(error){console.error('moderation_request_failed',{stage,status:error.status||503,message:String(error.message).slice(0,250)});return json({error:error.status?error.message:'O anúncio continua salvo em revisão. A análise será concluída pela administração.'},error.status||503);}
 }
 
 
-export default {async fetch(request,env) {
+export default {async fetch(request,env,ctx) {
   const path = new URL(request.url).pathname.replace(/\/$/,'');
   if (path.startsWith('/max/')) return handleMaxRequest(request,env);
-  if (path.startsWith('/moderation/')) return handleModeration(request,env);
+  if (path.startsWith('/moderation/')) return handleModeration(request,env,ctx);
   return marketHandle(request,env);
 }};

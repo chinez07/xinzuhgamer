@@ -13,13 +13,16 @@ before(async()=>{env=await initializeTestEnvironment({projectId:'demo-bloxzuh-mo
 after(async()=>{await env?.cleanup();});
 beforeEach(async()=>{await env.clearFirestore();await env.withSecurityRulesDisabled(async c=>{const db=c.firestore();await setDoc(doc(db,'ads/EXISTING'),ad);await setDoc(doc(db,'imageReviews/IRAPPROVED'),receipt);await setDoc(doc(db,'imageReviews/IRPENDING'),{...receipt,decision:'review'});});});
 const db=uid=>env.authenticatedContext(uid).firestore();
-test('Approved receipts allow only the owning seller and exact reviewed content',async()=>{
-  await assertSucceeds(setDoc(doc(db('seller'),'ads/VALID'),ad));
-  await assertFails(setDoc(doc(db('attacker'),'ads/STOLEN'),{...ad,sellerUid:'attacker'}));
-  for(const patch of [{cover:'https://i.ibb.co/changed.jpg'},{title:'Outro produto'},{desc:'Descrição modificada'},{subcategory:'Free Fire'},{productType:'Robux'},{moderationReviewId:'MISSING'}])await assertFails(setDoc(doc(db('seller'),'ads/TAMPERED'),{...ad,...patch}));
+test('Sellers can save a pending ad before analysis but cannot create an active ad',async()=>{
+  const pending={...ad,status:'pendente',moderationReviewId:'',moderationRevision:'REV_new_123456789',moderationReason:''};
+  await assertSucceeds(setDoc(doc(db('seller'),'ads/NEW'),pending));
+  await assertFails(setDoc(doc(db('seller'),'ads/ACTIVE'),ad));
+  await assertFails(setDoc(doc(db('attacker'),'ads/STOLEN'),pending));
+  await assertFails(updateDoc(doc(db('seller'),'ads/NEW'),{status:'ativo',moderationReviewId:'IRAPPROVED'}));
+  await assertFails(updateDoc(doc(db('seller'),'ads/NEW'),{moderationReason:'Aprovado'}));
 });
 test('Pending ads cannot become public or active through the seller client',async()=>{
-  const pending={...ad,status:'pendente',moderationReviewId:'IRPENDING'};
+  const pending={...ad,status:'pendente',moderationReviewId:'',moderationRevision:'REV_pending_123456',moderationReason:''};
   await assertSucceeds(setDoc(doc(db('seller'),'ads/PENDING'),pending));
   await assertFails(updateDoc(doc(db('seller'),'ads/PENDING'),{status:'ativo'}));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'ads/PENDING')));
@@ -59,4 +62,11 @@ test('Raw phone numbers are denied in public questions and masked text can be sa
   await assertSucceeds(setDoc(doc(db('buyer'),'adQuestions/MASKED'),{...question,text:'Me chama no * * * * * * * * * * *'}));
   await assertFails(updateDoc(doc(db('seller'),'adQuestions/MASKED'),{reply:'(11) 99999-1234',replyUid:'seller'}));
   await assertSucceeds(updateDoc(doc(db('seller'),'adQuestions/MASKED'),{reply:'Contato: ***********',replyUid:'seller'}));
+});
+
+test('Rejected ads can be corrected only by returning to a new pending revision',async()=>{
+  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'ads/REJECTED'),{...ad,status:'reprovado',moderationRevision:'REV_old_123456',moderationReason:'Jogo incorreto'}));
+  await assertFails(updateDoc(doc(db('seller'),'ads/REJECTED'),{status:'ativo'}));
+  await assertSucceeds(updateDoc(doc(db('seller'),'ads/REJECTED'),{title:'Conta corrigida',status:'pendente',moderationReviewId:'',moderationReason:'',moderationRevision:'REV_new_123456'}));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'ads/REJECTED')));
 });

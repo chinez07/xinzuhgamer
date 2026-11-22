@@ -23,6 +23,15 @@ service cloud.firestore {
         && ((data.status in ['ativo', 'pausado'] && review.decision == 'approved')
           || (data.status == 'pendente' && review.decision == 'review'));
     }
+    function queuedAd(data) {
+      return data.status == 'pendente' && data.get('moderationReviewId', '') == ''
+        && data.get('moderationReason', '') == ''
+        && data.moderationRevision is string && data.moderationRevision.size() >= 12 && data.moderationRevision.size() <= 80
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 80
+        && data.desc is string && data.desc.size() <= 8000
+        && data.cover is string && data.cover.size() > 0 && data.cover.size() <= 2048
+        && data.gallery is list && data.gallery.size() <= 6;
+    }
     function sellerAllowed() {
       return !exists(/databases/$(database)/documents/settings/security)
         || get(/databases/$(database)/documents/settings/security).data.get('requireSellerIdentity', false) == false
@@ -32,14 +41,16 @@ service cloud.firestore {
     match /ads/{id} {
       allow read: if resource.data.status == 'ativo' || admin() || own(resource.data.sellerUid);
       allow create: if signed() && own(request.resource.data.sellerUid) && sellerAllowed()
-        && reviewedAd(request.resource.data)
+        && queuedAd(request.resource.data)
         && request.resource.data.sales == 0 && request.resource.data.sold == 0
         && !request.resource.data.keys().hasAny(['rating','ratingCount','secureRatingCount','secureRatingSum']);
       allow update: if (admin() || own(resource.data.sellerUid))
         && request.resource.data.sellerUid == resource.data.sellerUid
-        && (admin() || reviewedAd(request.resource.data)
-          || (!resource.data.keys().hasAny(['moderationReviewId'])
-            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title','desc','cover','gallery','category','subcategory','section','gameName','experienceName','productType','imageFrame'])
+        && (admin()
+          || (queuedAd(request.resource.data) && request.resource.data.moderationRevision != resource.data.get('moderationRevision', ''))
+          || (resource.data.status in ['ativo', 'pausado'] && reviewedAd(request.resource.data) && request.resource.data.get('moderationRevision', '') == resource.data.get('moderationRevision', '') && request.resource.data.moderationReviewId == resource.data.moderationReviewId && request.resource.data.get('moderationReason', '') == resource.data.get('moderationReason', ''))
+          || (resource.data.status in ['ativo', 'pausado']
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title','desc','cover','gallery','category','subcategory','section','gameName','experienceName','productType','imageFrame','moderationRevision','moderationReviewId','moderationReason'])
             && request.resource.data.status == 'pausado'))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales','sold','rating','ratingCount','secureRatingCount','secureRatingSum']);
       allow delete: if admin() || own(resource.data.sellerUid);
