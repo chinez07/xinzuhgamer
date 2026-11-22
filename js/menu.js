@@ -24,8 +24,8 @@ function renderUserMenu() {
       '<a href="vendas.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>' +
       '<a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>' +
       '<a href="conta.html" class="user-menu-item"><i class="fas fa-user-cog"></i> Minha conta</a>' +
-      '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
-      '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>' +
+      '<a href="ajuda.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
+      '<a href="atualizacoes.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>' +
       '<div class="user-menu-divider"></div>' +
       '<div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">' +
         '<span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>' +
@@ -43,7 +43,7 @@ function renderUserMenu() {
     dropdown.innerHTML =
       '<a href="login.html" class="user-menu-item"><i class="fas fa-sign-in-alt"></i> Entrar</a>' +
       '<a href="cadastro.html" class="user-menu-item"><i class="fas fa-user-plus"></i> Criar conta</a>' +
-      '<a href="anuncios.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
+      '<a href="ajuda.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>' +
       '<div class="user-menu-divider"></div>' +
       '<div class="user-menu-item" style="justify-content:space-between;cursor:default" onclick="event.stopPropagation()">' +
         '<span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>' +

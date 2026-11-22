@@ -70,8 +70,8 @@ function renderUserMenu() {
       <a href="painel.html" class="user-menu-item"><i class="fas fa-store"></i> Minhas Vendas</a>
       <a href="painel.html" class="user-menu-item"><i class="fas fa-chart-line"></i> Painel do Vendedor</a>
       <button class="user-menu-item"><i class="fas fa-heart"></i> Meus Favoritos</button>
-      <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
-      <button class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</button>
+      <a href="ajuda.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>
+      <a href="atualizacoes.html" class="user-menu-item"><i class="fas fa-bullhorn"></i> Atualizações</a>
       <div class="user-menu-divider"></div>
       <div class="user-menu-item" style="justify-content:space-between;cursor:default">
         <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
@@ -90,7 +90,7 @@ function renderUserMenu() {
       <a href="cadastro.html" class="user-menu-item">
         <i class="fas fa-user-plus"></i> Criar conta
       </a>
-      <button class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</button>
+      <a href="ajuda.html" class="user-menu-item"><i class="fas fa-question-circle"></i> Central de ajuda</a>
       <div class="user-menu-divider"></div>
       <div class="user-menu-item" style="justify-content:space-between;cursor:default">
         <span style="display:flex;align-items:center;gap:10px"><i class="fas fa-flask"></i> Versão experimental</span>
