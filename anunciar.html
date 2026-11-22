@@ -171,6 +171,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/ad-frame.css?v=5">
+  <link rel="stylesheet" href="css/ad-create.css?v=1">
 </head>
 <body>
   <div class="top">
@@ -179,7 +180,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   </div>
 
   <div class="wrap">
-    <div class="steps" id="stepsBar">
+    <div class="steps" id="stepsBar" aria-label="Etapas do anúncio">
       <div class="step-dot active" data-s="1"><div class="n">1</div><span>Conta</span></div>
       <div class="step-line" id="line1"></div>
       <div class="step-dot" data-s="2"><div class="n">2</div><span>Anúncio</span></div>
@@ -217,7 +218,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       <p class="sub">Informe os detalhes do que você está anunciando.</p>
 
       <div class="card acc open" data-acc="title">
-        <div class="acc-head"><div class="ico"><i class="fas fa-bullhorn"></i></div> Anúncio <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-bullhorn"></i></div> Anúncio <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
           <label>Título do anúncio</label>
           <input type="text" id="title" maxlength="80" placeholder="Ex: Conta Roblox — Blox Fruits">
@@ -232,7 +233,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       </div>
 
       <div class="card acc" data-acc="price">
-        <div class="acc-head"><div class="ico"><i class="fas fa-tag"></i></div> Valor e estoque <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-tag"></i></div> Valor e estoque <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
           <div id="priceNormal">
             <div class="row2">
@@ -251,7 +252,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       </div>
 
       <div class="card acc" data-acc="cat">
-        <div class="acc-head"><div class="ico"><i class="fas fa-sitemap"></i></div> Categoria <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-sitemap"></i></div> Categoria <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
           <label>Categoria</label>
           <select id="category">
@@ -293,7 +294,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       </div>
 
       <div class="card acc" data-acc="desc">
-        <div class="acc-head"><div class="ico"><i class="fas fa-align-left"></i></div> Descrição <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-align-left"></i></div> Descrição <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
           <div class="warn">Não coloque WhatsApp, Discord ou contatos pessoais na descrição — o anúncio pode ser reprovado.</div>
           <label>Descreva o anúncio</label>
@@ -303,9 +304,9 @@ html { color-scheme: dark; background-color: #0f0f14; }
       </div>
 
       <div class="card acc" data-acc="faq">
-        <div class="acc-head"><div class="ico"><i class="fas fa-question-circle"></i></div> FAQ dos anúncios <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-question-circle"></i></div> Perguntas frequentes (FAQ) <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
-          <p class="hint">Opcional. Até 5 perguntas para os compradores.</p>
+          <p class="hint">Responda antecipadamente às dúvidas dos compradores. Ex.: “Como recebo o produto?” ou “O que está incluído?”. Opcional: até 5 perguntas e respostas, exibidas no anúncio.</p>
           <div id="faqList"></div>
           <button type="button" class="btn btn-outline btn-block" id="btnAddFaq" style="margin-bottom:12px">+ Adicionar pergunta</button>
           <button type="button" class="btn btn-primary" data-next-acc="vis">Continuar</button>
@@ -313,7 +314,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       </div>
 
       <div class="card acc" data-acc="vis">
-        <div class="acc-head"><div class="ico"><i class="fas fa-eye"></i></div> Visibilidade <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-eye"></i></div> Visibilidade <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
           <p class="hint">Define destaque e a taxa sobre cada venda.</p>
           <div class="vis-opt sel" data-vis="prata" data-fee="9.99"><h4>Prata</h4><ul><li>Visibilidade padrão nas categorias</li><li>Sem destaque na home</li><li>Sem destaque nas pesquisas</li></ul><span class="badge-fee">Taxa 9,99%</span></div>
@@ -324,7 +325,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       </div>
 
       <div class="card acc" data-acc="plan">
-        <div class="acc-head"><div class="ico"><i class="fas fa-star"></i></div> Plano <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></div>
+        <button type="button" class="acc-head" aria-expanded="false"><div class="ico"><i class="fas fa-star"></i></div> Plano <span class="check"><i class="fas fa-check"></i></span><i class="fas fa-chevron-down chev"></i></button>
         <div class="acc-body">
           <div class="plan-opt sel" data-plan="none"><h4>Sem plano</h4><ul><li>Pagamento protegido</li><li>Saque padrão</li></ul></div>
           <div class="plan-opt" data-plan="max" aria-disabled="true"><h4>Clube MAX</h4><p class="hint" style="margin:8px 0 0">O MAX é uma assinatura da sua conta. Com ela ativa, você pode personalizar a moldura de cada anúncio na etapa Imagens. <a href="plano-max.html" style="color:#c4b5fd">Conheça o Clube MAX</a>.</p></div>
@@ -434,6 +435,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/cover-worker-patch.js?v=images-hq-1"></script>
   <script src="js/store-theme.js?v=ad-panels-1"></script>
   <script src="js/ad-frame.js?v=4"></script>
+  <script src="js/ad-faq.js?v=1"></script>
 <script src="js/brand.js"></script>
   <script>
   (function () {
@@ -476,23 +478,27 @@ html { color-scheme: dark; background-color: #0f0f14; }
     window.goStep = goStep;
 
     // Accordion
+    document.querySelectorAll('.acc').forEach(function (card) {card.querySelector('.acc-head').setAttribute('aria-expanded', String(card.classList.contains('open')));});
     document.querySelectorAll('.acc-head').forEach(h => {
       h.addEventListener('click', () => {
         const card = h.parentElement;
         document.querySelectorAll('.acc').forEach(a => { if (a !== card) a.classList.remove('open'); });
         card.classList.toggle('open');
+        document.querySelectorAll('.acc-head').forEach(function (head) {head.setAttribute('aria-expanded', String(head.parentElement.classList.contains('open')));});
       });
     });
     function openAcc(name) {
       document.querySelectorAll('.acc').forEach(a => {
         const on = a.getAttribute('data-acc') === name;
         a.classList.toggle('open', on);
-        if (on) a.querySelector('.acc-head').classList.add('done');
+        a.querySelector('.acc-head').setAttribute('aria-expanded', String(on));
+        if (on) {a.querySelector('.acc-head').classList.add('done'); a.scrollIntoView({behavior:'smooth',block:'start'});}
       });
     }
     window.openAcc = openAcc;
     window.goStep = goStep;
     function validateAcc(name) {
+      if (name === 'faq' && !faqEditor.validate()) {showMsg('Complete a pergunta e a resposta ou remova o campo incompleto.', 'err'); return false;}
       if (name === 'title') {
         var t = (document.getElementById('title').value || '').trim();
         if (!t) { showMsg('Preencha o título do anúncio.', 'err'); document.getElementById('title').focus(); return false; }
@@ -559,31 +565,6 @@ html { color-scheme: dark; background-color: #0f0f14; }
         if (btn.getAttribute('data-next-acc') === 'price') syncPriceUI();
       });
     });
-    // impede pular seções clicando no cabeçalho sem validar a atual
-    document.querySelectorAll('.acc-head').forEach(h => {
-      h.addEventListener('click', function(ev) {
-        var card = h.parentElement;
-        var target = card.getAttribute('data-acc');
-        var order = ['title','price','cat','desc','faq','vis','plan'];
-        var ti = order.indexOf(target);
-        // se tentar ir para frente, valida as anteriores
-        for (var i = 0; i < ti; i++) {
-          var prev = document.querySelector('.acc[data-acc="'+order[i]+'"]');
-          if (prev && !prev.querySelector('.acc-head').classList.contains('done')) {
-            // deixa abrir só a atual se for a primeira incompleta
-            if (i === 0 || order[i] === 'title') {
-              if (!validateAcc(order[i])) { ev.stopImmediatePropagation(); return; }
-            } else {
-              showMsg('Complete a etapa anterior antes de continuar.', 'err');
-              openAcc(order[i]);
-              ev.stopImmediatePropagation();
-              return;
-            }
-          }
-        }
-      }, true);
-    });
-
     // Models
     
     var GAMES = ['Roblox','Valorant','Free Fire','League of Legends','Fortnite','CS2','Genshin Impact'];
@@ -713,18 +694,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
     // Sem plano pago enquanto a assinatura não estiver configurada.
     state.plan = 'none';
 
-    // FAQ
-    document.getElementById('btnAddFaq').addEventListener('click', () => {
-      if (state.faq.length >= 5) { showMsg('Máximo 5 perguntas.', 'err'); return; }
-      const i = state.faq.length;
-      state.faq.push({ q: '', a: '' });
-      const div = document.createElement('div');
-      div.className = 'faq-item';
-      div.innerHTML = '<input placeholder="Pergunta" data-faq-q="' + i + '"><textarea placeholder="Resposta" data-faq-a="' + i + '" style="min-height:60px"></textarea>';
-      document.getElementById('faqList').appendChild(div);
-      div.querySelector('[data-faq-q]').addEventListener('input', e => { state.faq[i].q = e.target.value; });
-      div.querySelector('[data-faq-a]').addEventListener('input', e => { state.faq[i].a = e.target.value; });
-    });
+    // Perguntas frequentes: o mesmo editor carrega, altera e remove respostas salvas.
+    const faqEditor = BloxzuhAdFAQ.editor(document.getElementById('faqList'), document.getElementById('btnAddFaq'), function (rows) {state.faq = rows;});
 
     // Images compress
     function fileToDataUrl(file, max) {
@@ -850,6 +821,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       }
       if (!document.getElementById('title').value.trim()) { showMsg('Preencha o título.', 'err'); openAcc('title'); return; }
       if (!parseFloat(document.getElementById('price').value)) { showMsg('Informe o preço.', 'err'); openAcc('price'); return; }
+      for (const name of ['title','price','cat','desc','faq']) {if (!validateAcc(name)) {openAcc(name); return;}}
       goStep(3);
     });
     document.getElementById('btnToSummary').addEventListener('click', () => {
@@ -875,6 +847,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
     }
 
     document.getElementById('btnPublish').addEventListener('click', async () => {
+      if (!validateAcc('faq')) {goStep(2); openAcc('faq'); return;}
       var descVal = (document.getElementById('desc') && document.getElementById('desc').value || '').trim();
       if (!descVal) { showMsg('A descrição do anúncio é obrigatória.', 'err'); try { openAcc('desc'); } catch(e){} return; }
       if (!document.getElementById('terms').checked) { showMsg('Aceite os Termos de uso.', 'err'); return; }
@@ -944,7 +917,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
             price: parseFloat(document.getElementById('price').value),
             stock: stockVal,
             desc: document.getElementById('desc') ? document.getElementById('desc').value.trim() : '',
-            faq: (state.faq || []).filter(function(f){ return f.q && f.a; }),
+            faq: BloxzuhAdFAQ.complete(state.faq),
             visibility: state.visibility || 'prata',
             plan: 'none',
             imageFrame: frameEditor.read(),
@@ -991,7 +964,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           price: parseFloat(document.getElementById('price').value),
           stock: parseInt(document.getElementById('stock').value, 10) || 1,
           desc: document.getElementById('desc').value.trim(),
-          faq: state.faq.filter(f => f.q && f.a),
+          faq: BloxzuhAdFAQ.complete(state.faq),
           visibility: state.visibility,
           plan: 'none',
           imageFrame: frameEditor.read(),
@@ -1090,20 +1063,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       });
 
       // FAQ
-      state.faq = Array.isArray(d.faq) ? d.faq.slice() : [];
-      var faqList = document.getElementById('faqList');
-      if (faqList && typeof renderFaq === 'function') {
-        try { renderFaq(); } catch (e) {}
-      } else if (faqList) {
-        faqList.innerHTML = '';
-        state.faq.forEach(function(f, idx){
-          var div = document.createElement('div');
-          div.className = 'faq-item';
-          div.innerHTML = '<input type="text" class="faq-q" placeholder="Pergunta" value="'+(f.q||'').replace(/"/g,'&quot;')+'">' +
-            '<textarea class="faq-a" placeholder="Resposta">'+(f.a||'')+'</textarea>';
-          faqList.appendChild(div);
-        });
-      }
+      faqEditor.load(d.faq);
 
       // Itens dinâmicos
       var items = Array.isArray(d.items) ? d.items : [];

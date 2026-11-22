@@ -199,7 +199,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/ad-frame.css?v=5">
-  <link rel="stylesheet" href="css/ad-layout.css?v=1">
+  <link rel="stylesheet" href="css/ad-layout.css?v=faq-2">
 </head>
 <body>
   <div class="top">
@@ -227,6 +227,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/favs.js"></script>
   <script src="js/experimental.js?v=ad-background-isolated-1"></script>
   <script src="js/notificacoes.js"></script>
+  <script src="js/ad-faq.js?v=1"></script>
   <script>
   (function () {
     if (localStorage.getItem('xinzuh-mode') === 'dark' || document.documentElement.getAttribute('data-mode') === 'dark') {
@@ -348,13 +349,6 @@ html { color-scheme: dark; background-color: #0f0f14; }
         }
         return q;
       });
-      if (!questions.length && raw.faq && raw.faq.length) {
-        questions = raw.faq.map(function (f, i) {
-          return { id: 'faq' + i, user: 'FAQ',
-            userUid: (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "", text: f.q, reply: f.a, createdAtMs: Date.now() - (i + 1) * 3600000 };
-        });
-      }
-
       function renderQuestions() {
         if (!questions.length) {
           return '<p style="color:var(--muted);font-size:0.9rem">Nenhuma pergunta ainda.</p>';
@@ -430,6 +424,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           chars.map(function (c) { return '<tr><td>' + esc(c[0]) + '</td><td>' + esc(c[1]) + '</td></tr>'; }).join('') +
         '</table></div></div>' +
         '<div class="section" id="adDescription"><h2>Descrição do anúncio</h2><div class="card"><div class="desc">' + esc(ad.description || 'Sem descrição.') + '</div></div></div>' +
+        (BloxzuhAdFAQ.complete(raw.faq).length ? '<div class="section" id="adFAQ"><h2>Perguntas frequentes</h2><div class="card">' + BloxzuhAdFAQ.render(raw.faq) + '</div></div>' : '') +
         '<div class="section" id="adQuestions"><h2>Perguntas</h2><div class="card" id="qList">' + renderQuestions() + '</div>' +
           (isOwner
             ? '<div class="card" style="margin-top:12px"><p style="color:var(--muted);font-size:0.9rem">Você é o vendedor. Responda as perguntas abaixo (não pode perguntar no próprio anúncio).</p></div>'

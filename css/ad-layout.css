@@ -73,3 +73,8 @@
   .ad-seller {grid-template-columns:minmax(0,1fr);}
   .ad-seller>.section:first-child {grid-row:auto;}
 }
+
+.ad-faq-item {padding:16px 0;border-bottom:1px solid var(--border);overflow-wrap:anywhere;}
+.ad-faq-item:last-child {border-bottom:0;}
+.ad-faq-item summary {cursor:pointer;font-weight:650;line-height:1.6;}
+.ad-faq-item p {line-height:1.7;}
