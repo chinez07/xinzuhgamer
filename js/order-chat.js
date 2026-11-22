@@ -1,7 +1,7 @@
 // JavaScript / order-chat.js / Firebase compat 10 / conversa privada com histórico paginado.
 (function(){
  'use strict';
- const $=id=>document.getElementById(id),state={id:new URLSearchParams(location.search).get('id')||'',user:null,order:null,messages:new Map(),pending:new Map(),oldest:null,loading:false,readBusy:false,readThrough:0,image:'',unsubOrder:null,unsubMessages:null};
+ const $=id=>document.getElementById(id),state={id:new URLSearchParams(location.search).get('id')||'',user:null,order:null,messages:new Map(),pending:new Map(),photos:new Map(),oldest:null,loading:false,readBusy:false,readThrough:0,image:'',unsubOrder:null,unsubMessages:null};
  const labels={aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_entrega:'Em entrega',concluido:'Concluído',cancelado:'Cancelado',expirado:'Pix expirado',reembolsado:'Reembolsado'};
  function toast(text){$('orderToast').textContent=text;$('orderToast').hidden=false;clearTimeout(state.toast);state.toast=setTimeout(()=>$('orderToast').hidden=true,5000);}
  function api(route,body){return window.bloxzuhMarketApi(route,body);}
@@ -29,7 +29,7 @@
   if(buyer&&canChat&&['pago','em_entrega'].includes(o.status)&&!o.supportOpenId)action('Confirmar recebimento',()=>{if(confirm('Você já recebeu e conferiu o produto? A confirmação permite liberar o saldo após o prazo de proteção.'))changeStatus('concluido');});
   $('orderNotice').textContent=o.supportOpenId?'Há uma solicitação de ajuda aberta. O saque fica bloqueado durante a análise.':'O saldo só fica disponível após a confirmação de recebimento e dez dias do pagamento.';
   $('supportState').replaceChildren();if(o.supportOpenId){const link=element('a','Acompanhar solicitação '+o.supportOpenId);link.href='suporte.html?ticket='+encodeURIComponent(o.supportOpenId);$('supportState').append(link);}
-  $('chatHeading').textContent='Chat com '+(buyer?'vendedor':'comprador');$('chatPartner').textContent=buyer?(o.sellerName||'Vendedor'):(o.buyerName||'Comprador');
+  $('chatHeading').textContent='Chat com '+(buyer?'vendedor':'comprador');$('chatPartner').textContent=buyer?(o.sellerName||'Vendedor'):(o.buyerName||'Comprador');$('chatPartner').setAttribute('data-max-uid',buyer?o.sellerUid:o.buyerUid);$('chatPartner').setAttribute('data-max-name','');
   $('chatLocked').hidden=canChat;$('chatLocked').textContent=o.secureVersion!==1?'Este pedido antigo precisa de conferência administrativa. Use o botão de ajuda.':'O chat será liberado quando o pagamento for confirmado.';
   $('composer').hidden=!canChat;$('chatScroll').hidden=!canChat;
   const reviewed=buyer?o.reviewed:o.buyerReviewed;$('reviewBox').hidden=o.status!=='concluido';$('reviewForm').hidden=!!reviewed;$('reviewTitle').textContent=buyer?'Avaliar vendedor':'Avaliar comprador';if(reviewed)$('reviewResult').textContent='Sua avaliação foi registrada.';
@@ -49,9 +49,9 @@
    if(m.text)bubble.append(element('p',m.text));
    if(m.image&&safeImage(m.image)){const photo=element('img');photo.className='message-photo';photo.src=m.image;photo.alt='Imagem enviada por '+(m.senderName||'participante');photo.loading='lazy';photo.onclick=()=>{$('fullImage').src=m.image;$('imageDialog').showModal();};bubble.append(photo);}
    let status=m.local?(m.failed?'Falha no envio':'Enviando…'):me?((m.read||Number(m.createdAtMs)<=otherRead)?'Lida':'Enviada'):'';
-   bubble.append(element('footer',(m.senderName||'Participante')+' · '+date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+(status?' · '+status:'')));
+   const footer=element('footer'),name=element('span',m.senderName||'Participante');name.setAttribute('data-max-uid',m.senderUid||'');name.setAttribute('data-max-name','');footer.append(name,document.createTextNode(' · '+date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+(status?' · '+status:'')));bubble.append(footer);
    if(m.failed){const retry=element('button','Tentar novamente','outline');retry.type='button';retry.onclick=()=>deliver(m);bubble.append(retry);}
-   row.append(bubble);fragment.append(row);
+   const avatar=safeImage(state.photos.get(m.senderUid));if(avatar){const image=element('img');image.src=avatar;image.alt='';image.className='chat-avatar';row.append(image);}row.append(bubble);fragment.append(row);
   });
   $('messageList').replaceChildren(fragment);
   if(forceBottom||atBottom){scroll.scrollTop=scroll.scrollHeight;$('newMessages').hidden=true;}else{scroll.scrollTop=oldTop;$('newMessages').hidden=scroll.scrollHeight>oldHeight?false:$('newMessages').hidden;}
@@ -96,12 +96,12 @@
  $('helpForm').onsubmit=async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const result=await api('/market/help',{orderId:state.id,reason:$('helpReason').value});$('helpResult').textContent='Solicitação '+result.id+' registrada. ';const link=element('a','Acompanhar resposta');link.href='suporte.html?ticket='+encodeURIComponent(result.id);$('helpResult').append(link);}catch(error){$('helpResult').textContent=error.message;}finally{button.disabled=false;}};
  $('reviewForm').onsubmit=async e=>{e.preventDefault();e.submitter.disabled=true;try{await api('/market/review',{orderId:state.id,stars:Number($('reviewStars').value),comment:$('reviewComment').value});$('reviewResult').textContent='Avaliação registrada.';}catch(error){toast(error.message);}finally{e.submitter.disabled=false;}};
  firebase.auth().onAuthStateChanged(async user=>{
-  if(!user){location.href='login.html?redirect='+encodeURIComponent('pedido.html?id='+state.id);return;}state.user=user;
+  if(!user){location.href='login.html?redirect='+encodeURIComponent('pedido.html?id='+state.id);return;}state.user=user;try{const profile=await fsGetProfile(user.uid);state.photos.set(user.uid,profile?.photo||profile?.photoURL||user.photoURL||'');}catch(e){}
   if(!/^[A-Za-z0-9_-]{1,128}$/.test(state.id)){$('orderLoading').textContent='Pedido não encontrado.';return;}
   try{const ref=firebase.firestore().collection('orders').doc(state.id),snapshot=await ref.get();if(!snapshot.exists)throw Error('Pedido não encontrado.');const o=snapshot.data();if(![o.buyerUid,o.sellerUid].includes(user.uid))throw Error('Você não tem acesso a este pedido.');
    if(matchMedia('(max-width:760px)').matches)$('summaryDetails').open=false;
    state.unsubOrder?.();state.unsubOrder=ref.onSnapshot(doc=>{if(doc.exists)updateOrder({id:doc.id,...doc.data()});},e=>toast(e.message));
-   async function presence(){if(document.visibilityState!=='visible')return;try{const p=await fsGetProfile(user.uid===o.buyerUid?o.sellerUid:o.buyerUid);$('partnerPresence').textContent=p&&isUserOnline(p)?'Online':'Offline';}catch(e){$('partnerPresence').textContent='';}}
+   async function presence(){if(document.visibilityState!=='visible')return;try{const p=await fsGetProfile(user.uid===o.buyerUid?o.sellerUid:o.buyerUid);$('partnerPresence').textContent=p&&isUserOnline(p)?'Online':'Offline';const photo=safeImage(p?.photo||p?.photoURL);if(photo){state.photos.set(user.uid===o.buyerUid?o.sellerUid:o.buyerUid,photo);$('partnerAvatar').src=photo;$('partnerAvatar').hidden=false;renderMessages(false);}}catch(e){$('partnerPresence').textContent='';}}
    presence();state.presence=setInterval(presence,30000);
   }catch(e){$('orderLoading').textContent=e.message;}
  });
