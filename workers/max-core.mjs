@@ -167,6 +167,7 @@ async function maxCheckout(request, env, user, fetcher) {
   if (!user.email) maxError('Cadastre um e-mail na sua conta antes de assinar.');
   if (!/^[a-f0-9-]{36}$/i.test(body.requestId || '')) maxError('Identificador de checkout inválido.');
   const db = env.MAX_DB;
+  if ((await maxMember(db, user.uid)).active) maxError('Seu Plano MAX já está ativo. Aguarde o vencimento para assinar ou renovar.', 409);
   const reference = 'MAX:' + user.uid + ':' + body.requestId;
   await db.prepare('INSERT INTO max_intents(reference, uid, request_id, created_at) VALUES(?, ?, ?, ?) ON CONFLICT(uid, request_id) DO NOTHING')
     .bind(reference, user.uid, body.requestId, Date.now()).run();

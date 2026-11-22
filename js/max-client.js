@@ -95,7 +95,7 @@
     });
   }
   function start() {
-    if (!document.querySelector('link[data-bloxzuh-max-css]')) {var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'css/max.css'; css.setAttribute('data-bloxzuh-max-css', '1'); document.head.appendChild(css);}
+    if (!document.querySelector('link[data-bloxzuh-max-css]')) {var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'css/max.css?v=max-benefits-2'; css.setAttribute('data-bloxzuh-max-css', '1'); document.head.appendChild(css);}
     decorate(); decorateHours();
     var scheduled = false;
     new MutationObserver(function () {

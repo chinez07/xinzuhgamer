@@ -28,7 +28,7 @@ window.IMGBB_API_KEY = ''; // não usar chave no cliente
   function load() {
     if (document.querySelector('script[src*="max-client.js"]')) return;
     var script = document.createElement('script');
-    script.src = 'js/max-client.js?v=clube-max-1'; script.async = true;
+    script.src = 'js/max-client.js?v=max-benefits-2'; script.async = true;
     document.head.appendChild(script);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else load();

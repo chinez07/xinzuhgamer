@@ -1,7 +1,7 @@
 // JavaScript / max-page.js / navegadores atuais / compra e configuração do Clube MAX.
 (function () {
   var api = BloxzuhMax.api;
-  var uid = '', revision = 0, polling = null, paymentId = '', cover = '', salesEnabled = false;
+  var uid = '', revision = 0, polling = null, paymentId = '', cover = '', salesEnabled = false, memberActive = false, membershipTimer = null;
   var theme = BloxzuhStoreTheme.normalize(), backgroundJobs = 0;
   var days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   function el(id) {return document.getElementById(id);}
@@ -76,15 +76,29 @@
       finally {backgroundJobs--; el('maxSave').disabled = backgroundJobs > 0; event.target.value = '';}
     });
   });
+  function scheduleMembershipRefresh(member) {
+    clearTimeout(membershipTimer); membershipTimer = null;
+    if (!member.active || !Number.isFinite(member.expiresAt)) return;
+    var expected = revision;
+    membershipTimer = setTimeout(function () {
+      if (expected !== revision || !uid) return;
+      if (Date.now() < member.expiresAt) {scheduleMembershipRefresh(member); return;}
+      reloadAccount(expected).catch(function () {scheduleMembershipRefresh(member);});
+    }, Math.min(2147483647, Math.max(15000,member.expiresAt - Date.now() + 1000)));
+  }
   function renderMember(data) {
     var member = data.member;
-    var active = !!member.active;
+    var active = memberActive = !!member.active;
+    scheduleMembershipRefresh(member);
     el('maxSettings').hidden = !active;
-    el('maxTrial').hidden = !data.trialEligible;
-    el('maxState').textContent = active ? (member.testAccess ? 'Acesso de teste gratuito até ' : 'Assinatura ativa até ') + date(member.expiresAt) + ' · horário de Brasília' : 'Sua conta ainda não tem uma assinatura MAX ativa.';
-    el('maxCheckout').hidden = !salesEnabled;
-    el('maxGenerate').textContent = active && !member.testAccess ? 'Gerar Pix para renovar por 30 dias · R$ 45' : 'Gerar Pix de R$ 45 · 30 dias';
-    el('maxRenewNote').textContent = member.testAccess ? 'Seu acesso de teste não gera cobrança. Se assinar, os 30 dias começam na aprovação do Pix.' : active ? 'A renovação soma 30 dias ao período atual. Não há cobrança automática.' : 'Os 30 dias começam na aprovação do Pix. Não há cobrança automática.';
+    el('maxTrial').hidden = active || !data.trialEligible;
+    el('maxState').textContent = active ? (member.testAccess ? 'MAX ativo · Teste gratuito até ' : 'MAX ativo · Assinatura até ') + date(member.expiresAt) + ' · horário de Brasília' : 'Sua conta ainda não tem uma assinatura MAX ativa.';
+    el('maxCheckout').hidden = active || !salesEnabled;
+    el('maxGenerate').disabled = active || !salesEnabled;
+    if (active) {el('maxPayment').hidden = true; clearInterval(polling); polling = null;}
+    document.querySelectorAll('[data-max-member-action]').forEach(function (link) {link.textContent = active ? 'MAX ativo · Gerenciar' : 'Assinar ou conhecer o MAX';});
+    el('maxGenerate').textContent = 'Gerar Pix de R$ 45 · 30 dias';
+    el('maxRenewNote').textContent = active ? 'Seus benefícios estão ativos. A opção de assinar ou renovar será liberada após o vencimento. Não há cobrança automática.' : 'Assine ou renove por R$ 45 por 30 dias. O período começa na aprovação do Pix, sem cobrança automática.';
     if (active) {
       var settings = data.settings || member;
       el('maxShopName').value = settings.shopName || firebase.auth().currentUser.displayName || '';
@@ -163,6 +177,7 @@
   el('maxCheckoutForm').addEventListener('submit', async function (event) {
     event.preventDefault();
     if (!uid) return;
+    if (memberActive) {message('Seu MAX já está ativo. A renovação será liberada após o vencimento.'); return;}
     var expected = revision;
     el('maxGenerate').disabled = true; message('Gerando seu Pix de R$ 45…');
     try {
@@ -171,7 +186,7 @@
       el('maxCPF').value = '';
       message('Pix gerado. Confira o valor e pague no aplicativo do seu banco.');
       if (data.status === 'approved') {paymentId = data.paymentId; await checkPayment();} else showPayment(data);
-    } catch (e) {if (e.status === 409) clearRequest(); message(e.message, true);} finally {el('maxGenerate').disabled = false;}
+    } catch (e) {if (expected !== revision) return; if (e.status === 409) {clearRequest(); await reloadAccount(expected).catch(function () {});} message(e.message, true);} finally {if (expected === revision) el('maxGenerate').disabled = memberActive || !salesEnabled;}
   });
   [el('maxCheckNow'), el('maxCheckExisting')].forEach(function (button) {button.addEventListener('click', async function () {
     button.disabled = true; try {await checkPayment();} catch (e) {message(e.message, true);} finally {button.disabled = false;}
@@ -213,7 +228,7 @@
     el('maxSalesNote').textContent = salesEnabled ? 'Primeiro uso: 10 dias grátis. Depois, R$ 45 por 30 dias, com pagamento manual.' : 'Estamos finalizando a ativação das assinaturas. Nenhuma cobrança pode ser gerada por enquanto.';
   }).catch(function () {el('maxSalesNote').textContent = 'O Clube MAX está temporariamente indisponível. Tente novamente mais tarde.';});
   auth.onAuthStateChanged(async function (user) {
-    revision++; var expected = revision; uid = user ? user.uid : ''; theme = BloxzuhStoreTheme.normalize(); el('maxAccent').value = theme.accent; el('maxPanelColor').value = theme.panelColor; el('maxPanelTransparency').value = String(theme.panelTransparency); showBackgrounds(); clearInterval(polling); polling = null; paymentId = ''; cover = '';
+    revision++; clearTimeout(membershipTimer); membershipTimer = null; memberActive = false; el('maxCheckout').hidden = true; el('maxGenerate').disabled = true; var expected = revision; uid = user ? user.uid : ''; theme = BloxzuhStoreTheme.normalize(); el('maxAccent').value = theme.accent; el('maxPanelColor').value = theme.panelColor; el('maxPanelTransparency').value = String(theme.panelTransparency); showBackgrounds(); clearInterval(polling); polling = null; paymentId = ''; cover = '';
     el('maxCPF').value = ''; el('maxAgree').checked = false;
     el('maxManagement').hidden = !user; el('maxGuest').hidden = !!user;
     el('maxPayment').hidden = true; el('maxSettings').hidden = true; el('maxTrial').hidden = true; message('');

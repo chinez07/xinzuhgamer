@@ -87,13 +87,17 @@ test('Approved Pix grants 30 days, repeated webhook/status never extends it', as
   const second = await f.call('payment?id=' + invoice.body.paymentId);
   assert.equal(second.body.member.expiresAt, expiry);
 });
-test('A second approved payment extends the current period by exactly 30 days', async () => {
+test('Paid MAX blocks a second checkout until expiry, then grants a fresh 30 days', async () => {
   const f = fixture(), one = await f.checkout(); f.approve(one.body.paymentId);
-  const first = await f.call('payment?id=' + one.body.paymentId);
-  const two = await f.checkout(); f.approve(two.body.paymentId);
+  await f.call('payment?id=' + one.body.paymentId);
+  assert.equal((await f.checkout()).status,409);
+  assert.equal(f.created,1);
+  f.db.sql.prepare('UPDATE max_payments SET paid_at = ? WHERE uid = ?').run(Date.now()-MAX_PERIOD-1000,'alice');
+  const two = await f.checkout(); assert.equal(two.status,200); f.approve(two.body.paymentId);
   const second = await f.call('payment?id=' + two.body.paymentId);
-  assert.equal(second.body.member.expiresAt, first.body.member.expiresAt + MAX_PERIOD);
+  assert.equal(second.body.member.expiresAt,Date.parse(f.payments.get(two.body.paymentId).date_approved)+MAX_PERIOD);
 });
+
 test('Another account cannot query or claim the payment', async () => {
   const f = fixture(), invoice = await f.checkout(); f.approve(invoice.body.paymentId);
   assert.equal((await f.call('payment?id=' + invoice.body.paymentId, null, 'bob')).status, 404);
@@ -263,15 +267,25 @@ test('Prior paid history and administrative grants cannot claim an introductory 
   assert.equal((await g.call('me')).body.trialEligible, false);
 });
 
-test('A paid purchase during trial grants 30 days from approval without adding free days', async () => {
+test('Trial access blocks purchase without creating an intent or charging; expiry unlocks purchase', async () => {
   const f = fixture(); await f.call('trial', {});
-  const invoice = await f.checkout(); f.approve(invoice.body.paymentId);
+  assert.equal((await f.checkout()).status,409); assert.equal(f.created,0);
+  assert.equal(f.db.sql.prepare('SELECT count(*) AS n FROM max_intents').get().n,0);
+  f.db.sql.prepare('UPDATE max_test_grants SET expires_at = ? WHERE uid = ?').run(Date.now()-1000,'alice');
+  const invoice = await f.checkout(); assert.equal(invoice.status,200); f.approve(invoice.body.paymentId);
   const paid = await f.call('payment?id=' + invoice.body.paymentId);
   const approval = Date.parse(f.payments.get(invoice.body.paymentId).date_approved);
   assert.equal(paid.body.member.expiresAt, approval + MAX_PERIOD);
   assert.equal(paid.body.member.testAccess, undefined);
 });
 
+test('Administrative test access also blocks checkout for that UID while other accounts can buy',async()=>{
+  const f=fixture(); await f.call('me');const now=Date.now();
+  f.db.sql.prepare('INSERT INTO max_test_grants VALUES (?, ?, ?, ?, NULL, ?)').run('alice',now-1000,now+86400000,'administrative_test',now);
+  assert.equal((await f.checkout()).status,409);assert.equal(f.created,0);
+  const other=await f.call('checkout',{cpf:'11144477735',requestId:crypto.randomUUID(),acceptedTerms:true},'bob');
+  assert.equal(other.status,200);assert.equal(f.created,1);
+});
 
 test('Store theme saves per authenticated account and survives legacy profile updates', async () => {
   const f = fixture(); await f.call('trial', {});

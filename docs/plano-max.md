@@ -67,7 +67,7 @@ O acesso de teste libera os mesmos benefícios, sem criar Pix ou pagamento. A p�
 
 ## Teste inicial de 10 dias
 
-`POST /max/trial`, autenticado, ativa uma única vez por UID. O servidor fixa início e duração; ignora UID e datas do cliente. O registro `intro_trial_10days` usa a mesma tabela de liberações, sem criar pagamento. `GET /max/me` informa `trialEligible`. Contas com liberação anterior (inclusive expirada/revogada) ou histórico de pagamento aprovado não recebem novo teste. Repetições simultâneas usam a chave única UID e não prolongam o prazo. Ao vencer, é preciso pagar R$45/30 dias manualmente. Uma compra durante o teste começa na aprovação e não soma dias gratuitos. A política limita por conta Firebase, não por pessoa física.
+`POST /max/trial`, autenticado, ativa uma única vez por UID. O servidor fixa início e duração; ignora UID e datas do cliente. O registro `intro_trial_10days` usa a mesma tabela de liberações, sem criar pagamento. `GET /max/me` informa `trialEligible`. Contas com liberação anterior (inclusive expirada/revogada) ou histórico de pagamento aprovado não recebem novo teste. Repetições simultâneas usam a chave única UID e não prolongam o prazo. Ao vencer, é preciso pagar R$45/30 dias manualmente. A compra fica bloqueada durante qualquer acesso ativo, inclusive teste gratuito; ao vencer, pode-se contratar mais 30 dias. A política limita por conta Firebase, não por pessoa física.
 
 ## Aparência e vitrine responsiva
 
@@ -84,3 +84,8 @@ Perfil e vitrine compartilham cor, capa e fundos de PC/celular salvos em Persona
 ## Cor e transparência dos painéis
 
 `theme.panelColor` aceita hexadecimal de seis dígitos e `theme.panelTransparency` aceita inteiro 0–100 (0 sólido, 100 transparente). Os padrões preservam os cartões anteriores: #16161f e 4%. A transparência usa RGBA somente no fundo, mantendo texto e imagens opacos. O texto alterna entre claro/escuro para acompanhar cores claras e escuras. Vitrine e perfil compartilham a configuração. Clientes antigos que omitem os novos campos não apagam a preferência salva.
+
+
+### Renovação após vencimento
+
+O checkout retorna 409 enquanto a conta tiver MAX pago, teste introdutório ou acesso de teste administrativo ativo. A interface oculta o formulário de Pix, mostra “MAX ativo” e a validade, e consulta novamente ao vencer. Isso não cancela cobranças Pix geradas anteriormente nem muda períodos já aprovados.
