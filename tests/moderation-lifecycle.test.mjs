@@ -31,3 +31,9 @@ test('A late AI result cannot approve newer edits or override a manual decision'
 test('Approved ads without stock remain paused',async()=>{
  const db=fixture({stock:0});await processSavedModeration(db,'AD1','REV1','IR1',goodAI,photo);assert.equal(db.rows.get('ads/AD1').status,'pausado');
 });
+
+test('Worker image fetch uses manual redirects and never follows another location',async()=>{
+ const db=fixture();let calls=0;
+ await processSavedModeration(db,'AD1','REV1','IR1',goodAI,async(url,options)=>{calls++;assert.equal(options.redirect,'manual');return new Response(null,{status:302,headers:{Location:'http://127.0.0.1/private'}});});
+ assert.equal(calls,1);assert.equal(db.rows.get('ads/AD1').status,'pendente');assert.equal(db.rows.get('imageReviews/IR1').decision,'review');
+});

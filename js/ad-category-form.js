@@ -11,7 +11,7 @@
       field(game,selected);field(gameName,hasGame&&game.value==='Outros jogos');field(experience,roblox);
       field(experienceName,roblox&&experience.value==='Outros jogos');
       var ready=hasGame&&(game.value!=='Outros jogos'||!!gameName.value.trim())&&(!roblox||(!!experience.value&&(experience.value!=='Outros jogos'||!!experienceName.value.trim())));
-      field(type,ready);field(section,ready&&!!type.value&&!roblox);
+      field(type,ready);field(section,ready&&!!type.value&&!roblox&&(type.value!=='Conta'||!!origin.value&&!!account.value));
       var accountProduct=ready&&type.value==='Conta';
       field(origin,accountProduct);field(account,accountProduct&&!!origin.value);
       if(roblox){section.value=experience.value;experience.disabled=type.value==='Robux';}

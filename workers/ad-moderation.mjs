@@ -67,8 +67,8 @@ export async function reviewImages(data, ai, fetcher=fetch) {
   if(results[0].decision==='rejected')return {decision:'rejected',results,message:results[0].reason};
   for(const key of ['image','backgroundImage']){const image=data.imageFrame?.[key];if(image){const bytes=Uint8Array.from(atob(image.split(',')[1]),c=>c.charCodeAt(0));results.push({kind:key,...await analyzeImage(bytes,{...data,section:''},ai)});}}
   for (const url of [...new Set([data.cover,...data.gallery])]) {
-    const response=await fetcher(url,{redirect:'error',signal:AbortSignal.timeout(15000)});
-    if(!response.ok || !/^image\/(jpeg|png|webp)(?:;|$)/i.test(response.headers.get('Content-Type')||'')) failure('Não foi possível conferir uma das imagens.');
+    const response=await fetcher(url,{redirect:'manual',signal:AbortSignal.timeout(15000)});
+    if(!response.ok || !/^image\/(jpeg|png|webp)(?:;|$)/i.test(response.headers.get('Content-Type')||'')) failure('Não foi possível conferir uma das imagens. Aguardando revisão administrativa.',503);
     const reader=response.body.getReader();let size=0;const chunks=[];
     try {while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>5*1024*1024)failure('Imagem acima de 5 MB.');chunks.push(value);}}finally{await reader.cancel();}
     const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}

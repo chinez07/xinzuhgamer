@@ -33,7 +33,7 @@ test('Image sources cannot request arbitrary hosts or redirect into private serv
 test('Every gallery image is inspected and one contact or wrong-game photo blocks the set',async()=>{
   const data={title:'Conta Roblox Blox Fruits',desc:'Conta com itens descritos e entrega pelo chat após confirmação.',subcategory:'Roblox',section:'Blox Fruits',productType:'Conta',cover:'https://i.ibb.co/a',gallery:['https://i.ibb.co/b']};let calls=0;
   const ai={run:async(model,body)=>({response:JSON.stringify(Array.isArray(body.messages?.[1]?.content)?{hasContact:++calls===2,gameMatch:'match',confidence:.99}:{compatible:true,clear:true,confidence:.99})})};
-  const fetcher=async(url,options)=>{assert.equal(options.redirect,'error');return new Response(new Uint8Array([137,80,78,71,13,10,26,10]),{headers:{'Content-Type':'image/png'}});};
+  const fetcher=async(url,options)=>{assert.equal(options.redirect,'manual');return new Response(new Uint8Array([137,80,78,71,13,10,26,10]),{headers:{'Content-Type':'image/png'}});};
   const result=await reviewImages(data,ai,fetcher);assert.equal(calls,2);assert.equal(result.decision,'rejected');
   assert.equal((await reviewImages(data,null,fetcher)).decision,'review');
 });
