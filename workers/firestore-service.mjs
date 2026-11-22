@@ -49,8 +49,13 @@ export function firestoreService(env, fetcher = fetch) {
   }
   return {
     async get(path) {
-      if (!/^[A-Za-z][A-Za-z0-9]*\/[A-Za-z0-9_-]{1,128}$/.test(path)) throw Error('Documento inválido.');
+      if (!/^[A-Za-z][A-Za-z0-9]*\/[A-Za-z0-9_-]{1,128}(?:\/[A-Za-z][A-Za-z0-9]*\/[A-Za-z0-9_-]{1,128})?$/.test(path)) throw Error('Documento inválido.');
       try {const data = await call('/'+path); return {path,version:data.updateTime,data:firestoreDecode({mapValue:{fields:data.fields}})};} catch(error) {if(error.status===404) return {path,version:null,data:null}; throw error;}
+    },
+    async list(collection,pageSize=40,pageToken='') {
+      if(!/^[A-Za-z][A-Za-z0-9]*$/.test(collection))throw Error('Coleção inválida.');
+      const data=await call('/'+collection+'?'+new URLSearchParams({pageSize:String(Math.min(80,pageSize)),...(pageToken?{pageToken}:{})}));
+      return {documents:(data.documents||[]).map(doc=>({path:doc.name.split('/documents/')[1],version:doc.updateTime,data:firestoreDecode({mapValue:{fields:doc.fields}})})),nextPageToken:data.nextPageToken||''};
     },
     async commit(changes) {
       return call(':commit',{method:'POST',body:{writes:changes.map(({doc,patch}) => ({update:{name:root+'/'+doc.path,fields:firestoreValue(patch).mapValue.fields},updateMask:{fieldPaths:Object.keys(patch)},currentDocument:doc.version ? {updateTime:doc.version} : {exists:false}}))}});

@@ -70,3 +70,23 @@ test('Rejected ads can be corrected only by returning to a new pending revision'
   await assertSucceeds(updateDoc(doc(db('seller'),'ads/REJECTED'),{title:'Conta corrigida',status:'pendente',moderationReviewId:'',moderationReason:'',moderationRevision:'REV_new_123456'}));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'ads/REJECTED')));
 });
+
+test('Complete profiles are private, including an existing email',async()=>{
+  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'profiles/seller'),{displayName:'Loja',email:'private@example.test'}));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'profiles/seller')));
+  await assertFails(getDoc(doc(db('buyer'),'profiles/seller')));
+  await assertSucceeds(getDoc(doc(db('seller'),'profiles/seller')));
+});
+test('Only paid order participants can read private message documents; client writes remain denied',async()=>{
+  await env.withSecurityRulesDisabled(async c=>{const database=c.firestore();await setDoc(doc(database,'orders/PAID'),{buyerUid:'buyer',sellerUid:'seller',paymentVerified:true,status:'pago'});await setDoc(doc(database,'orders/PAID/messages/M1'),{senderUid:'buyer',text:'Privado'});});
+  await assertSucceeds(getDoc(doc(db('buyer'),'orders/PAID/messages/M1')));
+  await assertSucceeds(getDoc(doc(db('seller'),'orders/PAID/messages/M1')));
+  await assertFails(getDoc(doc(db('intruder'),'orders/PAID/messages/M1')));
+  await assertFails(setDoc(doc(db('buyer'),'orders/PAID/messages/FAKE'),{text:'Forjado'}));
+});
+test('Support tickets are not public and cannot be resolved directly by a participant',async()=>{
+  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'supportTickets/TK1'),{userId:'buyer',buyerUid:'buyer',sellerUid:'seller',status:'aberto'}));
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'supportTickets/TK1')));
+  await assertSucceeds(getDoc(doc(db('buyer'),'supportTickets/TK1')));
+  await assertFails(updateDoc(doc(db('seller'),'supportTickets/TK1'),{status:'resolvido'}));
+});

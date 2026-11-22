@@ -218,12 +218,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-auth.js?v=pages-domain-1"></script>
+  <script src="js/firebase-auth.js?v=privacy-chat-1"></script>
   <script src="js/max-client.js?v=max-benefits-2"></script>
   <script src="js/store-theme.js?v=ad-panels-1"></script>
   <script src="js/ad-frame.js?v=4"></script>
-  <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=moderation-queue-3"></script>
-  <script src="js/photos.js?v=profile-photo-2"></script>
+  <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=privacy-chat-1"></script>
+  <script src="js/photos.js?v=privacy-chat-1"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js?v=ad-background-isolated-1"></script>
   <script src="js/notificacoes.js"></script>
@@ -538,17 +538,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
         }
         try {
           if (!firebase.firestore) { paint(false); return; }
-          // tempo real: atualiza na hora (sem esperar 2–5s)
-          firebase.firestore().collection('profiles').doc(sellerUid)
-            .onSnapshot(function (snap) {
-              fromData(snap.exists ? snap.data() : null);
-            }, function (err) {
-              console.warn('presence snap', err);
-              // fallback one-shot
-              firebase.firestore().collection('profiles').doc(sellerUid).get()
-                .then(function (doc) { fromData(doc.exists ? doc.data() : null); })
-                .catch(function () { paint(false); });
-            });
+          async function updatePublicPresence(){if(document.visibilityState!=='visible')return;try{fromData(await fsGetProfile(sellerUid));}catch(e){paint(false);}}
+          updatePublicPresence();var presenceTimer=setInterval(updatePublicPresence,30000);window.addEventListener('pagehide',function(){clearInterval(presenceTimer);},{once:true});
         } catch (e) {
           console.warn(e);
           paint(false);
@@ -589,8 +580,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         try {
           if (window.BloxzuhPhotos && sellerUid) photo = await BloxzuhPhotos.fetch(sellerUid);
           if (!photo && sellerUid) {
-            var doc = await firebase.firestore().collection('profiles').doc(sellerUid).get();
-            if (doc.exists && doc.data().photo) photo = doc.data().photo;
+            var publicProfile=await fsGetProfile(sellerUid);if(publicProfile&&publicProfile.photo)photo=publicProfile.photo;
           }
         } catch (e) { console.warn('seller photo', e); }
         var av = document.getElementById('sellerAv');

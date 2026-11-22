@@ -329,3 +329,6 @@ async function deactivateAccountLocal() {
   saveUser(null);
   window.location.href = 'index.html';
 }
+
+// Somente campos públicos; o documento completo do perfil permanece privado.
+window.bloxzuhPublicProfile=(function(){var cache=new Map();return async function(uid){var entry=cache.get(uid);if(entry&&entry.expires>Date.now())return entry.promise;var promise=fetch('https://bloxzuh-pix.hskkaj48.workers.dev/market/public-profile?uid='+encodeURIComponent(uid)).then(async function(response){if(!response.ok)throw Error('Perfil público indisponível.');return (await response.json()).profile;}).catch(function(error){cache.delete(uid);throw error;});cache.set(uid,{expires:Date.now()+15000,promise:promise});return promise;};})();

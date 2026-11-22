@@ -1324,7 +1324,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
         <div class="how-step">
           <div class="num">1</div>
           <h3>Crie ou encontre</h3>
-          <p>Anuncie seu produto ou busque entre milhares de ofertas de contas, itens e gold.</p>
+          <p>Anuncie seu produto ou busque as ofertas disponíveis de contas, itens e gold.</p>
         </div>
         <div class="how-step">
           <div class="num">2</div>
@@ -1344,7 +1344,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <section class="cta">
     <div class="container">
       <h2>Pronto para começar?</h2>
-      <p>Junte-se a milhares de jogadores que já confiam na Bloxzuh.</p>
+      <p>Encontre produtos e negocie com outros jogadores na Bloxzuh.</p>
       <div class="cta-actions">
         <a href="cadastro.html" class="btn btn-primary btn-lg" id="ctaRegister">Criar Conta Grátis</a>
         <a href="anuncios.html" class="btn btn-outline btn-lg">Ver Anúncios</a>
@@ -1373,13 +1373,13 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
           <h4>Suporte</h4>
           <a href="ajuda.html">Central de Ajuda</a>
           <a href="ajuda.html#faqTitle">FAQ</a>
-          <a href="#">Contato</a>
+          <a href="suporte.html">Contato</a>
         </div>
         <div class="footer-col">
           <h4>Legal</h4>
-          <a href="#">Termos de Uso</a>
-          <a href="#">Privacidade</a>
-          <a href="#">Reembolso</a>
+          <a href="termos.html">Termos de Uso</a>
+          <a href="privacidade.html">Privacidade</a>
+          <a href="reembolso.html">Reembolso</a>
         </div>
       </div>
       <div class="footer-bottom">
@@ -1391,11 +1391,11 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-auth.js?v=pages-domain-1"></script>
+  <script src="js/firebase-auth.js?v=privacy-chat-1"></script>
   <script src="js/max-client.js?v=max-benefits-2"></script>
-  <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=moderation-queue-3"></script>
-  <script src="js/search-overlay.js?v=moderation-queue-3"></script>
-  <script src="js/photos.js?v=profile-photo-2"></script>
+  <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=privacy-chat-1"></script>
+  <script src="js/search-overlay.js?v=privacy-chat-1"></script>
+  <script src="js/photos.js?v=privacy-chat-1"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
   <script src="js/notificacoes.js"></script>
@@ -1721,8 +1721,7 @@ async function attachSellerPhotos(list) {
       var p = null;
       if (typeof fsGetProfile === 'function') p = await fsGetProfile(uid);
       else {
-        var doc = await firebase.firestore().collection('profiles').doc(uid).get();
-        if (doc.exists) p = doc.data();
+        p = await window.bloxzuhPublicProfile(uid);
       }
       if (p && p.photo) photos[uid] = p.photo;
     } catch (e) {}
@@ -2059,5 +2058,5 @@ if (adDetailContainer) {
     </div>
   </div>
 
-</body>
+<script src="js/home-contrast.js?v=contrast-1"></script></body>
 </html>

@@ -159,17 +159,9 @@
     } catch (e) {}
     try {
       if (firebase.firestore) {
-        var snap = await firebase.firestore().collection('profiles').limit(80).get();
-        snap.forEach(function (d) {
-          var p = d.data() || {};
-          var name = p.displayName || p.name || '';
-          if (!name) return;
-          map[d.id] = {
-            uid: d.id,
-            name: name,
-            photo: p.photo || p.photoURL || ''
-          };
-        });
+        var response=await fetch('https://bloxzuh-pix.hskkaj48.workers.dev/market/public-profiles');
+        if(!response.ok)throw Error('Busca de perfis indisponível.');
+        (await response.json()).profiles.forEach(function(p){var name=p.displayName||p.name||'';if(name)map[p.uid]={uid:p.uid,name:name,photo:p.photo||p.photoURL||''};});
       }
     } catch (e) {}
     profilesCache = Object.keys(map).map(function (k) { return map[k]; });

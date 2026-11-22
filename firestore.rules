@@ -67,6 +67,16 @@ service cloud.firestore {
       allow read: if admin() || (signed() && request.auth.uid in [resource.data.buyerUid,resource.data.sellerUid]);
       allow write: if false;
     }
+    match /orders/{id}/messages/{messageId} {
+      allow read: if signed() && (admin() || request.auth.uid in [get(/databases/$(database)/documents/orders/$(id)).data.buyerUid,get(/databases/$(database)/documents/orders/$(id)).data.sellerUid])
+        && get(/databases/$(database)/documents/orders/$(id)).data.paymentVerified == true
+        && get(/databases/$(database)/documents/orders/$(id)).data.status in ['pago','em_entrega','concluido'];
+      allow write: if false;
+    }
+    match /supportTickets/{id} {
+      allow read: if admin() || own(resource.data.userId) || own(resource.data.get('buyerUid','')) || own(resource.data.get('sellerUid',''));
+      allow write: if false;
+    }
     match /sales/{id} {
       allow read: if admin() || own(resource.data.sellerUid);
       allow write: if false;
@@ -81,6 +91,7 @@ service cloud.firestore {
       // Pagamento manual somente pelo administrador; valores e destinatário são imutáveis.
       allow update: if admin() && resource.data.get('secureVersion',0) == 1
         && get(/databases/$(database)/documents/financialWallets/$(resource.data.userId)).data.get('securityHold',false) == false
+        && get(/databases/$(database)/documents/financialWallets/$(resource.data.userId)).data.get('supportHoldTickets',[]).size() == 0
         && resource.data.status == 'processando' && request.resource.data.status == 'pago'
         && request.time.toMillis() >= resource.data.availableAtMs
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','paidAtMs','updatedAtMs']);
@@ -90,7 +101,7 @@ service cloud.firestore {
       allow write: if false;
     }
     match /profiles/{uid} {
-      allow read: if true;
+      allow read: if own(uid) || admin();
       allow create: if own(uid) && request.resource.data.keys().hasOnly(['displayName','name','email','photo','photoURL','avatar','photoSource','bio','lastSeenMs','online','updatedAt','updatedAtMs','memberSinceMs','experimental','experimentalOn','experimentalBg','experimentalBgMobile','experimentalBgDesktop','backgroundDesktop','backgroundMobile','customBg','customBgMobile','customBgDesktop']);
       allow update: if own(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName','name','email','photo','photoURL','avatar','photoSource','bio','lastSeenMs','online','updatedAt','updatedAtMs','memberSinceMs','experimental','experimentalOn','experimentalBg','experimentalBgMobile','experimentalBgDesktop','backgroundDesktop','backgroundMobile','customBg','customBgMobile','customBgDesktop']);
       allow delete: if false;

@@ -51,12 +51,12 @@ export function marketWalletState(data,now=Date.now()) {
   let pending=0;
   const items=(wallet.securePendingItems||[]).map(item=>{
     if(!Number.isSafeInteger(item.cents)||item.cents<0) marketError('Carteira exige conferência.',409);
-    if(!item.released&&item.releaseAtMs<=now) {available+=item.cents; return {...item,released:true};}
+    if(!item.released&&item.deliveryConfirmed===true&&item.releaseAtMs<=now) {available+=item.cents; return {...item,released:true};}
     if(!item.released) pending+=item.cents;
     return item;
   });
   if(!Number.isSafeInteger(available)||available<0) marketError('Carteira exige conferência.',409);
-  return {available,pending,items,withdrawn:Number(wallet.secureWithdrawnCents)||0,blocked:!!wallet.securityHold};
+  return {available,pending,items,withdrawn:Number(wallet.secureWithdrawnCents)||0,blocked:!!wallet.securityHold||!!wallet.supportHoldTickets?.length};
 }
 function marketWalletPatch(state) {return {secureVersion:1,secureSaldoCents:state.available,securePendingItems:state.items,secureWithdrawnCents:state.withdrawn,updatedAtMs:Date.now()};}
 function marketNotification(uid,order,title,body) {
@@ -64,7 +64,7 @@ function marketNotification(uid,order,title,body) {
 }
 async function marketWallet(db,uid) {
   return marketAtomic(db,async()=>{
-    const doc=await db.get('financialWallets/'+uid),state=marketWalletState(doc.data);
+    const doc=await db.get('financialWallets/'+uid),state=await marketDeliveryWallet(db,doc.data);
     const legacy=await db.get('wallets/'+uid);
     await db.commit([{doc,patch:marketWalletPatch(state)}]);
     return {saldo:state.available/100,pending:state.pending/100,withdrawn:state.withdrawn/100,pendingItems:state.items.map(item=>({...item,amount:item.cents/100})),securityHold:state.blocked,legacyBalanceReview:!!(legacy.data?.saldo||legacy.data?.pending)};
@@ -101,7 +101,7 @@ export async function marketSettle(db,payment,orderId) {
     const state=marketWalletState(wallet.data);
     if(state.items.length>=400) marketError('Carteira exige consolidação administrativa.',409);
     const cents=Math.round(marketCents(order.total)*(1-order.feePercent/100));
-    state.items.push({orderId:order.code,code:order.code,cents,releaseAtMs:paidAt+MARKET_RELEASE,released:false});
+    state.items.push({orderId:order.code,code:order.code,cents,releaseAtMs:paidAt+MARKET_RELEASE,released:false,deliveryConfirmed:false});
     const adDoc=await db.get('ads/'+marketId(order.adId)),ad=adDoc.data;
     const changes=[{doc:wallet,patch:marketWalletPatch(state)}];
     let stockIssue=false;
@@ -132,7 +132,7 @@ export async function marketWithdraw(db,user,input) {
   if(!pixKey||pixKey.length>200||!maxValidCPF(cpf)) marketError('Confira a chave Pix e o CPF.');
   const withdrawalId='WD'+crypto.randomUUID().replace(/-/g,'').toUpperCase();
   return marketAtomic(db,async()=>{
-    const wallet=await db.get('financialWallets/'+user.uid),state=marketWalletState(wallet.data);
+    const wallet=await db.get('financialWallets/'+user.uid),state=await marketDeliveryWallet(db,wallet.data);
     if(state.blocked) marketError('Saque em análise administrativa.',409);
     if(amount+fee>state.available) marketError('Saldo disponível insuficiente.',409);
     state.available-=amount+fee; state.withdrawn+=amount;
@@ -151,7 +151,7 @@ export async function marketChangeStatus(db,user,id,next) {
     const allowed=(next==='cancelado'&&buyer&&order.status==='aguardando_pagamento'&&!order.mpPaymentId)||(next==='em_entrega'&&seller&&order.status==='pago'&&order.paymentVerified)||(next==='concluido'&&buyer&&['pago','em_entrega'].includes(order.status)&&order.paymentVerified);
     if(!allowed) marketError('Esta alteração de pedido não é permitida.',409);
     const changes=[{doc,patch:{status:next,updatedAtMs:Date.now(),...(next==='concluido'?{completedAtMs:Date.now(),saleCounted:true}:{})}},marketNotification(buyer?order.sellerUid:order.buyerUid,order,'Pedido atualizado',next)];
-    if(next==='concluido') {const ad=await db.get('ads/'+marketId(order.adId)); if(ad.data) changes.push({doc:ad,patch:{sales:(Number(ad.data.sales)||0)+order.quantity,updatedAtMs:Date.now()}});}
+    if(next==='concluido') {if(order.supportOpenId)marketError('Há uma solicitação de ajuda aberta. Aguarde a análise antes de confirmar.',409);const wallet=await db.get('financialWallets/'+order.sellerUid);if(wallet.data)changes.push({doc:wallet,patch:{securePendingItems:(wallet.data.securePendingItems||[]).map(item=>(item.orderId||item.code)===order.code?{...item,deliveryConfirmed:true}:item)}});const ad=await db.get('ads/'+marketId(order.adId)); if(ad.data) changes.push({doc:ad,patch:{sales:(Number(ad.data.sales)||0)+order.quantity,updatedAtMs:Date.now()}});}
     await db.commit(changes);
     return {ok:true};
   });
@@ -168,21 +168,29 @@ async function marketCreate(db,user,input) {
 export async function marketMessage(db,user,input,read=false) {
   return marketAtomic(db,async()=>{
     const doc=await db.get('orders/'+marketId(input.orderId)),order=doc.data;
-    marketParty(order,user);
-    await marketSecure(db,order);
-    if(!order.paymentVerified||order.secureVersion!==1||!['pago','em_entrega','concluido'].includes(order.status)) marketError('O chat é liberado após a confirmação real do pagamento.',409);
-    let messages=Array.isArray(order.messages)?order.messages.slice():[];
-    const changes=[];
-    if(read) messages=messages.map(item=>item.senderUid!==user.uid?{...item,read:true,readAtMs:Date.now()}:item);
-    else {
-      const text=String(input.text||'').trim();
-      if(!text||text.length>2000) marketError('Mensagem deve ter entre 1 e 2000 caracteres.');
-      if(messages.length>=250) marketError('Limite do chat atingido. Entre em contato com o suporte.',409);
-      messages.push({id:crypto.randomUUID(),senderUid:user.uid,senderName:user.name,text,createdAtMs:Date.now(),read:false});
-      changes.push(marketNotification(user.uid===order.buyerUid?order.sellerUid:order.buyerUid,order,'Nova mensagem',text));
+    marketParty(order,user);await marketSecure(db,order);
+    if(!order.paymentVerified||!['pago','em_entrega','concluido'].includes(order.status))marketError('O chat é liberado após a confirmação real do pagamento.',409);
+    const buyer=user.uid===order.buyerUid,key=buyer?'buyerReadAtMs':'sellerReadAtMs',incoming=buyer?'buyerLastIncomingAtMs':'sellerLastIncomingAtMs';
+    const legacy=Array.isArray(order.messages)?order.messages:[];
+    if(read){
+      const limit=Math.min(Date.now(),Number(input.upToMs)||Number(order[incoming])||Date.now());
+      const unread=legacy.filter(item=>item.senderUid!==user.uid&&!item.read&&Number(item.createdAtMs||0)<=limit);
+      const nextRead=Math.min(limit,Number(order[incoming])||0);
+      if(!unread.length&&nextRead<=Number(order[key]||0))return {ok:true,unchanged:true};
+      const patch={[key]:Math.max(nextRead,Number(order[key]||0))};
+      if(unread.length)patch.messages=legacy.map(item=>unread.includes(item)?{...item,read:true,readAtMs:Date.now()}:item);
+      await db.commit([{doc,patch}]);return {ok:true};
     }
-    changes.push({doc,patch:{messages,updatedAtMs:Date.now()}});
-    await db.commit(changes); return {ok:true};
+    const text=String(input.text||'').trim(),image=marketChatImage(input.image);
+    if((!text&&!image)||text.length>2000)marketError('Envie uma mensagem de até 2000 caracteres ou uma imagem.');
+    const requestId=input.requestId||crypto.randomUUID();if(!/^[A-Za-z0-9_-]{12,80}$/.test(requestId))marketError('Identificador da mensagem inválido.');
+    const message=await db.get('orders/'+order.code+'/messages/M'+requestId);
+    if(message.data){if(message.data.senderUid!==user.uid||message.data.text!==text||message.data.image!==image)marketError('Reenvio divergente.',409);return {ok:true,id:message.path.split('/').at(-1)};}
+    const now=Date.now(),recipient=buyer?'sellerLastIncomingAtMs':'buyerLastIncomingAtMs';
+    await db.commit([{doc:message,patch:{senderUid:user.uid,senderName:user.name,text,image,createdAtMs:now}},
+      {doc,patch:{[recipient]:now,lastMessageAtMs:now,lastMessageSenderUid:user.uid,messageCount:(Number(order.messageCount)||0)+1,updatedAtMs:now}},
+      marketNotification(buyer?order.sellerUid:order.buyerUid,order,'Nova mensagem',image&&!text?'Imagem enviada no chat':text)]);
+    return {ok:true,id:message.path.split('/').at(-1)};
   });
 }
 export async function marketReview(db,user,input) {
@@ -233,7 +241,7 @@ export async function marketHandle(request,env,dependencies={}) {
     if(origin&&!allowed.includes(origin)) marketError('Origem não permitida.',403);
     if(request.method==='OPTIONS') return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization'}});
   if(path==='/market/health') return reply({service:'bloxzuh-market',configured:!!env.FIREBASE_SERVICE_ACCOUNT});
-    if(Number(request.headers.get('Content-Length')||0)>16000) marketError('Requisição muito grande.',413);
+    if(Number(request.headers.get('Content-Length')||0)>(path==='/market/message'?320000:16000)) marketError('Requisição muito grande.',413);
     if(path==='/webhook'&&request.method==='POST') {
       // A notificação é apenas um aviso. Estado, valor e destinatário sempre vêm da API autenticada do MP.
       const text=await request.text(); if(text.length>16000) marketError('Requisição muito grande.',413);
@@ -245,8 +253,13 @@ export async function marketHandle(request,env,dependencies={}) {
       await marketSettle(db,payment,marketId(payment.metadata.bloxzuh_order));
       return reply({ok:true});
     }
+    if(request.method==='GET'&&['/market/public-profile','/market/public-profiles'].includes(path)) {
+      await (dependencies.rate||marketRate)(env,'public-profile:'+(request.headers.get('CF-Connecting-IP')||'anonymous'),120);
+      if(path==='/market/public-profile'){const uid=marketId(url.searchParams.get('uid')),doc=await db.get('profiles/'+uid);return reply({profile:doc.data?marketPublicProfile(uid,doc.data):null});}
+      const page=await db.list('profiles',80);return reply({profiles:page.documents.map(doc=>marketPublicProfile(doc.path.split('/').at(-1),doc.data))});
+    }
     const user=await (dependencies.auth||maxUser)(request,fetcher);
-    await (dependencies.rate||marketRate)(env,user.uid+':'+path,path==='/create-pix'||path==='/market/orders'?10:60);
+    await (dependencies.rate||marketRate)(env,user.uid+':'+path,path==='/market/help'?3:path==='/create-pix'||path==='/market/orders'?10:60);
     if(path==='/market/wallet'&&request.method==='GET') return reply(await marketWallet(db,user.uid));
     if(path==='/status'&&request.method==='GET') {
       const id=marketId(url.searchParams.get('orderId')),doc=await db.get('orders/'+id); marketParty(doc.data,user); await marketSecure(db,doc.data);
@@ -254,12 +267,14 @@ export async function marketHandle(request,env,dependencies={}) {
       return reply(await marketSettle(db,await marketMP(env,fetcher,doc.data.mpPaymentId),id));
     }
     if(request.method!=='POST') marketError('Rota não encontrada.',404);
-    const raw=await request.text(); if(raw.length>16000) marketError('Requisição muito grande.',413);
+    const raw=await request.text(); if(raw.length>(path==='/market/message'?320000:16000)) marketError('Requisição muito grande.',413);
     const body=JSON.parse(raw||'{}');
     if(path==='/market/orders') return reply(await marketCreate(db,user,body));
     if(path==='/market/status') return reply(await marketChangeStatus(db,user,body.orderId,body.status));
     if(path==='/market/message') return reply(await marketMessage(db,user,body));
     if(path==='/market/read') return reply(await marketMessage(db,user,body,true));
+    if(path==='/market/help')return reply(await marketHelp(db,user,body));
+    if(path==='/market/help-resolve')return reply(await marketResolveHelp(db,user,body));
     if(path==='/market/review') return reply(await marketReview(db,user,body));
     if(path==='/market/withdraw') return reply(await marketWithdraw(db,user,body));
     if(path==='/market/payment-data') {
@@ -274,4 +289,56 @@ export async function marketHandle(request,env,dependencies={}) {
     if(path==='/create-pix') return reply(await marketCreatePix(db,env,user,body,request,fetcher));
     marketError('Rota não encontrada.',404);
   } catch(error) {return reply({error:error.status&&error.status<500?error.message:'O serviço financeiro está temporariamente indisponível.'},error.status||503);}
+}
+
+// Helpers de privacidade, entrega e suporte. Nunca confiam em status enviados pelo cliente.
+export function marketPublicProfile(uid,data) {
+  const fields=['displayName','name','photo','photoURL','avatar','photoSource','bio','memberSinceMs','createdAtMs','lastSeenMs','online'];
+  return {uid,...Object.fromEntries(fields.filter(key=>Object.hasOwn(data,key)).map(key=>[key,data[key]]))};
+}
+export function marketChatImage(value) {
+  if(!value)return '';
+  if(typeof value!=='string'||value.length>290000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value))marketError('Imagem inválida ou grande demais. Use JPG, PNG ou WebP.');
+  let bytes;try{bytes=atob(value.split(',')[1]);}catch{marketError('Imagem inválida.');}
+  const mime=value.slice(11,value.indexOf(';'));
+  const valid=mime==='png'?bytes.startsWith('\x89PNG\r\n\x1a\n'):mime==='jpeg'?bytes.startsWith('\xff\xd8\xff'):bytes.startsWith('RIFF')&&bytes.slice(8,12)==='WEBP';
+  if(!valid)marketError('O conteúdo não corresponde ao formato da imagem.');
+  return value;
+}
+export async function marketDeliveryWallet(db,data,now=Date.now()) {
+  const wallet=data||{},items=(wallet.securePendingItems||[]).map(item=>({...item}));
+  const candidates=items.filter(item=>!item.released&&!item.deliveryConfirmed&&item.releaseAtMs<=now).sort((a,b)=>(a.deliveryCheckedAtMs||0)-(b.deliveryCheckedAtMs||0)).slice(0,10);
+  for(const item of candidates){
+    const doc=await db.get('orders/'+marketId(item.orderId||item.code));item.deliveryCheckedAtMs=now;
+    if(doc.data?.status==='concluido'&&doc.data.paymentVerified&&!doc.data.supportOpenId){await marketSecure(db,doc.data);item.deliveryConfirmed=true;}
+  }
+  return marketWalletState({...wallet,securePendingItems:items},now);
+}
+export async function marketHelp(db,user,input) {
+  const reason=String(input.reason||'').trim();if(reason.length<10||reason.length>2000)marketError('Descreva o problema com 10 a 2000 caracteres.');
+  return marketAtomic(db,async()=>{
+    let orderDoc=null,order=null,wallet=null;
+    if(input.orderId){orderDoc=await db.get('orders/'+marketId(input.orderId));order=orderDoc.data;marketParty(order,user);
+      if(order.supportOpenId)return {ok:true,id:order.supportOpenId,existing:true};
+      if(order.secureVersion===1){await marketSecure(db,order);if(order.paymentVerified)wallet=await db.get('financialWallets/'+marketId(order.sellerUid));}
+    }
+    const id='TK'+crypto.randomUUID().replace(/-/g,''),ticket=await db.get('supportTickets/'+id),now=Date.now();
+    const changes=[{doc:ticket,patch:{userId:user.uid,userName:user.name,orderId:order?.code||'',sellerUid:order?.sellerUid||'',buyerUid:order?.buyerUid||'',reason,status:'aberto',createdAtMs:now}}];
+    if(orderDoc)changes.push({doc:orderDoc,patch:{supportOpenId:id,updatedAtMs:now}});
+    if(wallet)changes.push({doc:wallet,patch:{supportHoldTickets:[...new Set([...(wallet.data?.supportHoldTickets||[]),id])]}});
+    await db.commit(changes);return {ok:true,id};
+  });
+}
+export async function marketResolveHelp(db,user,input) {
+  if(user.uid!=='cQaqR7WBJVZGodL23p6Csi7vrEn2')marketError('Acesso administrativo necessário.',403);
+  const resolution=String(input.resolution||'').trim();if(resolution.length<10||resolution.length>2000||input.releaseHold!==true)marketError('Registre a solução e confirme que a análise foi concluída.');
+  return marketAtomic(db,async()=>{
+    const ticket=await db.get('supportTickets/'+marketId(input.ticketId));if(!ticket.data)marketError('Solicitação não encontrada.',404);if(ticket.data.status==='resolvido')return {ok:true};
+    const changes=[{doc:ticket,patch:{status:'resolvido',resolution,resolvedAtMs:Date.now(),resolvedBy:user.uid}}];
+    if(ticket.data.orderId){const order=await db.get('orders/'+marketId(ticket.data.orderId));
+      if(order.data?.supportOpenId===input.ticketId)changes.push({doc:order,patch:{supportOpenId:'',updatedAtMs:Date.now()}});
+      if(order.data?.sellerUid){const wallet=await db.get('financialWallets/'+marketId(order.data.sellerUid));if(wallet.data)changes.push({doc:wallet,patch:{supportHoldTickets:(wallet.data.supportHoldTickets||[]).filter(id=>id!==input.ticketId)}});}
+    }
+    await db.commit(changes);return {ok:true};
+  });
 }

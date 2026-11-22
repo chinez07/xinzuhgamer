@@ -370,7 +370,6 @@ async function fsSaveProfile(data) {
   const payload = {
     displayName: data.displayName || u.displayName || '',
 
-    email: u.email || '',
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedAtMs: Date.now(),
     lastSeenMs: Date.now(),
@@ -420,6 +419,10 @@ async function fsSaveProfile(data) {
 
 async function fsGetProfile(uid) {
   if (!uid) return null;
+  var viewer=firebase.auth().currentUser;
+  if(!viewer||viewer.uid!==uid){
+    return window.bloxzuhPublicProfile(uid);
+  }
   const doc = await getDb().collection('profiles').doc(uid).get();
   if (!doc.exists) return null;
   return Object.assign({ uid: uid }, doc.data());
@@ -744,7 +747,6 @@ async function fsTouchPresence() {
       lastSeenMs: Date.now(),
       online: true,
       updatedAtMs: Date.now(),
-      email: u.email || data.email || '',
       displayName: u.displayName || data.displayName || data.name || (u.email ? u.email.split('@')[0] : '') || 'Usuário'
     };
     // Contas antigas: grava memberSinceMs na primeira visita após o update

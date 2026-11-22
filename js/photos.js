@@ -45,8 +45,7 @@ window.BloxzuhPhotos = (function () {
       if (typeof fsGetProfile === 'function') {
         p = await fsGetProfile(uid);
       } else if (typeof firebase !== 'undefined' && firebase.firestore) {
-        var doc = await firebase.firestore().collection('profiles').doc(uid).get();
-        if (doc.exists) p = Object.assign({ uid: uid }, doc.data());
+        p = await window.bloxzuhPublicProfile(uid);
       }
       if ((versions[uid] || 0) !== version) return cache[uid] || getLocal(uid);
       var url = pickPhoto(p);

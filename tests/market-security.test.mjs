@@ -53,7 +53,7 @@ test('Saldo antigo gravável pelo cliente não vira saldo comprovado',()=>{
   assert.equal(state.available,0);assert.equal(state.pending,0);
 });
 test('Liberação usa dez dias do servidor e não duplica ao consultar novamente',()=>{
-  const now=Date.now(),data={secureVersion:1,secureSaldoCents:100,securePendingItems:[{cents:1800,releaseAtMs:now+10000,released:false}]};
+  const now=Date.now(),data={secureVersion:1,secureSaldoCents:100,securePendingItems:[{cents:1800,releaseAtMs:now+10000,released:false,deliveryConfirmed:true}]};
   assert.equal(marketWalletState(data,now).available,100);
   const state=marketWalletState(data,now+10001);assert.equal(state.available,1900);
   assert.equal(marketWalletState({...data,secureSaldoCents:state.available,securePendingItems:state.items},now+20000).available,1900);
@@ -98,7 +98,7 @@ test('Chat ignora remetente fornecido pelo cliente e bloqueia terceiros',async()
   const db=dbWithOrder();await marketSettle(db,payment,'BZTEST');
   await assert.rejects(marketMessage(db,{uid:'intruder'},{orderId:'BZTEST',text:'x'}));
   await marketMessage(db,buyer,{orderId:'BZTEST',text:'Olá',senderUid:'seller'});
-  assert.equal((await db.get('orders/BZTEST')).data.messages[0].senderUid,'buyer');
+  const messages=[...db.rows].filter(([key])=>key.startsWith('orders/BZTEST/messages/'));assert.equal(messages.length,1);assert.equal(messages[0][1].data.senderUid,'buyer');
 });
 test('Estorno bloqueia saque mesmo que a carteira tenha saldo',async()=>{
   const db=dbWithOrder();await marketSettle(db,payment,'BZTEST');
