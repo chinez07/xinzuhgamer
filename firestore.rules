@@ -4,6 +4,25 @@ service cloud.firestore {
     function signed() { return request.auth != null; }
     function admin() { return signed() && request.auth.uid == 'cQaqR7WBJVZGodL23p6Csi7vrEn2'; }
     function own(uid) { return signed() && request.auth.uid == uid; }
+    function noContact(text) {
+      return text is string && !text.matches('(?s).*[0-9]([ .()\\-]*[0-9]){9,}.*')
+        && !text.matches('(?s).*[0-9]{4}[ .()\\-]+[0-9]{4}.*')
+        && !text.matches('(?is).*([a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}|https?://|www\\.|wa\\.me/|discord\\.gg/).*');
+    }
+    function sameReviewedImages(data, review) {
+      return review.sellerUid == request.auth.uid && review.title == data.title && review.desc == data.get('desc', '') && review.cover == data.cover
+        && review.gallery == data.get('gallery', [])
+        && review.category == data.category && review.subcategory == data.subcategory
+        && review.section == data.get('section', '') && review.gameName == data.get('gameName', '')
+        && review.experienceName == data.get('experienceName', '') && review.productType == data.productType
+        && review.imageFrame == data.get('imageFrame', {});
+    }
+    function reviewedAd(data) {
+      let review = get(/databases/$(database)/documents/imageReviews/$(data.moderationReviewId)).data;
+      return sameReviewedImages(data, review)
+        && ((data.status in ['ativo', 'pausado'] && review.decision == 'approved')
+          || (data.status == 'pendente' && review.decision == 'review'));
+    }
     function sellerAllowed() {
       return !exists(/databases/$(database)/documents/settings/security)
         || get(/databases/$(database)/documents/settings/security).data.get('requireSellerIdentity', false) == false
@@ -11,12 +30,17 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/identityVerifications/$(request.auth.uid)).data.status == 'approved');
     }
     match /ads/{id} {
-      allow read: if true;
+      allow read: if resource.data.status == 'ativo' || admin() || own(resource.data.sellerUid);
       allow create: if signed() && own(request.resource.data.sellerUid) && sellerAllowed()
+        && reviewedAd(request.resource.data)
         && request.resource.data.sales == 0 && request.resource.data.sold == 0
         && !request.resource.data.keys().hasAny(['rating','ratingCount','secureRatingCount','secureRatingSum']);
       allow update: if (admin() || own(resource.data.sellerUid))
         && request.resource.data.sellerUid == resource.data.sellerUid
+        && (admin() || reviewedAd(request.resource.data)
+          || (!resource.data.keys().hasAny(['moderationReviewId'])
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['title','desc','cover','gallery','category','subcategory','section','gameName','experienceName','productType','imageFrame'])
+            && request.resource.data.status == 'pausado'))
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['sales','sold','rating','ratingCount','secureRatingCount','secureRatingSum']);
       allow delete: if admin() || own(resource.data.sellerUid);
     }
@@ -71,11 +95,21 @@ service cloud.firestore {
         && request.resource.data.userUid == request.auth.uid
         && request.resource.data.sellerUid == get(/databases/$(database)/documents/ads/$(request.resource.data.adId)).data.sellerUid
         && request.resource.data.text is string && request.resource.data.text.size() <= 1000
+        && noContact(request.resource.data.text)
         && request.resource.data.reply == '';
       allow update: if own(resource.data.sellerUid) && request.resource.data.replyUid == request.auth.uid
         && request.resource.data.reply is string && request.resource.data.reply.size() <= 2000
+        && noContact(request.resource.data.reply)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply','replyName','replyUid','replyPhoto','repliedAtMs']);
       allow delete: if admin() || own(resource.data.userId) || own(resource.data.sellerUid);
+    }
+    match /imageReviews/{id} {
+      allow read: if admin() || own(resource.data.sellerUid);
+      allow create, delete: if false;
+      allow update: if admin() && resource.data.decision == 'review'
+        && request.resource.data.decision in ['approved','rejected']
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['decision','reviewedBy','reviewedAtMs','reason']);
     }
     match /identityVerifications/{uid} {
       allow read: if own(uid) || admin();

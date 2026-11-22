@@ -222,12 +222,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/max-client.js?v=max-benefits-2"></script>
   <script src="js/store-theme.js?v=ad-panels-1"></script>
   <script src="js/ad-frame.js?v=4"></script>
-  <script src="js/firestore-db.js?v=secure-market-1"></script>
+  <script src="js/content-policy.js?v=moderation-prod-1"></script><script src="js/ad-catalog.js?v=moderation-prod-1"></script><script src="js/ad-moderation.js?v=moderation-prod-1"></script><script src="js/firestore-db.js?v=moderation-prod-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js?v=ad-background-isolated-1"></script>
   <script src="js/notificacoes.js"></script>
-  <script src="js/ad-faq.js?v=1"></script>
+  <script src="js/ad-faq.js?v=moderation-prod-1"></script>
   <script>
   (function () {
     if (localStorage.getItem('xinzuh-mode') === 'dark' || document.documentElement.getAttribute('data-mode') === 'dark') {
@@ -360,14 +360,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
               (q.replyPhoto
                 ? '<span class="avatar" style="width:22px;height:22px;padding:0;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px;border-radius:50%"><img src="' + esc(q.replyPhoto) + '" style="width:100%;height:100%;object-fit:cover"></span>'
                 : '<span class="avatar bz-seller-av" data-uid="' + esc(sellerUid) + '" style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-right:6px;font-size:0.7rem">' + esc((sellerName||'V').charAt(0).toUpperCase()) + '</span>') +
-              '<a href="perfil.html?uid=' + encodeURIComponent(q.replyUid || sellerUid) + '&name=' + encodeURIComponent(q.replyName || sellerName) + '" style="color:inherit;font-weight:700;text-decoration:none">' + esc(q.replyName || sellerName) + '</a> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(q.reply) + '</div></div>';
+              '<a href="perfil.html?uid=' + encodeURIComponent(q.replyUid || sellerUid) + '&name=' + encodeURIComponent(q.replyName || sellerName) + '" style="color:inherit;font-weight:700;text-decoration:none">' + esc(q.replyName || sellerName) + '</a> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.repliedAtMs || q.createdAtMs) : '') + '</div><div class="q-text">' + esc(BloxzuhContentPolicy.mask(q.reply)) + '</div></div>';
           } else if (isOwner) {
             replyHtml = '<div class="q-reply"><textarea data-reply="' + idx + '" placeholder="Escreva sua resposta..." style="width:100%;min-height:60px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);padding:8px"></textarea>' +
               '<button type="button" class="btn-primary" style="margin-top:8px" data-send-reply="' + idx + '">Responder</button></div>';
           }
           return '<div class="q-item"><div class="q-user"><div class="avatar bz-q-av" data-uid="' + esc(q.userUid || q.userId || '') + '" data-photo="' + esc(q.userPhoto || '') + '" data-name="' + esc(q.user || '') + '">' + (q.userPhoto ? ('<img src="' + esc(q.userPhoto) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block">') : esc((q.user || '?').charAt(0).toUpperCase())) + '</div><div>' +
             '<div class="q-meta"><a href="perfil.html?uid=' + encodeURIComponent(q.userUid || q.userId || '') + '&name=' + encodeURIComponent(q.user || '') + '" style="color:inherit;font-weight:700;text-decoration:none">' + esc(q.user) + '</a> · ' + esc(typeof timeAgo==='function' ? timeAgo(q.createdAtMs || q.time) : (q.time||'')) + '</div>' +
-            '<div class="q-text">' + esc(q.text) + '</div>' + replyHtml +
+            '<div class="q-text">' + esc(BloxzuhContentPolicy.mask(q.text)) + '</div>' + replyHtml +
             '</div></div></div>';
         }).join('');
       }
@@ -412,7 +412,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           if (isNaN(stock)) stock = 1;
           var itemsArr = (raw.items && raw.items.length) ? raw.items : (ad.items || []);
           var anyItemStock = itemsArr.some(function(it){ return (Number(it.stock)||0) > 0; });
-          var blocked = st === 'pausado' || st === 'vendido' || (model === 'dinamico' ? !anyItemStock : stock <= 0);
+          var blocked = st !== 'ativo' || (model === 'dinamico' ? !anyItemStock : stock <= 0);
           if (blocked) {
             return '<button type="button" class="btn-buy" id="btnBuy" disabled style="opacity:.55;cursor:not-allowed;background:#4b5563">ANÚNCIO DESATIVADO</button>';
           }
@@ -430,7 +430,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
             ? '<div class="card" style="margin-top:12px"><p style="color:var(--muted);font-size:0.9rem">Você é o vendedor. Responda as perguntas abaixo (não pode perguntar no próprio anúncio).</p></div>'
             : '<div class="card" style="margin-top:12px"><h3 style="font-size:0.95rem;margin-bottom:4px">Faça uma pergunta</h3>' +
               '<textarea id="qInput" placeholder="Digite sua pergunta aqui."></textarea>' +
-              '<div class="ask-row"><p class="hint-warn">ATENÇÃO: não envie WhatsApp, Discord ou contatos externos.</p>' +
+              '<div class="ask-row"><p class="hint-warn">Telefones e contatos externos serão substituídos por asteriscos.</p>' +
               '<button type="button" class="btn-primary" id="btnAsk">Perguntar</button></div></div>') +
         '</div>' +
         '<div class="section" id="adReviews"><h2>Avaliações</h2><div class="card">' +
@@ -732,7 +732,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           if (btnBuy.disabled) return;
           var st = (ad.raw && ad.raw.status) || ad.status || 'ativo';
           var stock = Number((ad.raw && ad.raw.stock) != null ? ad.raw.stock : ad.stock);
-          if (st === 'pausado' || st === 'vendido' || stock <= 0) {
+          if (st !== 'ativo' || stock <= 0) {
             alert('Este anúncio está desativado no momento.');
             return;
           }
@@ -769,7 +769,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           btn.onclick = async function () {
             var idx = parseInt(btn.getAttribute('data-send-reply'), 10);
             var ta = document.querySelector('textarea[data-reply="' + idx + '"]');
-            var text = (ta && ta.value || '').trim();
+            var text = BloxzuhContentPolicy.mask((ta && ta.value || '').trim());
             if (!text) { alert('Digite a resposta.'); return; }
             if (!questions[idx]) return;
             var qid = questions[idx].id;
@@ -820,12 +820,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
           var fu = null;
           try { fu = firebase.auth().currentUser; } catch (e) {}
           if (!fu) { alert('Entre na sua conta para perguntar.'); location.href = 'login.html'; return; }
-          const text = (document.getElementById('qInput').value || '').trim();
+          const text = BloxzuhContentPolicy.mask((document.getElementById('qInput').value || '').trim());
           if (!text) { alert('Digite a pergunta.'); return; }
-          if (/whatsapp|discord|instagram|@gmail|http/i.test(text)) {
-            alert('Não é permitido enviar contatos externos.');
-            return;
-          }
           const user = fu.displayName || localStorage.getItem('xinzuh-username') || (fu.email ? fu.email.split('@')[0] : 'Usuário');
           var askerUid = fu.uid;
           var askerPhoto = '';

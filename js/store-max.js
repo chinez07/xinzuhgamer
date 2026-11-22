@@ -70,7 +70,7 @@
     try {
       var last = null;
       while (true) {
-        var query = firebase.firestore().collection('ads').where('sellerUid','==',uid).orderBy(firebase.firestore.FieldPath.documentId()).limit(100);
+        var query = firebase.firestore().collection('ads').where('sellerUid','==',uid).where('status','==','ativo').orderBy(firebase.firestore.FieldPath.documentId()).limit(100);
         if (last) query = query.startAfter(last);
         var snap = await query.get();
         snap.forEach(function (doc) {var data = doc.data(); if (!data.status || data.status === 'ativo') all.push(normalizeAd(doc.id,data));});

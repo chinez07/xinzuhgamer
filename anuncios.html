@@ -51,7 +51,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
-</head>
+<style>[hidden]{display:none!important}.filters{flex-wrap:wrap}</style></head>
 <body>
   <header class="header">
     <div class="container header-content">
@@ -78,9 +78,10 @@ html { color-scheme: dark; background-color: #0f0f14; }
           <option value="fortnite">Fortnite</option>
           <option value="genshin">Genshin Impact</option>
           <option value="cs2">CS2</option>
-          <option value="premium">Assinaturas</option>
+          <option value="premium">Assinaturas</option><option value="outros">Outros jogos</option>
         </select>
       </label>
+<label>PRODUTO<select id="fProduct"><option value="">Todos</option></select></label><label id="fExperienceLabel" hidden>JOGO NO ROBLOX<select id="fExperience"><option value="">Todos</option></select></label>
       <label>PREÇO MÍN.<input id="fMin" type="number" min="0" step="0.01" value="0"></label>
       <label>PREÇO MÁX.<input id="fMax" type="number" min="0" step="0.01" value="9999"></label>
       <label>ORDENAR
@@ -106,7 +107,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <script src="js/firebase-auth.js?v=pages-domain-1"></script>
   <script src="js/max-client.js?v=max-benefits-2"></script>
-  <script src="js/firestore-db.js?v=secure-market-1"></script>
+  <script src="js/content-policy.js?v=moderation-prod-1"></script><script src="js/ad-catalog.js?v=moderation-prod-1"></script><script src="js/ad-moderation.js?v=moderation-prod-1"></script><script src="js/firestore-db.js?v=moderation-prod-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/favs.js"></script>
   <script src="js/experimental.js"></script>
@@ -151,6 +152,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
       );
     }
 
+    function categoryFilters() {
+      var cat=document.getElementById('fCat').value,game=Object.keys(BloxzuhAdCatalog.games).find(function(g){return BloxzuhAdCatalog.get(g).id===cat;});
+      var product=document.getElementById('fProduct'),experience=document.getElementById('fExperience');
+      function fill(select,values){select.replaceChildren();[''].concat(values).forEach(function(value){var option=document.createElement('option');option.value=value;option.textContent=value||'Todos';select.append(option);});}
+      fill(product,game?BloxzuhAdCatalog.get(game).products:[...new Set(Object.values(BloxzuhAdCatalog.games).flatMap(function(g){return g.products;}))]);
+      fill(experience,BloxzuhAdCatalog.get('Roblox').sections);document.getElementById('fExperienceLabel').hidden=cat!=='roblox';
+    }
+    document.getElementById('fCat').addEventListener('change',categoryFilters);
     function applyFilters() {
       var q = (document.getElementById('fSearch').value || '').toLowerCase().trim();
       var cat = (document.getElementById('fCat').value || '').toLowerCase();
@@ -160,6 +169,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
       var sort = document.getElementById('fSort').value;
       var list = adsData.filter(function (ad) {
         if (cat && String(ad.category || '').toLowerCase() !== cat) return false;
+        if(document.getElementById('fProduct').value && ad.productType!==document.getElementById('fProduct').value)return false;
+        if(cat==='roblox'&&document.getElementById('fExperience').value && (ad.raw||{}).section!==document.getElementById('fExperience').value)return false;
         var p = Number(ad.price) || 0;
         if (p < min || p > max) return false;
         if (q) {
@@ -214,6 +225,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         }
         var q = params.get('q') || '';
         if (q) document.getElementById('fSearch').value = q;
+        categoryFilters();
         applyFilters();
       } catch (e) {
         console.warn(e);
@@ -221,7 +233,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       }
     }
 
-    ['fSearch','fCat','fMin','fMax','fSort'].forEach(function (id) {
+    ['fSearch','fCat','fProduct','fExperience','fMin','fMax','fSort'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener('input', applyFilters);
       if (el) el.addEventListener('change', applyFilters);

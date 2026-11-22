@@ -56,7 +56,7 @@ body {
   <div class="tabs">
     <button type="button" class="on" data-tab="orders">Pedidos</button>
     <button type="button" data-tab="withdrawals">Saques</button>
-    <button type="button" data-tab="ads">Anuncios</button>
+    <button type="button" data-tab="ads">Anuncios</button><a class="btn btn-ghost" href="revisao-anuncios.html">Revisão de imagens</a>
   </div>
   <div id="panel"><p class="loading">Carregando...</p></div>
 </div>
@@ -269,6 +269,7 @@ body {
         '<div class="muted">' + esc(a.id) + ' · stock ' + esc(stock) + ' · ' + esc(a.sellerName || a.sellerUid || '') + '</div></div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
         '<span class="' + badgeClass(a.status) + '">' + esc(a.status || 'ativo') + '</span>' +
+        (a.status === 'pendente' ? '<a class="btn btn-ghost" href="revisao-anuncios.html">Revisar imagens</a>' : '') +
         (a.status !== 'pausado'
           ? '<button type="button" class="btn btn-ghost" data-pause="' + esc(a.id) + '">Pausar</button>'
           : '<button type="button" class="btn btn-ghost" data-activate="' + esc(a.id) + '">Ativar</button>') +

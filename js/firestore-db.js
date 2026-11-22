@@ -54,6 +54,8 @@ async function fsCreateAd(data) {
     title: data.title,
     category: data.category || '',
     subcategory: data.subcategory || '',
+    gameName: data.gameName || '',
+    experienceName: data.experienceName || '',
     section: data.section || '',
     productType: data.productType || 'Conta',
     origin: data.origin || '',
@@ -79,6 +81,8 @@ async function fsCreateAd(data) {
   // ID legível do anúncio, ex: AD7K2M9A3B (nunca usar .add)
   var adId = (typeof bloxzuhDocId === 'function' ? bloxzuhDocId('AD') : ('AD' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4)));
   payload.code = adId;
+  var review=await BloxzuhAdModeration.review(payload);
+  payload.moderationReviewId=review.reviewId;payload.status=review.decision==='approved'?'ativo':'pendente';
   await getDb().collection('ads').doc(adId).set(payload);
   console.log('[Bloxzuh] anúncio criado com ID=', adId, 'model=', payload.model, 'items=', (payload.items||[]).length);
   return adId;
@@ -90,6 +94,14 @@ async function fsUpdateAd(adId, patch) {
   const doc = await ref.get();
   if (!doc.exists) throw new Error('Anúncio não encontrado.');
   if (doc.data().sellerUid !== u.uid) throw new Error('Sem permissão.');
+  var old=doc.data(),next=Object.assign({},old,patch);
+  var changed=['title','desc','cover','gallery','category','subcategory','section','gameName','experienceName','productType','imageFrame'].some(function(key){return JSON.stringify(old[key]||'')!==JSON.stringify(next[key]||'');});
+  if (changed || (!old.moderationReviewId && patch.status!=='pausado') || old.status==='reprovado') {
+    var review=await BloxzuhAdModeration.review(next);
+    patch=Object.assign({},patch,{moderationReviewId:review.reviewId,status:review.decision==='approved'?(patch.status==='pausado'||Number(next.stock)<=0?'pausado':'ativo'):'pendente'});
+  } else if(old.status==='pendente' && patch.status && patch.status!=='pendente') {
+    throw new Error('Aguarde a revisão das imagens antes de ativar o anúncio.');
+  }
   await ref.update(patch);
 }
 
@@ -211,7 +223,8 @@ function normalizeAd(id, data) {
     id: id,
     title: data.title || 'Anúncio',
     category: category,
-    categoryLabel: data.subcategory || data.category || 'Jogos',
+    categoryLabel: data.gameName || data.subcategory || data.category || 'Jogos',
+    gameName:data.gameName||'',experienceName:data.experienceName||'',
     price: Number(data.price) || 0,
     seller: data.sellerName || 'Vendedor',
     sellerUid: data.sellerUid || '',
@@ -310,6 +323,7 @@ async function fsGetAdsBySeller(uid, limit) {
   // only sellerUid filter (no composite index needed); filter status client-side
   const snap = await getDb().collection('ads')
     .where('sellerUid', '==', uid)
+    .where('status', '==', 'ativo')
     .limit(limit || 40)
     .get();
   const list = [];
@@ -632,7 +646,7 @@ async function fsAddAdQuestion(adId, data) {
     userUid: u.uid,
     userId: u.uid,
     userPhoto: data.userPhoto || '',
-    text: String(data.text || '').slice(0, 1000),
+    text: BloxzuhContentPolicy.mask(String(data.text || '').slice(0, 1000)),
     reply: '',
     createdAtMs: Date.now(),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -646,7 +660,7 @@ async function fsReplyAdQuestion(qid, data) {
   var u = requireUser();
   if (!qid) throw new Error('Pergunta inválida');
   await getDb().collection('adQuestions').doc(String(qid)).set({
-    reply: String(data.reply || '').slice(0, 2000),
+    reply: BloxzuhContentPolicy.mask(String(data.reply || '').slice(0, 2000)),
     replyName: data.replyName || u.displayName || 'Vendedor',
     replyUid: u.uid,
     replyPhoto: data.replyPhoto || '',

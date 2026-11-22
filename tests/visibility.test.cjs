@@ -17,7 +17,7 @@ function ad(id, visibility, extra = {}) {
 }
 function context(ads, query = '', sort = 'rel') {
   const elements = Object.fromEntries(['premiumScroll', 'featuredScroll', 'dynamicCatTitle', 'adsList', 'adsMeta'].map(id => [id, { innerHTML: '', textContent: '' }]));
-  for (const [id, value] of Object.entries({fSearch: query, fCat: '', fMin: '', fMax: '', fSort: sort})) elements[id] = {value};
+  for (const [id, value] of Object.entries({fSearch: query, fCat: '', fProduct:'', fExperience:'', fMin: '', fMax: '', fSort: sort})) elements[id] = {value};
   const sandbox = vm.createContext({
     window: {}, console, setTimeout() {},
     localStorage: {getItem: () => 'premium'},
@@ -67,4 +67,12 @@ test('Explicit price sorting takes precedence over visibility', () => {
   ], '', 'price_asc');
   vm.runInContext('applyFilters()', sandbox);
   assert.equal(elements.adsList.innerHTML, '[silver][gold][diamond]');
+});
+
+
+test('Product and Roblox experience filters separate Robux from accounts',()=>{
+  const {sandbox,elements}=context([ad('account','prata',{category:'roblox',productType:'Conta',raw:{section:'Blox Fruits'}}),ad('robux','prata',{category:'roblox',productType:'Robux',raw:{section:'Outros jogos'}})]);
+  elements.fCat.value='roblox';elements.fProduct.value='Robux';vm.runInContext('applyFilters()',sandbox);
+  assert.match(elements.adsList.innerHTML,/\[robux\]/);assert.doesNotMatch(elements.adsList.innerHTML,/\[account\]/);
+  elements.fExperience.value='Blox Fruits';vm.runInContext('applyFilters()',sandbox);assert.doesNotMatch(elements.adsList.innerHTML,/\[robux\]/);
 });

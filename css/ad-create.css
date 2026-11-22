@@ -75,3 +75,5 @@ input:focus,select:focus,textarea:focus {outline:2px solid #a78bfa;outline-offse
 @media(prefers-reduced-motion:reduce) {.acc-head .chev {transition:none;}}
 
 .acc {scroll-margin-top:86px;}
+
+[hidden]{display:none!important;}

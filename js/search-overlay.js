@@ -11,6 +11,7 @@
     { id: 'fortnite', name: 'Fortnite', href: 'anuncios.html?cat=fortnite' },
     { id: 'genshin', name: 'Genshin Impact', href: 'anuncios.html?cat=genshin' },
     { id: 'cs2', name: 'CS2', href: 'anuncios.html?cat=cs2' },
+    { id: 'outros', name: 'Outros jogos', href: 'anuncios.html?cat=outros' },
     { id: 'premium', name: 'Assinaturas', href: 'anuncios.html?cat=premium' }
   ];
 

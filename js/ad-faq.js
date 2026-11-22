@@ -52,7 +52,7 @@
   function escape(value) {return String(value).replace(/[&<>"']/g, function (c) {return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function render(rows) {
     return complete(rows).map(function (row) {
-      return '<details class="ad-faq-item"><summary>' + escape(row.q) + '</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px">' + escape(row.a) + '</p></details>';
+      return '<details class="ad-faq-item"><summary>' + escape(root.BloxzuhContentPolicy ? root.BloxzuhContentPolicy.mask(row.q) : row.q) + '</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px">' + escape(root.BloxzuhContentPolicy ? root.BloxzuhContentPolicy.mask(row.a) : row.a) + '</p></details>';
     }).join('');
   }
   var api = {normalize: normalize, complete: complete, editor: editor, render: render};
