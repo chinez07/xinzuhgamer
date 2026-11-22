@@ -9,7 +9,7 @@
       options(type,config.products,saved.productType||type.value);
       gameName.closest('label').hidden=game.value!=='Outros jogos';
       experience.closest('label').hidden=!roblox;section.closest('label').hidden=roblox;
-      if(roblox){var value=saved.section||section.value;options(experience,config.sections,config.sections.includes(value)?value:'Outros jogos');if(value&&!config.sections.includes(value))experienceName.value=saved.experienceName||value;section.value=experience.value;}
+      if(roblox){var value=saved.section||section.value;options(experience,config.sections,config.sections.includes(value)?value:(value?'Outros jogos':'Roblox geral'));if(value&&!config.sections.includes(value))experienceName.value=saved.experienceName||value;section.value=experience.value;}
       experienceName.closest('label').hidden=!roblox||experience.value!=='Outros jogos';
       if(origin)productChanged();
     }
