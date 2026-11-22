@@ -341,13 +341,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
         <label>Capa *</label>
         <div class="upload-zone" id="coverZone">
           <i class="fas fa-cloud-upload-alt" style="font-size:1.5rem"></i>
-          <p>Toque para carregar a capa<br><small>.jpg .png — máximo <strong>1 MB</strong></small></p>
+          <p>Toque para carregar a capa<br><small>.jpg .png .webp — máximo <strong>5 MB</strong></small></p>
         </div>
         <input type="file" id="coverInput" accept="image/*" hidden>
         <div class="warn">Por segurança, evite mostrar nome da conta ou do personagem nas imagens.</div>
         <label>Galeria (opcional)</label>
         <div class="upload-zone" id="galZone" style="padding:18px">
-          <p>Toque para adicionar fotos da galeria (até 6 · máx. 1 MB cada)</p>
+          <p>Toque para adicionar fotos da galeria (até 6 · máx. 5 MB cada)</p>
         </div>
         <input type="file" id="galInput" accept="image/*" multiple hidden>
         <div id="galPreview" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
@@ -420,11 +420,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-  <script src="js/firebase-auth.js"></script>
+  <script src="js/firebase-auth.js?v=images-hq-1"></script>
   <script src="js/max-client.js?v=clube-max-1"></script>
-  <script src="js/firestore-db.js?v=ad-frame-1"></script>
+  <script src="js/firestore-db.js?v=images-hq-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
-  <script src="js/cover-worker-patch.js"></script>
+  <script src="js/cover-worker-patch.js?v=images-hq-1"></script>
   <script src="js/ad-frame.js?v=3"></script>
 <script src="js/brand.js"></script>
   <script>
@@ -734,7 +734,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
             const c = document.createElement('canvas');
             c.width = w; c.height = h;
             c.getContext('2d').drawImage(img, 0, 0, w, h);
-            resolve(c.toDataURL('image/jpeg', 0.55));
+            resolve(c.toDataURL('image/jpeg', 0.86));
           };
           img.onerror = reject;
           img.src = reader.result;
@@ -746,14 +746,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
     const coverZone = document.getElementById('coverZone');
     const coverInput = document.getElementById('coverInput');
-    const MAX_IMG_MB = 1;
+    const MAX_IMG_MB = 5;
     const MAX_IMG_BYTES = MAX_IMG_MB * 1024 * 1024;
 
     function checkImageSize(file) {
       if (!file) return false;
       if (file.size > MAX_IMG_BYTES) {
         const mb = (file.size / (1024 * 1024)).toFixed(2);
-        showMsg('A imagem tem ' + mb + ' MB. O máximo é 1 MB. Escolha uma foto menor ou compacte antes de enviar.', 'err');
+        showMsg('A imagem tem ' + mb + ' MB. O máximo é 5 MB. Escolha uma foto menor ou compacte antes de enviar.', 'err');
         return false;
       }
       return true;
@@ -763,29 +763,29 @@ html { color-scheme: dark; background-color: #0f0f14; }
     if (coverInput) coverInput.addEventListener('change', async () => {
       const f = coverInput.files[0];
       if (!f) return;
-      if (!f.type.startsWith('image/')) {
-        showMsg('Envie apenas imagens (JPG ou PNG).', 'err');
+      if (!['image/jpeg','image/png','image/webp'].includes(f.type)) {
+        showMsg('Envie apenas imagens (JPG, PNG ou WebP).', 'err');
         coverInput.value = '';
         return;
       }
       if (!checkImageSize(f)) {
         coverInput.value = '';
         state.cover = '';
-        coverZone.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:1.5rem"></i><p>Toque para carregar a capa<br><small>.jpg .png — máximo 1 MB</small></p>';
+        coverZone.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:1.5rem"></i><p>Toque para carregar a capa<br><small>.jpg .png .webp — máximo 5 MB</small></p>';
         return;
       }
       try {
         state.coverFile = f;
-state.cover = await fileToDataUrl(f, 480);
+        state.cover = await fileToDataUrl(f, 1200);
         // dataURL still can be large; warn if encoded size huge
-        if (state.cover.length > 900000) {
+        if (state.cover.length > 4000000) {
           showMsg('Depois de processar a imagem ainda ficou pesada. Tente outra com menos detalhe ou menor resolução.', 'err');
           state.cover = '';
           coverInput.value = '';
-          coverZone.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:1.5rem"></i><p>Toque para carregar a capa<br><small>.jpg .png — máximo 1 MB</small></p>';
+          coverZone.innerHTML = '<i class="fas fa-cloud-upload-alt" style="font-size:1.5rem"></i><p>Toque para carregar a capa<br><small>.jpg .png .webp — máximo 5 MB</small></p>';
           return;
         }
-        coverZone.innerHTML = '<img src="' + state.cover + '" alt="Capa"><p>Escolher outra imagem</p><small style="color:var(--ok)">✓ Capa OK (menos de 1 MB)</small>';
+        coverZone.innerHTML = '<img src="' + state.cover + '" alt="Capa"><p>Escolher outra imagem</p><small style="color:var(--ok)">✓ Capa pronta para envio em alta qualidade</small>';
         showMsg('Capa adicionada com sucesso.', 'ok');
       } catch (e) { showMsg('Erro ao ler imagem.', 'err'); }
     });
@@ -796,17 +796,18 @@ state.cover = await fileToDataUrl(f, 480);
     if (galZone && galInput) {
     galZone.addEventListener('click', () => galInput.click());
     galInput.addEventListener('change', async () => {
-      const files = [...galInput.files].slice(0, 4);
+      const files = [...galInput.files].slice(0, 6);
       for (const f of files) {
         if (state.gallery.length >= 6) break;
-        if (!f.type.startsWith('image/')) continue;
+        if (!['image/jpeg','image/png','image/webp'].includes(f.type)) continue;
         if (!checkImageSize(f)) continue;
         try {
-          const url = await fileToDataUrl(f, 360);
-          if (url.length > 500000) {
-            showMsg('Uma foto da galeria ficou muito pesada e foi ignorada (máx. 1 MB).', 'err');
+          const url = await fileToDataUrl(f, 1200);
+          if (url.length > 4000000) {
+            showMsg('Uma foto da galeria ficou muito pesada e foi ignorada (máx. 5 MB).', 'err');
             continue;
           }
+          state.galleryFiles.push({index:state.gallery.length,file:f});
           state.gallery.push(url);
         } catch (e) {}
       }
@@ -844,7 +845,7 @@ state.cover = await fileToDataUrl(f, 480);
       goStep(3);
     });
     document.getElementById('btnToSummary').addEventListener('click', () => {
-      if (!state.cover) { showMsg('Adicione a imagem de capa (máximo 1 MB).', 'err'); return; }
+      if (!state.cover) { showMsg('Adicione a imagem de capa (máximo 5 MB).', 'err'); return; }
       goStep(4);
     });
     document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => goStep(parseInt(b.getAttribute('data-goto'), 10))));
@@ -880,11 +881,12 @@ state.cover = await fileToDataUrl(f, 480);
           cover = await prepareAdCover(state.coverFile);
         } else if (state.cover) {
           cover = state.cover;
-          if (cover.length > 250000) cover = '';
         }
         if (!cover) {
-          console.warn('Publicando sem capa (imagem grande ou falha).');
+          throw new Error('Adicione uma capa válida antes de salvar.');
         }
+        var gallery = (state.gallery || []).slice(0,6);
+        for (var imageEntry of state.galleryFiles) gallery[imageEntry.index] = await prepareAdCover(imageEntry.file);
         if (editAdId) {
           var listItems = [];
           if (state.model === 'dinamico') {
@@ -942,8 +944,8 @@ state.cover = await fileToDataUrl(f, 480);
             status: stockVal > 0 ? 'ativo' : 'pausado',
             updatedAtMs: Date.now()
           };
-          if (state.cover) patch.cover = state.cover;
-          if (state.gallery && state.gallery.length) patch.gallery = state.gallery.slice(0, 6);
+          if (cover) patch.cover = cover;
+          if (gallery.length) patch.gallery = gallery;
           console.log('[Bloxzuh] atualizando ad', editAdId, patch);
           if (typeof fsUpdateAd === 'function') {
             await fsUpdateAd(editAdId, patch);
@@ -987,7 +989,7 @@ state.cover = await fileToDataUrl(f, 480);
           imageFrame: frameEditor.read(),
           feePercent: fee,
           cover: cover,
-          gallery: (state.gallery || []).slice(0, 6)
+          gallery: gallery
         });
         showMsg('Anúncio publicado com sucesso!', 'ok');
         setTimeout(() => { window.location.href = 'painel.html'; }, 1200);
@@ -1121,6 +1123,14 @@ state.cover = await fileToDataUrl(f, 480);
         if (dy2) dy2.style.display = 'none';
       }
 
+      state.gallery = Array.isArray(d.gallery) ? d.gallery.slice(0,6) : [];
+      state.galleryFiles = [];
+      var galleryPreview = document.getElementById('galPreview');
+      galleryPreview.textContent = '';
+      state.gallery.forEach(function (src) {
+        var image = document.createElement('img'); image.src = src; image.alt = 'Foto da galeria';
+        image.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:8px'; galleryPreview.appendChild(image);
+      });
       frameEditor.load(d.imageFrame);
 
       // Capa

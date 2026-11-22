@@ -4,23 +4,13 @@
 window.BLOXZUH_IMGBB_WORKER = 'https://bloxzuh-imgbb.hskkaj48.workers.dev';
 try { localStorage.removeItem('bloxzuh-imgbb-key'); } catch (e) {}
 window.IMGBB_API_KEY = ''; // não usar chave no cliente
-(function loadImgbbUpload() {
-  try {
-    if (document.querySelector('script[src*="imgbb-upload"]')) return;
-    var s = document.createElement('script');
-    s.src = 'js/imgbb-upload.js';
-    s.async = true;
-    (document.head || document.documentElement).appendChild(s);
-  } catch (e) {}
-})();
-
-(function loadCoverPatch() {
-  try {
+(function loadAdImageUploader() {
+  function load() {
     if (document.querySelector('script[src*="cover-worker-patch"]')) return;
-    var s = document.createElement('script');
-    s.src = 'js/cover-worker-patch.js';
-    (document.head || document.documentElement).appendChild(s);
-  } catch (e) {}
+    var script=document.createElement('script'); script.src='js/cover-worker-patch.js?v=images-hq-1';
+    document.head.appendChild(script);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',load); else load();
 })();
 
 (function loadBrand() {

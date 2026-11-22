@@ -298,48 +298,10 @@ function compressImageFile(file, maxSide, quality) {
   });
 }
 
-/**
- * Prepara capa para gravar no anúncio.
- * 1) Comprime forte
- * 2) Se houver chave ImgBB (localStorage bloxzuh-imgbb-key), envia e retorna URL https
- * 3) Senão grava dataURL pequena no Firestore
- */
+/** Envio de imagens centralizado; a chave do provedor permanece no Worker. */
 async function prepareAdCover(file) {
-  if (!file) return '';
-  let dataUrl = await compressImageFile(file, 320, 0.42);
-  if (dataUrl.length > 220000) {
-    dataUrl = await compressImageFile(file, 240, 0.32);
-  }
-  if (dataUrl.length > 220000) {
-    dataUrl = await compressImageFile(file, 180, 0.28);
-  }
-
-  const imgbbKey = localStorage.getItem('bloxzuh-imgbb-key') || window.IMGBB_API_KEY || '';
-  if (imgbbKey) {
-    try {
-      const b64 = dataUrl.split(',')[1] || '';
-      const body = new FormData();
-      body.append('image', b64);
-      const res = await fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(imgbbKey), {
-        method: 'POST',
-        body: body
-      });
-      const json = await res.json();
-      if (json && json.success && json.data && json.data.url) {
-        return json.data.url;
-      }
-      console.warn('ImgBB', json);
-    } catch (e) {
-      console.warn('ImgBB falhou, usando dataURL', e);
-    }
-  }
-
-  // Firestore: evita documento gigante
-  if (dataUrl.length > 250000) {
-    console.warn('Capa ainda grande:', dataUrl.length);
-    return dataUrl.substring(0, 0);
-  }
-  return dataUrl;
+  if (!window.BloxzuhAdImages) throw new Error('Aguarde o carregamento do envio de imagens e tente novamente.');
+  return window.BloxzuhAdImages.prepare(file);
 }
 
 
