@@ -202,7 +202,7 @@ async function resetPasswordWithEmail(email) {
   try {
     const em = email.trim();
     await auth.sendPasswordResetEmail(em, {
-      url: 'https://bloxzuh.store/login.html',
+      url: 'https://xinzuhgamer.pages.dev/login.html',
       handleCodeInApp: false
     });
     showMsg('Se existir conta com ' + em + ', enviamos o link. Confira a caixa de entrada e a pasta SPAM/Lixo eletrônico. O e-mail pode demorar alguns minutos.', 'ok');

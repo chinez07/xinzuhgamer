@@ -23,12 +23,13 @@ test('Login returns to the MAX page but rejects redirects to another origin', ()
   const source = fs.readFileSync(path.join(root, 'js/firebase-auth.js'), 'utf8');
   const fn = source.slice(source.indexOf('function authReturnPath()'), source.indexOf('// Firebase Auth - Bloxzuh'));
   function destination(value) {
-    const location = new URL('https://bloxzuh.store/login.html?redirect=' + encodeURIComponent(value));
+    const location = new URL('https://xinzuhgamer.pages.dev/login.html?redirect=' + encodeURIComponent(value));
     const context = vm.createContext({window: {location}, URL, URLSearchParams});
     vm.runInContext(fn, context); return context.authReturnPath();
   }
   assert.equal(destination('plano-max.html#assinatura'), '/plano-max.html#assinatura');
   assert.equal(destination('https://example.test/'), 'index.html');
+  assert.equal(destination('https://bloxzuh.store/conta.html'), 'index.html');
   assert.equal(destination('javascript:alert(1)'), 'index.html');
   assert.equal(destination('login.html'), 'index.html');
 });

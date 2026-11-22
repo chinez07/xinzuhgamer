@@ -550,7 +550,7 @@ function marketPixResponse(payment) {return {paymentId:String(payment.id),id:Str
 async function marketHandle(request,env,dependencies={}) {
   const fetcher=dependencies.fetcher||fetch,db=dependencies.db||firestoreService(env,fetcher),url=new URL(request.url),path=url.pathname.replace(/\/$/,'');
   const origin=request.headers.get('Origin');
-  const allowed=['https://bloxzuh.store','https://www.bloxzuh.store'];
+  const allowed=['https://xinzuhgamer.pages.dev'];
   const headers={'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',Vary:'Origin',...(allowed.includes(origin)?{'Access-Control-Allow-Origin':origin}:{})};
   function reply(data,status=200) {return new Response(JSON.stringify(data),{status,headers});}
   try {

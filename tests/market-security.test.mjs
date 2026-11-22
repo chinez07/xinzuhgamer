@@ -121,3 +121,10 @@ test('Codificação Firestore preserva campos financeiros, arrays, booleanos e n
   assert.deepEqual(firestoreDecode(firestoreValue(data)),data);
   assert.throws(()=>firestoreValue({value:NaN}));
 });
+test('O endereço temporário exato é autorizado, sem permitir o domínio abandonado ou outros projetos Pages',async()=>{
+  for (const origin of ['https://xinzuhgamer.pages.dev','https://bloxzuh.store','https://www.bloxzuh.store','https://other.pages.dev','https://xinzuhgamer.pages.dev.evil.test']) {
+    const response=await marketHandle(new Request('https://worker.test/market/wallet',{method:'OPTIONS',headers:{Origin:origin}}),{});
+    assert.equal(response.status,origin==='https://xinzuhgamer.pages.dev'?204:403);
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'),origin==='https://xinzuhgamer.pages.dev'?origin:null);
+  }
+});

@@ -2,7 +2,7 @@
 export default {
   async fetch(request) {
     const origin = request.headers.get('Origin');
-    const allowed = ['https://bloxzuh.store', 'https://www.bloxzuh.store'];
+    const allowed = ['https://xinzuhgamer.pages.dev'];
     const headers = {'Content-Type':'application/json; charset=utf-8', 'Cache-Control':'no-store',
       'X-Content-Type-Options':'nosniff', 'Vary':'Origin',
       ...(allowed.includes(origin) ? {'Access-Control-Allow-Origin':origin} : {})};
