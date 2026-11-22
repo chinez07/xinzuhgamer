@@ -13,3 +13,5 @@ Perfis completos em `profiles` só são legíveis pelo dono e pela administraç�
 Ajustes de contraste são opcionais e locais por conta/dispositivo; não mudam a transparência dos cartões. As páginas de condições, privacidade e reembolso descrevem o funcionamento implementado, sem inventar dados cadastrais, prazo de resposta ou endereço de contato da empresa.
 
 Validação: testes unitários de autoridade, prazo, idempotência, privacidade e suporte; regras no emulador com projeto demo; interface de PC e celular com dados fictícios e conexões externas bloqueadas. A demonstração em `.local-preview` não deve ser publicada.
+
+A leitura de documentos novos de mensagens pela administração não foi ativada. A revisão automática exigiu autorização específica; a solicitação apresentada limita esse acesso a pedidos com ajuda aberta, somente leitura e sem recibos de leitura. Até a decisão, apenas comprador e vendedor leem as novas mensagens.

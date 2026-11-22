@@ -68,7 +68,7 @@ service cloud.firestore {
       allow write: if false;
     }
     match /orders/{id}/messages/{messageId} {
-      allow read: if signed() && (admin() || request.auth.uid in [get(/databases/$(database)/documents/orders/$(id)).data.buyerUid,get(/databases/$(database)/documents/orders/$(id)).data.sellerUid])
+      allow read: if signed() && request.auth.uid in [get(/databases/$(database)/documents/orders/$(id)).data.buyerUid,get(/databases/$(database)/documents/orders/$(id)).data.sellerUid]
         && get(/databases/$(database)/documents/orders/$(id)).data.paymentVerified == true
         && get(/databases/$(database)/documents/orders/$(id)).data.status in ['pago','em_entrega','concluido'];
       allow write: if false;
