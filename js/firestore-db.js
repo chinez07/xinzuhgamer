@@ -88,7 +88,7 @@ async function fsCreateAd(data) {
   var adId = (typeof bloxzuhDocId === 'function' ? bloxzuhDocId('AD') : ('AD' + Math.random().toString(36).slice(2, 6).toUpperCase() + Date.now().toString(36).toUpperCase().slice(-4)));
   payload.code = adId;
   payload.moderationRevision=bloxzuhDocId('REV')+'_'+Date.now();
-  payload.moderationReviewId='';payload.moderationReason='';
+  payload.moderationReviewId='';payload.moderationReason='';payload.moderationCheckedAtMs=0;
   await getDb().collection('ads').doc(adId).set(payload);
   await requestSavedAdReview(adId);
   console.log('[Bloxzuh] anúncio criado com ID=', adId, 'model=', payload.model, 'items=', (payload.items||[]).length);
@@ -105,7 +105,7 @@ async function fsUpdateAd(adId, patch) {
   var changed=['title','desc','cover','gallery','category','subcategory','section','gameName','experienceName','productType','imageFrame'].some(function(key){return JSON.stringify(old[key]||'')!==JSON.stringify(next[key]||'');});
   if(old.status==='pendente'&&!changed&&patch.status&&patch.status!=='pendente')throw new Error('Aguarde a revisão antes de ativar o anúncio.');
   if (changed || (!old.moderationReviewId && patch.status!=='pausado') || old.status==='reprovado') {
-    patch=Object.assign({},patch,{moderationRevision:bloxzuhDocId('REV')+'_'+Date.now(),moderationReviewId:'',moderationReason:'',status:'pendente'});
+    patch=Object.assign({},patch,{moderationRevision:bloxzuhDocId('REV')+'_'+Date.now(),moderationReviewId:'',moderationReason:'',moderationCheckedAtMs:0,status:'pendente'});
   } else if(old.status==='pendente' && patch.status && patch.status!=='pendente') {
     throw new Error('Aguarde a revisão das imagens antes de ativar o anúncio.');
   }

@@ -1009,6 +1009,8 @@ img { max-width: 100%; display: block; }
 /* exp-bg off painel */
 #bgChangeBtn{display:none!important}
 #bzBgLayer{display:none!important}
+
+.badge-status.badge-reprovado{color:#dc2626!important;background:rgba(220,38,38,.12)!important;border:1px solid #fca5a5;white-space:nowrap;}
 </style>
 
   <style>
@@ -1562,7 +1564,7 @@ img { max-width: 100%; display: block; }
   <script src="js/firebase-auth.js?v=pages-domain-1"></script>
   <script src="js/max-client.js?v=max-benefits-2"></script>
   <script src="js/experimental.js"></script>
-  <script src="js/content-policy.js?v=moderation-queue-2"></script><script src="js/ad-catalog.js?v=moderation-queue-2"></script><script src="js/ad-moderation.js?v=moderation-queue-2"></script><script src="js/firestore-db.js?v=moderation-queue-2"></script>
+  <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=moderation-queue-3"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/notificacoes.js"></script>
   <script src="js/painel-settings.js?v=settings-1"></script>
@@ -1636,8 +1638,8 @@ img { max-width: 100%; display: block; }
         return;
       }
       const rows = cacheAds.slice(0, 8).map(function (a) {
-        const badge = a.status === 'ativo' ? 'badge-ativo' : (a.status === 'pausado' ? 'badge-pausado' : 'badge-vendido');
-        const label = ({ativo:'Ativo',pausado:'Pausado',pendente:'Em revisão',reprovado:'Reprovado — desativado'})[a.status] || 'Esgotado';
+        const badge = a.status === 'ativo' ? 'badge-ativo' : (a.status === 'pausado' ? 'badge-pausado' : a.status === 'reprovado' ? 'badge-reprovado' : 'badge-vendido');
+        const label = ({ativo:'Ativo',pausado:'Pausado',pendente:'Em revisão',reprovado:'Reprovado'})[a.status] || 'Esgotado';
         return '<tr><td>' + escapeHtml(a.title) + '</td><td>' + money(a.price) + '</td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td>' + (a.sales || 0) + '</td></tr>';
       }).join('');
       wrap.innerHTML = '<table class="painel-table"><thead><tr><th>Anúncio</th><th>Preço</th><th>Status</th><th>Vendas</th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -1651,10 +1653,10 @@ img { max-width: 100%; display: block; }
       }
       list.innerHTML = '<div style="overflow-x:auto"><table class="painel-table"><thead><tr><th>Anúncio</th><th>Preço</th><th>Vendas</th><th>Status</th><th>Ações</th></tr></thead><tbody>' +
         cacheAds.map(function (a) {
-          const badge = a.status === 'ativo' ? 'badge-ativo' : (a.status === 'pausado' ? 'badge-pausado' : 'badge-vendido');
-          const label = ({ativo:'Ativo',pausado:'Pausado',pendente:'Em revisão',reprovado:'Reprovado — desativado'})[a.status] || 'Esgotado';
+          const badge = a.status === 'ativo' ? 'badge-ativo' : (a.status === 'pausado' ? 'badge-pausado' : a.status === 'reprovado' ? 'badge-reprovado' : 'badge-vendido');
+          const label = ({ativo:'Ativo',pausado:'Pausado',pendente:'Em revisão',reprovado:'Reprovado'})[a.status] || 'Esgotado';
           const toggleLabel = a.status === 'pendente' ? 'Em revisão' : a.status === 'reprovado' ? 'Corrigir anúncio' : a.status === 'ativo' ? 'Pausar' : 'Ativar';
-          return '<tr><td><strong>' + escapeHtml(a.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(a.category) + '</small>' + (a.moderationReason ? '<p style="font-size:.85rem;margin:8px 0">'+escapeHtml(a.moderationReason)+'</p>' : '') + '<br><a class="btn-xs" href="anuncio.html?id='+encodeURIComponent(a.id)+'">Ver anúncio</a></td><td>' + money(a.price) + '</td><td><strong>' + String(Number(a.sales) || 0) + '</strong></td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td class="actions-row"><a class="btn-xs" href="anunciar.html?edit=' + encodeURIComponent(a.id) + '" style="text-decoration:none;display:inline-block">Editar</a><button type="button" class="btn-xs" data-act="toggle" '+(a.status==='pendente'||a.status==='reprovado'?'disabled':'')+' data-id="' + a.id + '" data-status="' + a.status + '">' + toggleLabel + '</button><button type="button" class="btn-xs danger" data-act="del" data-id="' + a.id + '">Excluir</button></td></tr>';
+          return '<tr><td><strong>' + escapeHtml(a.title) + '</strong><br><small style="color:var(--text-muted)">' + escapeHtml(a.category) + '</small>' + (a.moderationReason ? '<p style="font-size:.85rem;margin:8px 0">'+escapeHtml(a.moderationReason)+'</p>' : '') + '<br><a class="btn-xs" href="anuncio.html?id='+encodeURIComponent(a.id)+'">Ver anúncio</a></td><td>' + money(a.price) + '</td><td><strong>' + String(Number(a.sales) || 0) + '</strong></td><td><span class="badge-status ' + badge + '">' + label + '</span></td><td class="actions-row"><a class="btn-xs" href="anunciar.html?edit=' + encodeURIComponent(a.id) + '" style="text-decoration:none;display:inline-block">Editar</a><button type="button" class="btn-xs" data-act="toggle" '+(a.status==='pendente'||a.status==='reprovado'?'disabled':'')+' data-id="' + a.id + '" data-status="' + a.status + '">' + toggleLabel + '</button>'+(a.status==='pendente'&&a.moderationCheckedAtMs?'<button type="button" class="btn-xs" data-act="review" data-id="'+escapeHtml(a.id)+'">Tentar análise novamente</button>':'')+'<button type="button" class="btn-xs danger" data-act="del" data-id="' + a.id + '">Excluir</button></td></tr>';
         }).join('') + '</tbody></table></div>';
 
       list.querySelectorAll('[data-act]').forEach(function (btn) {
@@ -1665,6 +1667,8 @@ img { max-width: 100%; display: block; }
               if (!confirm('Excluir este anúncio?')) return;
               await fsDeleteAd(id);
               msg('Anúncio excluído.', 'ok');
+            } else if(btn.getAttribute('data-act')==='review'){
+              btn.disabled=true;await BloxzuhAdModeration.review(id);msg('Solicitação recebida. O anúncio continua em revisão até a decisão.','ok');
             } else {
               const cur = btn.getAttribute('data-status');
               const next = cur === 'ativo' ? 'pausado' : 'ativo';

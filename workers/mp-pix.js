@@ -791,7 +791,7 @@ async function processSavedModeration(db,adId,revision,reviewId,ai,fetcher=fetch
     if(!original.data||original.data.status!=='pendente'||original.data.moderationRevision!==revision||original.data.moderationReviewId!==reviewId)return;
     let result;
     try {result=await reviewImages(input(original.data),ai,fetcher);}
-    catch(error){result={decision:error.status===400?'rejected':'review',message:error.status===400?error.message:'Análise automática indisponível. Aguardando revisão administrativa.',results:[]};}
+    catch(error){console.error('moderation_analysis_failed',{name:error.name,status:error.status||503,message:String(error.message).slice(0,250)});result={decision:error.status===400?'rejected':'review',message:error.status===400?error.message:'Análise automática indisponível. Aguardando revisão administrativa.',results:[]};}
     const current=await db.get('ads/'+adId),receipt=await db.get('imageReviews/'+reviewId);
     if(!current.data||current.data.status!=='pendente'||current.data.moderationRevision!==revision||current.data.moderationReviewId!==reviewId||receipt.data?.decision!=='review')return;
     const stock=current.data.model==='dinamico'?(current.data.items||[]).some(item=>Number(item.stock)>0):Number(current.data.stock)>0;
@@ -814,9 +814,12 @@ async function handleModeration(request,env,ctx) {
     if(!ad.data||ad.data.sellerUid!==user.uid)failure('Anúncio não encontrado.',404);
     if(ad.data.status!=='pendente')return json({status:ad.data.status});
     const revision=ad.data.moderationRevision;if(!revision)failure('Reenvie o anúncio pelo editor.');
-    if(ad.data.moderationReviewId)return json({status:'pendente',message:'O anúncio já está em revisão.'},202);
+    if(ad.data.moderationReviewId){
+      const previous=await db.get('imageReviews/'+ad.data.moderationReviewId);
+      if(!ad.data.moderationCheckedAtMs||Date.now()-ad.data.moderationCheckedAtMs<60000||previous.data?.decision!=='review')return json({status:'pendente',message:'O anúncio já está em revisão.'},202);
+    }
     stage='queue';const reviewId='IR'+crypto.randomUUID().replace(/-/g,''),receipt=await db.get('imageReviews/'+reviewId);
-    await db.commit([{doc:receipt,patch:{...moderationSnapshot(ad.data),sellerUid:user.uid,adId,revision,decision:'review',results:[],model:MODEL,createdAtMs:Date.now(),reviewedBy:'automatic'}},{doc:ad,patch:{moderationReviewId:reviewId,moderationReason:'Em revisão. As compras serão liberadas somente após a aprovação.'}}]);
+    await db.commit([{doc:receipt,patch:{...moderationSnapshot(ad.data),sellerUid:user.uid,adId,revision,decision:'review',results:[],model:MODEL,createdAtMs:Date.now(),reviewedBy:'automatic'}},{doc:ad,patch:{moderationReviewId:reviewId,moderationCheckedAtMs:0,moderationReason:'Em revisão. As compras serão liberadas somente após a aprovação.'}}]);
     const work=processSavedModeration(db,adId,revision,reviewId,moderationAI(env));
     if(ctx?.waitUntil)ctx.waitUntil(work);else await work;
     return json({status:'pendente',reviewId,message:'Anúncio salvo em revisão.'},202);

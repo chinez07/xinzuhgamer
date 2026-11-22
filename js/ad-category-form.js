@@ -1,28 +1,42 @@
-// JavaScript / ad-category-form.js / navegador / seleção de categoria e produto do anúncio.
-(function (root) {
-  root.BloxzuhAdCategoryForm = function () {
-    var cat=document.getElementById('category'), game=document.getElementById('subcategory'), type=document.getElementById('productType'), section=document.getElementById('section');
-    var gameName=document.getElementById('gameName'), experience=document.getElementById('experienceSelect'), experienceName=document.getElementById('experienceName');
-    function options(select,values,selected) {select.replaceChildren();values.forEach(function(v){var opt=document.createElement('option');opt.value=v;opt.textContent=v==='Conta'?'Contas':v;select.append(opt);});if(values.includes(selected))select.value=selected;}
-    function sync(saved) {
-      saved=saved||{};var config=root.BloxzuhAdCatalog.get(game.value),roblox=game.value==='Roblox';
-      options(type,config.products,saved.productType||type.value);
-      gameName.closest('label').hidden=game.value!=='Outros jogos';
-      experience.closest('label').hidden=!roblox;section.closest('label').hidden=roblox;
-      if(roblox){var value=saved.section||section.value;options(experience,config.sections,config.sections.includes(value)?value:(value?'Outros jogos':'Roblox geral'));if(value&&!config.sections.includes(value))experienceName.value=saved.experienceName||value;section.value=experience.value;}
-      experienceName.closest('label').hidden=!roblox||experience.value!=='Outros jogos';
-      if(origin)productChanged();
-    }
-    function fillGames() {options(game,cat.value==='Assinaturas'?['Assinatura']:Object.keys(root.BloxzuhAdCatalog.games).filter(g=>g!=='Assinatura'),game.value);section.value='';sync();}
+// JavaScript / ad-category-form.js / navegador / seleção progressiva de categoria e produto.
+(function(root){
+  root.BloxzuhAdCategoryForm=function(){
+    var cat=document.getElementById('category'),game=document.getElementById('subcategory'),type=document.getElementById('productType'),section=document.getElementById('section');
+    var gameName=document.getElementById('gameName'),experience=document.getElementById('experienceSelect'),experienceName=document.getElementById('experienceName');
     var origin=document.getElementById('origin'),account=document.getElementById('accountInfo');
-    function productChanged(){
-      if(game.value==='Roblox' && type.value==='Robux'){experience.value='Roblox geral';section.value='Roblox geral';experienceName.value='';experienceName.closest('label').hidden=true;experience.disabled=true;}
-      else experience.disabled=false;
-      if(type.value!=='Conta'){if(![...origin.options].some(o=>o.value==='Não se aplica')){var opt=document.createElement('option');opt.value=opt.textContent='Não se aplica';origin.append(opt);}origin.value='Não se aplica';account.value='Não se aplica';}}
-    type.addEventListener('change',productChanged);
-    game.addEventListener('change',function(){section.value='';experienceName.value='';sync();});
-    experience.addEventListener('change',function(){section.value=experience.value;experienceName.closest('label').hidden=experience.value!=='Outros jogos';});
+    function options(select,values,value){select.replaceChildren();[''].concat(values).forEach(function(v){var opt=document.createElement('option');opt.value=v;opt.textContent=v?(v==='Conta'?'Contas':v):'Selecione';select.append(opt);});select.value=values.includes(value)?value:'';}
+    function field(el,show){var label=el.closest('label');if(label)label.hidden=!show;else{el.hidden=!show;var before=el.previousElementSibling;if(before&&before.tagName==='LABEL')before.hidden=!show;}el.disabled=!show;}
+    function showFields(){
+      var selected=!!cat.value,hasGame=selected&&!!game.value,roblox=hasGame&&game.value==='Roblox';
+      field(game,selected);field(gameName,hasGame&&game.value==='Outros jogos');field(experience,roblox);
+      field(experienceName,roblox&&experience.value==='Outros jogos');
+      var ready=hasGame&&(game.value!=='Outros jogos'||!!gameName.value.trim())&&(!roblox||(!!experience.value&&(experience.value!=='Outros jogos'||!!experienceName.value.trim())));
+      field(type,ready);field(section,ready&&!!type.value&&!roblox);
+      var accountProduct=ready&&type.value==='Conta';
+      field(origin,accountProduct);field(account,accountProduct&&!!origin.value);
+      if(roblox){section.value=experience.value;experience.disabled=type.value==='Robux';}
+    }
+    function resetProducts(){options(type,root.BloxzuhAdCatalog.get(game.value).products,'');origin.value='';account.value='';}
+    function fillGames(){options(game,cat.value==='Assinaturas'?['Assinatura']:Object.keys(root.BloxzuhAdCatalog.games).filter(g=>g!=='Assinatura'),'');section.value='';gameName.value='';experienceName.value='';options(experience,[],'');resetProducts();showFields();}
+    game.addEventListener('change',function(){section.value='';gameName.value='';experienceName.value='';options(experience,root.BloxzuhAdCatalog.get(game.value).sections,'');resetProducts();showFields();});
+    experience.addEventListener('change',function(){experienceName.value='';resetProducts();showFields();});
+    type.addEventListener('change',function(){
+      if(game.value==='Roblox'&&type.value==='Robux'){experience.value='Roblox geral';experienceName.value='';}
+      if(type.value!=='Conta'){if(!Array.from(origin.options).some(o=>o.value==='Não se aplica')){var opt=document.createElement('option');opt.value=opt.textContent='Não se aplica';origin.append(opt);}origin.value=account.value='Não se aplica';}else{origin.value='';account.value='';}
+      showFields();
+    });
+    origin.addEventListener('change',showFields);gameName.addEventListener('input',showFields);experienceName.addEventListener('input',showFields);
+    // A escolha das informações da conta também deve ser explícita.
+    var blank=document.createElement('option');blank.value='';blank.textContent='Selecione';account.prepend(blank);
+    var notApplicable=document.createElement('option');notApplicable.value=notApplicable.textContent='Não se aplica';origin.append(notApplicable);
     fillGames();
-    return {fillGames:fillGames,load:function(data){game.value=data.subcategory||'';gameName.value=data.gameName||'';experienceName.value=data.experienceName||'';sync(data);},read:function(){return {gameName:game.value==='Outros jogos'?gameName.value.trim():'',experienceName:game.value==='Roblox'&&experience.value==='Outros jogos'?experienceName.value.trim():''};}};
+    return {fillGames:fillGames,load:function(data){
+      cat.value=data.category||'Jogos';options(game,cat.value==='Assinaturas'?['Assinatura']:Object.keys(root.BloxzuhAdCatalog.games).filter(g=>g!=='Assinatura'),data.subcategory);
+      var config=root.BloxzuhAdCatalog.get(game.value),value=data.section||'';
+      options(experience,config.sections,config.sections.includes(value)?value:(value?'Outros jogos':''));gameName.value=data.gameName||'';experienceName.value=data.experienceName||(!config.sections.includes(value)?value:'');section.value=value;
+      options(type,config.products,data.productType);origin.value=data.productType==='Conta'?(data.origin||''):'Não se aplica';account.value=data.productType==='Conta'?(data.accountInfo||''):'Não se aplica';
+      if(game.value==='Roblox'&&type.value==='Robux'){experience.value='Roblox geral';experienceName.value='';}
+      showFields();
+    },read:function(){return {gameName:game.value==='Outros jogos'?gameName.value.trim():'',experienceName:game.value==='Roblox'&&experience.value==='Outros jogos'?experienceName.value.trim():''};}};
   };
 })(window);
