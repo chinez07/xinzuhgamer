@@ -82,7 +82,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .badge {
       font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 6px;
-      background: var(--primary-soft); color: var(--primary); text-transform: lowercase;
+      background: var(--primary-soft); color: var(--primary); text-transform: none;
     }
     .badge.dim { background: #1d4ed8; color: #fff; }
     .stats {
@@ -198,7 +198,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
-  <link rel="stylesheet" href="css/ad-frame.css?v=4">
+  <link rel="stylesheet" href="css/ad-frame.css?v=5">
   <link rel="stylesheet" href="css/ad-layout.css?v=1">
 </head>
 <body>
@@ -288,6 +288,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
       const sales = (function(){ var s = Number(ad.sales != null ? ad.sales : raw.sales); return isNaN(s) ? 0 : s; })();
       const vis = (ad.visibility || 'prata');
       const model = String(ad.model || raw.model || 'normal').toLowerCase();
+      const visLabel = ({prata:'Prata',ouro:'Ouro',diamante:'Diamante'})[vis] || vis;
+      const modelLabel = ({normal:'Normal',dinamico:'Dinâmico'})[model] || model;
       const sellerUid = raw.sellerUid || '';
       const sellerName = ad.seller || 'Vendedor';
       const currentUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || '';
@@ -322,9 +324,9 @@ html { color-scheme: dark; background-color: #0f0f14; }
         ['Tipo do Anúncio', ad.productType || raw.productType || 'Conta'],
         ['Procedência', [raw.origin, raw.accountInfo].filter(Boolean).join(' > ') || '—'],
         ['Categoria', [ad.categoryLabel, raw.section].filter(Boolean).join(' > ') || ad.category],
-        ['Modelo', model],
+        ['Modelo', modelLabel],
         ['Estoque', String(stock)],
-        ['Visibilidade', vis]
+        ['Visibilidade', visLabel]
       ];
 
       let questions = getQuestions(ad.id);
@@ -383,8 +385,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
           '<button type="button" class="fav-float' + (favOn ? ' is-fav' : '') + '" id="favBtn" data-id="' + esc(ad.id) + '"><i class="' + (favOn ? 'fas' : 'far') + ' fa-heart"></i></button>' +
           '<h1>' + esc(ad.title) + '</h1>' +
           '<div class="badges">' +
-            '<span class="badge dim">' + esc(vis) + '</span>' +
-            '<span class="badge">' + esc(model) + '</span>' +
+            '<span class="badge dim">' + esc(visLabel) + '</span>' +
+            '<span class="badge">' + esc(modelLabel) + '</span>' +
             '<span class="badge">' + money(ad.price) + '</span>' +
           '</div>' +
         '</div>' +

@@ -56,4 +56,12 @@ body.ad-custom-background #bgChangeBtn {display:none!important;}
 .ad-panel-theme .ad-layout .dyn-pick-item,.ad-panel-theme .ad-layout .q-reply {background:var(--ad-panel-surface); color:var(--ad-panel-text); border-color:var(--ad-panel-border);}
 .ad-panel-theme .ad-layout .dyn-pick-meta {color:var(--ad-panel-muted);}
 .ad-panel-theme .ad-layout {--muted:var(--ad-panel-muted); --text:var(--ad-panel-text); --border:var(--ad-panel-border);}
+.ad-seller [data-max-hours]:not(:empty) {margin-top:20px;}
+.ad-seller [data-max-hours] .max-hours {margin-bottom:0;}
+/* The seller card already supplies the chosen surface; do not add a second opaque layer. */
+.ad-panel-theme .ad-layout .max-hours {background:transparent; color:var(--ad-panel-text); border-color:var(--ad-panel-border);}
+.ad-panel-theme .ad-layout .max-hours small,.ad-panel-theme .ad-layout .max-hours details {color:var(--ad-panel-muted);}
+.ad-panel-theme .ad-layout .max-hours .max-away {background:var(--ad-panel-surface); color:var(--ad-panel-text);}
+.ad-panel-theme .ad-layout .max-hours .max-open {color:var(--ad-panel-positive)!important;}
+.ad-panel-theme .ad-layout .max-hours .max-closed {color:var(--ad-panel-readable)!important;}
 @media(max-width:380px) {.ad-frame-fields {grid-template-columns:1fr;}}
