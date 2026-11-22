@@ -199,14 +199,15 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/ad-frame.css?v=3">
+  <link rel="stylesheet" href="css/ad-layout.css?v=1">
 </head>
 <body>
   <div class="top">
     <a class="logo" href="index.html"><div class="logo-i"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div> Bloxzuh</a>
     <div class="top-actions">
       <a class="btn-announce" href="anunciar.html">Anunciar</a>
-      <button class="icon-btn" type="button" onclick="location.href='favoritos.html'"><i class="fas fa-heart"></i></button>
-      <button class="icon-btn" type="button" onclick="location.href='index.html'"><i class="fas fa-home"></i></button>
+      <button class="icon-btn" type="button" aria-label="Meus favoritos" onclick="location.href='favoritos.html'"><i class="fas fa-heart"></i></button>
+      <button class="icon-btn" type="button" aria-label="Ir para o início" onclick="location.href='index.html'"><i class="fas fa-home"></i></button>
     </div>
   </div>
 
@@ -376,7 +377,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
       page.innerHTML =
         '<a class="back" href="anuncios.html">← Voltar para anúncios</a>' +
-        '<div id="adImageFrame">' + cover + '</div>' +
+        '<div class="ad-layout"><section class="ad-overview" aria-label="Resumo do anúncio"><div class="ad-media"><div id="adImageFrame">' + cover + '</div></div><div class="ad-purchase">' +
         '<div class="title-row">' +
           '<button type="button" class="fav-float' + (favOn ? ' is-fav' : '') + '" id="favBtn" data-id="' + esc(ad.id) + '"><i class="' + (favOn ? 'fas' : 'far') + ' fa-heart"></i></button>' +
           '<h1>' + esc(ad.title) + '</h1>' +
@@ -421,11 +422,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
           return '<button type="button" class="btn-buy" id="btnBuy"' + (model === 'dinamico' ? ' disabled' : '') + '>COMPRAR · ' + money(ad.price) + '</button>';
         })() +
         '</div>' +
-        '<div class="section"><h2>Características</h2><div class="card"><table class="chars">' +
+        '</div></section><div class="ad-details"><nav class="ad-section-nav" aria-label="Detalhes do anúncio"><a href="#adCharacteristics">Características</a><a href="#adDescription">Descrição</a><a href="#adQuestions">Perguntas</a><a href="#adReviews">Avaliações</a></nav>' +
+        '<div class="section" id="adCharacteristics"><h2>Características</h2><div class="card"><table class="chars">' +
           chars.map(function (c) { return '<tr><td>' + esc(c[0]) + '</td><td>' + esc(c[1]) + '</td></tr>'; }).join('') +
         '</table></div></div>' +
-        '<div class="section"><h2>Descrição do anúncio</h2><div class="card"><div class="desc">' + esc(ad.description || 'Sem descrição.') + '</div></div></div>' +
-        '<div class="section"><h2>Perguntas</h2><div class="card" id="qList">' + renderQuestions() + '</div>' +
+        '<div class="section" id="adDescription"><h2>Descrição do anúncio</h2><div class="card"><div class="desc">' + esc(ad.description || 'Sem descrição.') + '</div></div></div>' +
+        '<div class="section" id="adQuestions"><h2>Perguntas</h2><div class="card" id="qList">' + renderQuestions() + '</div>' +
           (isOwner
             ? '<div class="card" style="margin-top:12px"><p style="color:var(--muted);font-size:0.9rem">Você é o vendedor. Responda as perguntas abaixo (não pode perguntar no próprio anúncio).</p></div>'
             : '<div class="card" style="margin-top:12px"><h3 style="font-size:0.95rem;margin-bottom:4px">Faça uma pergunta</h3>' +
@@ -433,10 +435,10 @@ html { color-scheme: dark; background-color: #0f0f14; }
               '<div class="ask-row"><p class="hint-warn">ATENÇÃO: não envie WhatsApp, Discord ou contatos externos.</p>' +
               '<button type="button" class="btn-primary" id="btnAsk">Perguntar</button></div></div>') +
         '</div>' +
-        '<div class="section"><h2>Avaliações</h2><div class="card">' +
+        '<div class="section" id="adReviews"><h2>Avaliações</h2><div class="card">' +
           '<div class="rating-big"><div class="n" id="ratingN">—</div><div class="stars" id="ratingStars">☆☆☆☆☆</div><div style="color:var(--muted);font-size:0.85rem" id="ratingSub">Carregando avaliacoes...</div></div><div id="reviewsList"></div>' +
         '</div></div>' +
-        '<div class="section"><div class="card seller-card">' +
+        '</div><aside class="ad-seller" aria-label="Informações do vendedor"><div class="section"><div class="card seller-card">' +
           '<div class="big-av" id="sellerAv">' + initial + '</div>' +
           '<div><a class="name" data-max-uid="' + esc(sellerUid) + '" data-max-name href="perfil.html?uid=' + encodeURIComponent(sellerUid) + '&name=' + encodeURIComponent(sellerName) + '">' + esc(sellerName) + '</a>' +
           '<span class="on" id="sellerOnBadge">…</span></div>' +
@@ -448,7 +450,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           '<div class="verify-row"><span>E-mail</span><span>Conta Bloxzuh</span></div>' +
           '<div class="verify-row"><span>Login</span><span>Verificado</span></div>' +
         '</div></div>' +
-        '<div class="section"><div class="card guarantee"><i class="fas fa-shield-alt"></i><h3>Entrega garantida</h3><p style="color:var(--muted);font-size:0.9rem;margin-top:6px">Ou o seu dinheiro de volta (quando o pagamento protegido estiver ativo).</p></div></div>';
+        '<div class="section"><div class="card guarantee"><i class="fas fa-shield-alt"></i><h3>Entrega garantida</h3><p style="color:var(--muted);font-size:0.9rem;margin-top:6px">Ou o seu dinheiro de volta (quando o pagamento protegido estiver ativo).</p></div></div></aside></div>';
 
       BloxzuhAdFrame.decorate(document.getElementById('adImageFrame'), raw.imageFrame, sellerUid, function (uid) {return BloxzuhMax.publicMember(uid);}, document.body);
 
