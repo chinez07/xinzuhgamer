@@ -170,7 +170,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
-  <link rel="stylesheet" href="css/ad-frame.css?v=3">
+  <link rel="stylesheet" href="css/ad-frame.css?v=4">
 </head>
 <body>
   <div class="top">
@@ -388,8 +388,15 @@ html { color-scheme: dark; background-color: #0f0f14; }
             <label>Escurecimento do fundo · <output data-background-dim>35%</output><input type="range" data-frame-input="backgroundDim" min="0" max="80" value="35"></label>
             <button type="button" class="btn btn-outline" data-background-remove>Remover fundo personalizado</button>
           </div>
+          <h3>Cor e transparência dos painéis</h3>
+          <p>Personalize os blocos de compra, vendedor, características, descrição, perguntas e avaliações deste anúncio.</p>
+          <div class="ad-frame-fields">
+            <label>Cor dos painéis<input type="color" data-frame-input="panelColor" value="#16161f"></label>
+            <label>Transparência dos painéis · <output data-panel-transparency>0%</output><input type="range" data-frame-input="panelTransparency" min="0" max="100" value="0"></label>
+          </div>
+          <p>0% deixa a cor sólida. 100% deixa os painéis totalmente transparentes.</p>
         </fieldset>
-        <div class="ad-frame-stage" data-frame-stage><div class="ad-frame-preview-bound"><div class="ad-frame-preview" data-frame-preview><div class="ad-frame-preview-surface"><img alt="Prévia da moldura na capa do anúncio" hidden><span data-frame-placeholder>Adicione uma capa para visualizar</span></div></div></div></div>
+        <div class="ad-frame-stage" data-frame-stage><div class="ad-frame-preview-bound"><div class="ad-frame-preview" data-frame-preview><div class="ad-frame-preview-surface"><img alt="Prévia da moldura na capa do anúncio" hidden><span data-frame-placeholder>Adicione uma capa para visualizar</span></div></div></div><div class="ad-panel-sample"><h4>Prévia dos painéis do anúncio</h4><p>A cor e a transparência serão aplicadas aos blocos de informações, sem deixar os textos transparentes.</p><span>Disponível para compra</span></div></div>
         <p class="ad-frame-caption">Prévia deste anúncio. A moldura aparece ao redor da capa e de toda a galeria, sem modificar as imagens.</p>
         <div class="ad-frame-links"><button type="button" class="btn btn-outline" data-frame-retry>Verificar MAX novamente</button><a href="plano-max.html">Conhecer o Clube MAX</a></div>
       </section>
@@ -425,7 +432,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/firestore-db.js?v=images-hq-1"></script>
   <script src="js/photos.js?v=profile-photo-2"></script>
   <script src="js/cover-worker-patch.js?v=images-hq-1"></script>
-  <script src="js/ad-frame.js?v=3"></script>
+  <script src="js/store-theme.js?v=ad-panels-1"></script>
+  <script src="js/ad-frame.js?v=4"></script>
 <script src="js/brand.js"></script>
   <script>
   (function () {

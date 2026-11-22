@@ -68,6 +68,22 @@ test('Backgrounds reject external and SVG images; size, proportions and corners 
   const el=element(); frame.apply(el,{style:'image',image:transparent,size:70,proportion:'wide',radius:24},true);
   assert.equal(el.props.get('--ad-frame-size'),'70%'); assert.equal(el.props.get('--ad-frame-ratio'),String(16/9)); assert.equal(el.props.get('--ad-frame-radius'),'24px');
 });
+test('Panel color and transparency work independently of frames/backgrounds and require active MAX',async()=>{
+  const photo=element(),page=element();let requests=0;
+  await frame.decorate(photo,{panelColor:'#123456',panelTransparency:50},'seller',async()=>{requests++;return {active:true};},page);
+  assert.equal(requests,1);assert.ok(page.classes.has('ad-panel-theme'));
+  assert.equal(page.props.get('--ad-panel-background'),'rgba(18,52,86,0.5)');
+  frame.applyPanels(page,{panelColor:'#ffffff',panelTransparency:0},true);
+  assert.equal(page.props.get('--ad-panel-text'),'#111118');
+  frame.applyPanels(page,{panelColor:'#ffffff',panelTransparency:100},true);
+  assert.equal(page.props.get('--ad-panel-background'),'rgba(255,255,255,0)');
+  await frame.decorate(photo,{panelColor:'#123456',panelTransparency:50},'seller',async()=>({active:false}),page);
+  assert.equal(page.classes.size,0);assert.equal(page.props.size,0);
+});
+test('Invalid panel settings cannot inject CSS or produce out-of-range transparency',()=>{
+  const value=frame.normalize({panelColor:'red;display:none',panelTransparency:101});
+  assert.equal(value.panelColor,'#16161f');assert.equal(value.panelTransparency,0);
+});
 test('Creating, editing and reloading two ads preserves different frames and original gallery photos', async () => {
   const docs=new Map(); let seq=0;
   const firestore=()=>({collection:()=>({doc:id=>({
@@ -81,13 +97,15 @@ test('Creating, editing and reloading two ads preserves different frames and ori
   vm.runInContext(source,context);
   context.bloxzuhDocId=()=> 'AD'+(++seq);
   const data={title:'Test',price:10,cover:'original.jpg',gallery:['original.jpg','second.jpg']};
-  const a=await context.fsCreateAd({...data,imageFrame:{style:'image',image:transparent,ratio:1.64,inset:9,backgroundStyle:'image',backgroundImage:transparent,size:80,radius:24}});
+  const a=await context.fsCreateAd({...data,imageFrame:{style:'image',image:transparent,ratio:1.64,inset:9,backgroundStyle:'image',backgroundImage:transparent,size:80,radius:24,panelColor:'#123456',panelTransparency:65}});
   const b=await context.fsCreateAd({...data,imageFrame:{style:'solid',color:'#123456'}});
   const reloaded=await context.fsGetAdById(a);
   assert.equal(reloaded.raw.imageFrame.image,transparent);
   assert.equal(reloaded.raw.imageFrame.ratio,1.64);
   assert.equal(reloaded.raw.imageFrame.backgroundImage,transparent);
   assert.equal(reloaded.raw.imageFrame.size,80);
+  assert.equal(reloaded.raw.imageFrame.panelColor,'#123456');
+  assert.equal(reloaded.raw.imageFrame.panelTransparency,65);
   await context.fsUpdateAd(a,{imageFrame:frame.normalize({style:'gradient',color:'#654321'})});
   assert.equal((await context.fsGetAdById(a)).raw.imageFrame.style,'gradient');
   assert.equal((await context.fsGetAdById(b)).raw.imageFrame.color,'#123456');

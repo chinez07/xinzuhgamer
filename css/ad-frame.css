@@ -44,4 +44,16 @@ body.ad-custom-background .top {position:relative; z-index:30;}
 body.ad-custom-background #bgChangeBtn {display:none!important;}
 #adImageFrame:not(.max-image-frame) > .cover,#adImageFrame:not(.max-image-frame) > .cover-carousel {border-radius:20px!important;}
 .ad-frame-editor h3 {margin:20px 0 8px;}
+.ad-panel-sample {position:relative; z-index:2; max-width:400px; margin:16px auto 0; padding:18px; border:1px solid #ffffff25; border-radius:16px; background:#16161f; color:#f3f4f6;}
+.ad-frame-editor .ad-panel-sample p {color:inherit; margin:10px 0;}
+.ad-panel-sample span {font-size:.85rem;}
+.ad-panel-theme .ad-purchase,.ad-panel-theme .ad-layout .card,.ad-panel-theme .ad-section-nav a,.ad-panel-theme .ad-panel-sample {background:var(--ad-panel-background); color:var(--ad-panel-text); border-color:var(--ad-panel-border);}
+.ad-panel-theme .ad-layout .desc,.ad-panel-theme .ad-layout .seller-meta,.ad-panel-theme .ad-layout .q-meta,.ad-panel-theme .ad-purchase .stat .k,.ad-panel-theme table.chars td:first-child {color:var(--ad-panel-muted);}
+.ad-panel-theme .ad-layout .q-meta strong {color:var(--ad-panel-text);}
+.ad-panel-theme .ad-purchase .stat .v.plus {color:var(--ad-panel-positive);}
+.ad-panel-theme .ad-layout .seller-card a.name {color:var(--ad-panel-readable);}
+.ad-panel-theme .ad-purchase .stats,.ad-panel-theme .ad-purchase .stat+.stat,.ad-panel-theme .ad-layout table.chars td,.ad-panel-theme .ad-layout .verify-row,.ad-panel-theme .ad-layout .q-item,.ad-panel-theme .ad-layout .rev-item {border-color:var(--ad-panel-border);}
+.ad-panel-theme .ad-layout .dyn-pick-item,.ad-panel-theme .ad-layout .q-reply {background:var(--ad-panel-surface); color:var(--ad-panel-text); border-color:var(--ad-panel-border);}
+.ad-panel-theme .ad-layout .dyn-pick-meta {color:var(--ad-panel-muted);}
+.ad-panel-theme .ad-layout {--muted:var(--ad-panel-muted); --text:var(--ad-panel-text); --border:var(--ad-panel-border);}
 @media(max-width:380px) {.ad-frame-fields {grid-template-columns:1fr;}}

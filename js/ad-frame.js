@@ -1,6 +1,7 @@
 // JavaScript / ad-frame.js / navegador e Node.js / moldura MAX independente por anúncio.
 (function (root) {
   'use strict';
+  var panelTheme = typeof module !== 'undefined' && module.exports ? require('./store-theme.js') : root.BloxzuhStoreTheme;
   function normalize(value) {
     value = value || {};
     function number(key, fallback, min, max) {return Number.isInteger(value[key]) && value[key] >= min && value[key] <= max ? value[key] : fallback;}
@@ -11,6 +12,7 @@
       ratio: typeof value.ratio === 'number' && value.ratio >= .5 && value.ratio <= 4 ? value.ratio : 1.6,
       size: number('size',100,60,100), proportion: ['auto','wide','standard','square'].includes(value.proportion) ? value.proportion : 'auto',
       backgroundStyle: ['none','color','image'].includes(value.backgroundStyle) ? value.backgroundStyle : 'none',
+      panelColor: color('panelColor','#16161f'), panelTransparency: number('panelTransparency',0,0,100),
       backgroundColor: color('backgroundColor','#0f0f14'), backgroundDim: number('backgroundDim',35,0,80),
       backgroundImage: typeof value.backgroundImage === 'string' && value.backgroundImage.length <= 180000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value.backgroundImage) ? value.backgroundImage : '',
       inset: number('inset',8,0,24), fit: value.fit === 'contain' ? 'contain' : 'cover',
@@ -47,15 +49,23 @@
     element.style.setProperty('--ad-background-image',settings.backgroundStyle === 'image' ? 'url("' + settings.backgroundImage + '")' : 'none');
     element.style.setProperty('--ad-background-dim',settings.backgroundStyle === 'image' ? String(settings.backgroundDim/100) : '0');
   }
+  function applyPanels(element,value,active) {
+    element.classList.remove('ad-panel-theme');
+    ['background','text','muted','readable','surface','border','positive'].forEach(function (key) {element.style.removeProperty('--ad-panel-' + key);});
+    if (!active) return;
+    var settings = normalize(value), palette = panelTheme.panelColors({panelColor:settings.panelColor,panelTransparency:settings.panelTransparency,accent:'#7c3aed'});
+    Object.keys(palette).forEach(function (key) {element.style.setProperty('--ad-panel-' + key,palette[key]);});
+    element.classList.add('ad-panel-theme');
+  }
   async function decorate(element, value, uid, lookup, page) {
     apply(element, value, false);
-    if (page) applyBackground(page,value,false);
+    if (page) {applyBackground(page,value,false); applyPanels(page,value,false);}
     var settings = normalize(value);
-    if (!uid || (settings.style === 'none' && settings.backgroundStyle === 'none')) return;
+    if (!uid || (settings.style === 'none' && settings.backgroundStyle === 'none' && settings.panelColor === '#16161f' && settings.panelTransparency === 0)) return;
     try {
       var member = await lookup(uid);
       // An entitlement always comes from the MAX backend, never from the ad's plan field.
-      if (element.isConnected !== false) {apply(element, value, member.active === true); if (page) applyBackground(page,value,member.active === true);}
+      if (element.isConnected !== false) {apply(element, value, member.active === true); if (page) {applyBackground(page,value,member.active === true);applyPanels(page,value,member.active === true);}}
     } catch (e) { /* A membership outage must not hide photos or block purchasing. */ }
   }
   function editor(host, getCover) {
@@ -63,10 +73,10 @@
     var controls = host.querySelector('fieldset'), status = host.querySelector('[data-frame-status]');
     var preview = host.querySelector('[data-frame-preview]'), image = preview.querySelector('img');
     var fields = {};
-    ['style','color','secondary','width','radius','inset','fit','size','proportion','backgroundStyle','backgroundColor','backgroundDim'].forEach(function (key) {
+    ['style','color','secondary','width','radius','inset','fit','size','proportion','backgroundStyle','backgroundColor','backgroundDim','panelColor','panelTransparency'].forEach(function (key) {
       fields[key] = host.querySelector('[data-frame-input="' + key + '"]');
       fields[key].addEventListener('input', function () {
-        value[key] = ['width','radius','inset','size','backgroundDim'].includes(key) ? Number(fields[key].value) : fields[key].value;
+        value[key] = ['width','radius','inset','size','backgroundDim','panelTransparency'].includes(key) ? Number(fields[key].value) : fields[key].value;
         paint();
       });
     });
@@ -86,6 +96,8 @@
       host.querySelector('[data-background-upload]').hidden = value.backgroundStyle !== 'image';
       host.querySelector('[data-background-color-label]').hidden = value.backgroundStyle === 'none';
       applyBackground(host.querySelector('[data-frame-stage]'),value,allowed);
+      applyPanels(host.querySelector('[data-frame-stage]'),value,allowed);
+      host.querySelector('[data-panel-transparency]').textContent = value.panelTransparency + '%';
       host.querySelectorAll('[data-frame-basic]').forEach(function (label) {label.hidden = value.style === 'image';});
       apply(preview, value, allowed);
       var cover = getCover();
@@ -175,7 +187,7 @@
       throw new Error('A imagem ficou muito grande. Envie uma imagem menor.');
     } finally {URL.revokeObjectURL(url);}
   }
-  var api = {normalize:normalize, apply:apply, decorate:decorate, applyBackground:applyBackground, editor:editor};
+  var api = {normalize:normalize, apply:apply, decorate:decorate, applyBackground:applyBackground, applyPanels:applyPanels, editor:editor};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.BloxzuhAdFrame = api;
 })(typeof window !== 'undefined' ? window : globalThis);
