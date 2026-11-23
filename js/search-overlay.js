@@ -17,7 +17,7 @@
 
   var adsCache = null;
   var profilesCache = null;
-  var debounceT = null;
+  var debounceT = null, searchVersion = 0, previousFocus = null, restoringFocus = false, previousOverflow = "";
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -27,14 +27,15 @@
 
   function ensureOverlay() {
     if (document.getElementById('bzSearchOverlay')) return;
-    var el = document.createElement('div');
+    var el = document.createElement('dialog');
     el.id = 'bzSearchOverlay';
+    el.setAttribute('aria-label','Buscar anúncios, usuários e categorias');
     el.innerHTML =
       '<div class="bz-search-panel">' +
         '<div class="bz-search-bar">' +
           '<i class="fas fa-search"></i>' +
-          '<input type="search" id="bzSearchInput" placeholder="Anúncio, usuário ou categoria" autocomplete="off" enterkeyhint="search">' +
-          '<button type="button" class="bz-search-close" id="bzSearchClose" aria-label="Fechar">✕</button>' +
+          '<input type="search" id="bzSearchInput" aria-label="Buscar anúncios, usuários e categorias" placeholder="Anúncio, usuário ou categoria" autocomplete="off" enterkeyhint="search">' +
+          '<button type="button" class="bz-search-close" id="bzSearchClose" aria-label="Fechar busca">Esc</button>' +
         '</div>' +
         '<div class="bz-search-body" id="bzSearchBody">' +
           '<div class="bz-search-empty">' +
@@ -47,74 +48,52 @@
     document.body.appendChild(el);
 
     if (!document.getElementById('bzSearchStyles')) {
-      var st = document.createElement('style');
-      st.id = 'bzSearchStyles';
-      st.textContent =
-        '#bzSearchOverlay{display:none;position:fixed;inset:0;z-index:99990;background:#000;color:#f3f4f6;color-scheme:dark}' +
-        '#bzSearchOverlay.open{display:block}' +
-        '.bz-search-panel{max-width:720px;margin:0 auto;height:100%;display:flex;flex-direction:column}' +
-        '.bz-search-bar{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.12);background:#000;position:sticky;top:0;z-index:2}' +
-        '.bz-search-bar i{color:#9ca3af;font-size:1rem}' +
-        '.bz-search-bar input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:1rem;color:inherit;padding:8px 0}' +
-        '.bz-search-bar input::placeholder{color:#9ca3af;opacity:1}' +
-        '.bz-search-close{border:0;background:#1f1f2a;flex-shrink:0;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:1rem;color:#e5e7eb}' +
-        '.bz-search-body{flex:1;overflow:auto;padding:12px 16px 40px;-webkit-overflow-scrolling:touch}' +
-        '.bz-search-empty{text-align:center;padding:64px 20px;color:#9ca3af}' +
-        '.bz-search-empty-icon{width:56px;height:56px;border-radius:14px;background:#1f1f2a;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:1.4rem;color:#9ca3af}' +
-        '.bz-search-empty strong{display:block;color:#f3f4f6;font-size:1.05rem;margin-bottom:6px}' +
-        '.bz-search-empty p{font-size:.9rem;opacity:.85}' +
-        '.bz-sec{margin:18px 0 8px;font-size:.75rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#9ca3af}' +
-        '.bz-item{display:flex;align-items:center;gap:12px;padding:12px 10px;border-radius:12px;text-decoration:none;color:inherit;cursor:pointer}' +
-        '.bz-item:hover,.bz-item:active{background:rgba(124,58,237,.2)}' +
-        '.bz-item img,.bz-av{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#1f1f2a;flex-shrink:0}' +
-        '.bz-av{display:flex;align-items:center;justify-content:center;font-weight:800;color:#a78bfa;font-size:1rem}' +
-        '.bz-item .t{font-weight:700;font-size:.95rem;line-height:1.25}' +
-        '.bz-item .s{font-size:.8rem;color:#9ca3af;margin-top:2px}' +
-        '.bz-item .price{margin-left:auto;font-weight:800;color:#a78bfa;font-size:.9rem;white-space:nowrap}' +
-        '.bz-badge{font-size:.65rem;font-weight:800;padding:2px 6px;border-radius:999px;background:rgba(124,58,237,.25);color:#c4b5fd;margin-left:6px}';
-      document.head.appendChild(st);
+      var style=document.createElement('link');style.id='bzSearchStyles';style.rel='stylesheet';style.href='/css/search-overlay.css?v=2';document.head.append(style);
     }
-
+    el.addEventListener('cancel',function(event){event.preventDefault();closeSearch();});
     document.getElementById('bzSearchClose').onclick = closeSearch;
     el.addEventListener('click', function (e) {
-      if (e.target === el) closeSearch();
+      if (e.target === el) {var box=el.getBoundingClientRect();if(e.clientX<box.left||e.clientX>box.right||e.clientY<box.top||e.clientY>box.bottom)closeSearch();}
     });
     document.getElementById('bzSearchInput').addEventListener('input', onInput);
     document.getElementById('bzSearchInput').addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') closeSearch();
+      if(e.key==='Enter' && this.value.trim().length>=3){e.preventDefault();location.href='/anuncios?q='+encodeURIComponent(this.value.trim());}
     });
   }
 
   function openSearch(prefill) {
+    if(restoringFocus)return;
     ensureOverlay();
     var ov = document.getElementById('bzSearchOverlay');
-    ov.classList.add('open');
+    if(ov.open)return;
+    previousFocus=document.activeElement;previousOverflow=document.body.style.overflow;
+    ov.showModal();
     document.body.style.overflow = 'hidden';
     var inp = document.getElementById('bzSearchInput');
-    if (prefill) inp.value = prefill;
-    setTimeout(function () { inp.focus(); }, 50);
+    if (typeof prefill==='string') inp.value = prefill;
+    inp.focus();
     if ((inp.value || '').trim().length >= 3) runSearch(inp.value.trim());
     else showEmpty();
   }
 
   function closeSearch() {
     var ov = document.getElementById('bzSearchOverlay');
-    if (ov) ov.classList.remove('open');
-    document.body.style.overflow = '';
+    searchVersion++;clearTimeout(debounceT);
+    restoringFocus=true;
+    if (ov && ov.open) ov.close();
+    document.body.style.overflow = previousOverflow;
+    if(previousFocus && previousFocus.isConnected)previousFocus.focus();
+    restoringFocus=false;
   }
 
   function showEmpty() {
-    document.getElementById('bzSearchBody').innerHTML =
-      '<div class="bz-search-empty">' +
-        '<div class="bz-search-empty-icon"><i class="fas fa-keyboard"></i></div>' +
-        '<strong>Comece a digitar</strong>' +
-        '<p>Digite ao menos 3 letras para buscar.</p>' +
-      '</div>';
+    var featured=CATS.filter(function(c){return ['roblox','freefire','valorant','lol','fortnite','genshin'].includes(c.id);});
+    document.getElementById('bzSearchBody').innerHTML='<div class="bz-discover"><section><h2 class="bz-sec">Explorar categorias</h2>'+featured.map(function(c){return '<a class="bz-item bz-category" href="'+esc(c.href)+'"><img src="/assets/categorias/'+c.id+'.jpg" alt=""><span class="t">'+esc(c.name)+'</span><span class="bz-arrow" aria-hidden="true">↗</span></a>';}).join('')+'</section><section><h2 class="bz-sec">Encontre no Bloxzuh</h2><a class="bz-item" href="/anuncios"><span class="bz-av" aria-hidden="true">↗</span><span><span class="t">Todos os anúncios</span><span class="s">Explore as ofertas disponíveis</span></span></a><a class="bz-item" href="/categorias"><span class="bz-av" aria-hidden="true">▦</span><span><span class="t">Todas as categorias</span><span class="s">Escolha seu jogo ou produto</span></span></a><a class="bz-item" href="/favoritos"><span class="bz-av" aria-hidden="true">♡</span><span><span class="t">Meus favoritos</span><span class="s">Volte aos anúncios que você salvou</span></span></a></section></div><p class="bz-search-hint">Digite pelo menos 3 letras para buscar anúncios, usuários e categorias.</p>';
   }
 
   function onInput() {
     var q = (document.getElementById('bzSearchInput').value || '').trim();
-    clearTimeout(debounceT);
+    clearTimeout(debounceT);searchVersion++;
     if (q.length < 3) {
       showEmpty();
       return;
@@ -173,11 +152,13 @@
   }
 
   async function runSearch(q) {
+    var version=++searchVersion;
     q = q.toLowerCase();
     var body = document.getElementById('bzSearchBody');
     try {
       var ads = await loadAds();
       var users = await loadProfiles();
+      if(version!==searchVersion||!document.getElementById('bzSearchOverlay').open)return;
 
       var catHits = CATS.filter(function (c) {
         return c.name.toLowerCase().indexOf(q) >= 0 || c.id.indexOf(q) >= 0;
@@ -252,6 +233,7 @@
       body.innerHTML = html;
     } catch (e) {
       console.warn(e);
+      if(version!==searchVersion||!document.getElementById('bzSearchOverlay').open)return;
       body.innerHTML = '<div class="bz-search-empty"><p>Erro ao buscar. Tente de novo.</p></div>';
     }
   }
@@ -268,6 +250,7 @@
     var home = document.getElementById('homeSearch');
     if (home) {
       home.addEventListener('focus', function () {
+        if(restoringFocus)return;
         openSearch(home.value || '');
       });
       home.addEventListener('click', function () {
