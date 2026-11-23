@@ -17,7 +17,7 @@
 
   var adsCache = null;
   var profilesCache = null;
-  var debounceT = null, searchVersion = 0, previousFocus = null, restoringFocus = false, previousOverflow = "";
+  var debounceT = null, searchVersion = 0, previousFocus = null, restoringFocus = false, searchAnchor = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -48,9 +48,13 @@
     document.body.appendChild(el);
 
     if (!document.getElementById('bzSearchStyles')) {
-      var style=document.createElement('link');style.id='bzSearchStyles';style.rel='stylesheet';style.href='/css/search-overlay.css?v=2';document.head.append(style);
+      var style=document.createElement('link');style.id='bzSearchStyles';style.rel='stylesheet';style.href='/css/search-overlay.css?v=3';document.head.append(style);
     }
     el.addEventListener('cancel',function(event){event.preventDefault();closeSearch();});
+    document.addEventListener('pointerdown',function(event){if(el.open&&!el.contains(event.target)&&!event.target.closest('#homeSearch,#btnOpenSearch,[data-open-search]'))closeSearch(false);},true);
+    document.addEventListener('keydown',function(event){if(el.open&&event.key==='Escape'){event.preventDefault();closeSearch();}});
+    window.addEventListener('resize',positionSearch);
+    window.addEventListener('scroll',positionSearch,{passive:true});
     document.getElementById('bzSearchClose').onclick = closeSearch;
     el.addEventListener('click', function (e) {
       if (e.target === el) {var box=el.getBoundingClientRect();if(e.clientX<box.left||e.clientX>box.right||e.clientY<box.top||e.clientY>box.bottom)closeSearch();}
@@ -61,28 +65,36 @@
     });
   }
 
+  function positionSearch(force) {
+    var overlay=document.getElementById('bzSearchOverlay');if(!overlay||(!overlay.open&&force!==true))return;
+    var box=searchAnchor&&searchAnchor.getBoundingClientRect(),width,left,top;
+    if(box&&box.top>=60&&box.bottom<window.innerHeight-100){width=Math.min(window.innerWidth-20,box.width+16);left=Math.max(10,Math.min(box.left-8,window.innerWidth-width-10));top=box.top-8;}
+    else{width=Math.min(720,window.innerWidth-20);left=(window.innerWidth-width)/2;top=80;}
+    overlay.style.position='fixed';overlay.style.width=width+'px';overlay.style.left=left+'px';overlay.style.top=top+'px';
+    overlay.style.setProperty('--bz-search-space',Math.max(180,window.innerHeight-top-12)+'px');
+  }
+
   function openSearch(prefill) {
     if(restoringFocus)return;
     ensureOverlay();
     var ov = document.getElementById('bzSearchOverlay');
     if(ov.open)return;
-    previousFocus=document.activeElement;previousOverflow=document.body.style.overflow;
-    ov.showModal();
-    document.body.style.overflow = 'hidden';
+    previousFocus=document.activeElement;
+    var home=document.getElementById('homeSearch');searchAnchor=home&&home.closest('.search-box');
+    positionSearch(true);ov.show();
     var inp = document.getElementById('bzSearchInput');
     if (typeof prefill==='string') inp.value = prefill;
-    inp.focus();
+    inp.focus({preventScroll:true});
     if ((inp.value || '').trim().length >= 3) runSearch(inp.value.trim());
     else showEmpty();
   }
 
-  function closeSearch() {
+  function closeSearch(restoreFocus) {
     var ov = document.getElementById('bzSearchOverlay');
     searchVersion++;clearTimeout(debounceT);
     restoringFocus=true;
     if (ov && ov.open) ov.close();
-    document.body.style.overflow = previousOverflow;
-    if(previousFocus && previousFocus.isConnected)previousFocus.focus();
+    if(restoreFocus!==false && previousFocus && previousFocus.isConnected)previousFocus.focus({preventScroll:true});
     restoringFocus=false;
   }
 

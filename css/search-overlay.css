@@ -1,6 +1,6 @@
 /* CSS / search-overlay.css / navegador / busca flutuante responsiva. */
 #bzSearchOverlay{box-sizing:border-box;position:fixed;inset:0;margin:clamp(24px,9vh,100px) auto auto;width:min(720px,calc(100% - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid #43364e;border-radius:19px;background:#202029;color:#f3f4f6;color-scheme:dark;box-shadow:0 26px 100px #0007;font:14px/1.45 system-ui;overflow:hidden}
-#bzSearchOverlay::backdrop{background:#090710b3;backdrop-filter:blur(4px)}
+
 #bzSearchOverlay .bz-search-panel{display:flex;flex-direction:column;max-height:min(760px,calc(100dvh - 130px))}
 #bzSearchOverlay .bz-search-bar{display:flex;align-items:center;gap:12px;margin:10px;padding:8px 15px;border:1px solid #8b5cf6;border-radius:12px;background:#101016;box-shadow:0 0 0 5px #7c3aed15;flex-shrink:0}
 #bzSearchOverlay .bz-search-bar i{color:#a5a0b3}#bzSearchOverlay input{flex:1;min-width:0;border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;font:16px system-ui;color:#f3f4f6!important;padding:12px 0}#bzSearchOverlay input::placeholder{color:#a5a0b3;opacity:1}
@@ -10,3 +10,10 @@
 #bzSearchOverlay .bz-item img,#bzSearchOverlay .bz-av{width:38px;height:38px;border-radius:9px;object-fit:cover;background:#302a3d;flex-shrink:0}#bzSearchOverlay .bz-av{display:flex;align-items:center;justify-content:center;color:#c4b5fd;font-size:20px}#bzSearchOverlay .t{display:block;font-weight:650;font-size:13px;line-height:1.4;overflow-wrap:anywhere}#bzSearchOverlay .s{display:block;font-size:11px;color:#aaa4b7;margin-top:3px}#bzSearchOverlay .bz-category img{width:29px;height:29px}#bzSearchOverlay .bz-arrow{margin-left:auto;color:#ae91ee}#bzSearchOverlay .price{margin-left:auto;color:#c4b5fd;font-size:13px;white-space:nowrap}#bzSearchOverlay .bz-badge{display:inline-block;font-size:10px;margin-left:6px;color:#c4b5fd;background:#7c3aed26;padding:2px 6px;border-radius:5px}
 #bzSearchOverlay .bz-search-hint{font-size:12px;color:#aaa4b7;border-top:1px solid #ffffff0d;margin:18px 0 0;padding:15px 0}#bzSearchOverlay .bz-search-empty{text-align:center;padding:34px 16px;color:#aaa4b7}#bzSearchOverlay .bz-search-empty-icon{font-size:25px;margin-bottom:12px;color:#a78bfa}#bzSearchOverlay .bz-search-empty strong{color:#f3f4f6}#bzSearchOverlay .bz-search-empty p{font-size:13px;margin-top:8px}
 @media(max-width:600px){#bzSearchOverlay{width:calc(100% - 20px);margin:12px auto auto;border-radius:15px;max-height:calc(100dvh - 24px)}#bzSearchOverlay .bz-search-panel{max-height:calc(100dvh - 24px)}#bzSearchOverlay .bz-discover{grid-template-columns:1fr;gap:8px}#bzSearchOverlay .bz-search-body{padding:0 14px}#bzSearchOverlay .bz-search-bar{margin:8px;padding:7px 10px;gap:8px}#bzSearchOverlay input{font-size:16px}#bzSearchOverlay input::placeholder{font-size:13px}#bzSearchOverlay .bz-item{padding:9px 7px}#bzSearchOverlay .bz-search-hint{font-size:11px}}
+
+/* A busca acompanha a barra da home e deixa a página interativa ao fundo. */
+#bzSearchOverlay{inset:auto;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;z-index:99990;max-height:var(--bz-search-space,calc(100dvh - 100px))}
+#bzSearchOverlay .bz-search-panel{max-height:var(--bz-search-space,calc(100dvh - 100px));gap:12px;padding:8px}
+#bzSearchOverlay .bz-search-bar{margin:0;border-radius:12px;box-shadow:0 0 0 6px #7c3aed26}
+#bzSearchOverlay .bz-search-body{min-height:0;background:#23232c;border:1px solid #35313f;border-radius:10px;padding:4px 20px 0;box-shadow:0 18px 45px #0005}
+@media(max-width:600px){#bzSearchOverlay .bz-search-panel{max-height:var(--bz-search-space);padding:8px;gap:10px}#bzSearchOverlay .bz-search-body{padding:0 12px}#bzSearchOverlay .bz-search-bar{margin:0}}
