@@ -1,6 +1,7 @@
 // JavaScript / market-core.mjs / Cloudflare Workers / pedidos e carteira com autoridade no servidor.
 import {firestoreService} from './firestore-service.mjs';
 import {maxUser, maxValidCPF} from './max-core.mjs';
+import {homeTrends,trendCategory} from './home-trends.mjs';
 const MARKET_RELEASE = 10*86400000;
 let marketRateReady;
 function marketError(text,status=400) {const error=Error(text); error.status=status; throw error;}
@@ -161,6 +162,7 @@ async function marketCreate(db,user,input) {
   const quote=marketQuote(doc.data,input,user),code='BZ'+crypto.randomUUID().replace(/-/g,'').toUpperCase();
   const order=await db.get('orders/'+code),now=Date.now(),ad=doc.data;
   const payload={secureVersion:1,code,adId:input.adId,adTitle:String(ad.title||'').slice(0,200)+(quote.itemName?' — '+quote.itemName:''),adCover:String(ad.cover||''),sellerUid:ad.sellerUid,sellerName:String(ad.sellerName||'Vendedor'),buyerUid:user.uid,buyerName:user.name,buyerEmail:user.email,category:String(ad.category||''),...quote,status:'aguardando_pagamento',createdAtMs:now,updatedAtMs:now};
+  payload.discoveryCategory=trendCategory(ad);
   const proof={path:'marketOrderProofs/'+code,version:null};
   const immutable=Object.fromEntries(['code','adId','buyerUid','sellerUid','total','price','quantity','feePercent','itemIndex'].map(field=>[field,payload[field]]));
   await db.commit([{doc:order,patch:payload},{doc:proof,patch:{...immutable,paymentVerified:false}},marketNotification(ad.sellerUid,payload,'Novo pedido',payload.adTitle)]); return {id:code,...payload};
@@ -252,6 +254,10 @@ export async function marketHandle(request,env,dependencies={}) {
       if(!payment.metadata?.bloxzuh_order) return reply({ok:true});
       await marketSettle(db,payment,marketId(payment.metadata.bloxzuh_order));
       return reply({ok:true});
+    }
+    if(request.method==='GET'&&path==='/market/home-trends') {
+      await (dependencies.rate||marketRate)(env,'home-trends:'+(request.headers.get('CF-Connecting-IP')||'anonymous'),60);
+      return reply(await homeTrends(db,env));
     }
     if(request.method==='GET'&&['/market/public-profile','/market/public-profiles'].includes(path)) {
       await (dependencies.rate||marketRate)(env,'public-profile:'+(request.headers.get('CF-Connecting-IP')||'anonymous'),120);

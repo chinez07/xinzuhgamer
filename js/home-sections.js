@@ -6,10 +6,37 @@
   function popular(ads){return ads.filter(function(ad){return promoted(ad)&&Number(ad.sales||(ad.raw&&ad.raw.sales)||0)>0;}).slice().sort(function(a,b){return Number(b.sales||(b.raw&&b.raw.sales)||0)-Number(a.sales||(a.raw&&a.raw.sales)||0)||Number(b.ratingCount||0)-Number(a.ratingCount||0);}).slice(0,12);}
   function favorites(ads,ids){var selected=new Set(ids.map(String));return ads.filter(function(ad){return active(ad)&&selected.has(String(ad.id));});}
   function publicReviews(rows){return rows.filter(function(row){return ['ad','seller'].includes(row.type)&&Number.isInteger(row.stars)&&row.stars>=1&&row.stars<=5;}).sort(function(a,b){return Number(b.createdAtMs||0)-Number(a.createdAtMs||0);}).slice(0,8);}
-  var api={popular:popular,favorites:favorites,publicReviews:publicReviews};
+  var shortcutGames={roblox:{name:'Roblox',path:'roblox',icon:'/assets/icons/roblox.svg'},freefire:{name:'Free Fire',path:'free-fire',icon:'/assets/icons/free-fire.svg'},valorant:{name:'Valorant',path:'valorant',icon:'/assets/icons/valorant.svg'},fortnite:{name:'Fortnite',path:'fortnite',icon:'/assets/categorias/fortnite.jpg'},lol:{name:'League of Legends',path:'league-of-legends',icon:'/assets/categorias/lol.jpg'},genshin:{name:'Genshin Impact',path:'genshin-impact',icon:'/assets/categorias/genshin.jpg'},cs2:{name:'CS2',path:'cs2',icon:'/assets/categorias/cs2.jpg'}};
+  function shortcutSelection(ranked){
+    var ids=[];
+    (Array.isArray(ranked)?ranked:[]).concat(['roblox','freefire','valorant']).forEach(function(id){if(Object.hasOwn(shortcutGames,id)&&!ids.includes(id)&&ids.length<3)ids.push(id);});
+    return ids.map(function(id){return Object.assign({id:id},shortcutGames[id]);});
+  }
+  var api={popular:popular,favorites:favorites,publicReviews:publicReviews,shortcutSelection:shortcutSelection};
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(!root.document)return;
   var document=root.document,favoriteExtra=[],favoriteVersion=0;
+  function renderShortcuts(ranked){
+    var nav=document.querySelector('.home-shortcuts');if(!nav)return;
+    nav.replaceChildren();nav.setAttribute('aria-label',ranked.length?'Jogos mais comprados nos últimos 7 dias':'Explorar jogos');
+    shortcutSelection(ranked).concat([{name:'Todos os jogos',path:'',icon:'/assets/icons/all-games.svg'}]).forEach(function(game){
+      var link=document.createElement('a');link.href=game.path?'/categoria/'+game.path:'/categorias';
+      var image=document.createElement('img');image.className='shortcut-icon';image.src=game.icon;image.alt='';image.width=22;image.height=22;
+      var arrow=document.createElement('span');arrow.textContent=game.path?'↗':'→';arrow.setAttribute('aria-hidden','true');
+      if(ranked.includes(game.id))link.title='Entre os jogos mais comprados nos últimos 7 dias';
+      link.append(image,document.createTextNode(game.name),arrow);nav.append(link);
+    });
+  }
+  async function refreshShortcuts(){
+    if(!document.querySelector('.home-shortcuts'))return;
+    var controller=new AbortController(),timer=setTimeout(function(){controller.abort();},8000);
+    try{
+      var response=await root.fetch('https://bloxzuh-pix.hskkaj48.workers.dev/market/home-trends',{signal:controller.signal});
+      if(!response.ok)throw Error('unavailable');
+      var result=await response.json();
+      renderShortcuts(result.windowDays===7&&Array.isArray(result.categories)?result.categories:[]);
+    }catch(error){renderShortcuts([]);}finally{clearTimeout(timer);}
+  }
   function empty(container,title,description,href,label){
     container.replaceChildren();var card=document.createElement('div');card.className='home-empty';
     var heading=document.createElement('h3');heading.textContent=title;var text=document.createElement('p');text.textContent=description;card.append(heading,text);
@@ -53,6 +80,7 @@
     }catch(error){empty(container,'Avaliações dos compradores','Consulte as avaliações na página de cada vendedor.');}
   }
   function boot(){
+    refreshShortcuts();setInterval(function(){if(!document.hidden)refreshShortcuts();},300000);
     document.querySelectorAll('[data-home-scroll]').forEach(function(button){button.addEventListener('click',function(){var track=document.getElementById(button.dataset.homeScroll);if(track)track.scrollBy({left:Number(button.dataset.direction)*(track.clientWidth*.8),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});});});
     root.addEventListener('bloxzuh:home-ready',function(){renderFavorites();renderPopular();});
     root.addEventListener('storage',function(event){if(event.key==='bloxzuh-favs')renderFavorites();});

@@ -399,10 +399,65 @@ function firestoreService(env, fetcher = fetch) {
       const data=await call('/'+collection+'?'+new URLSearchParams({pageSize:String(Math.min(80,pageSize)),...(pageToken?{pageToken}:{})}));
       return {documents:(data.documents||[]).map(doc=>({path:doc.name.split('/documents/')[1],version:doc.updateTime,data:firestoreDecode({mapValue:{fields:doc.fields}})})),nextPageToken:data.nextPageToken||''};
     },
+    async recentCompletedOrders(since,cursor=null) {
+      const query={from:[{collectionId:'orders'}],
+        select:{fields:['secureVersion','paymentVerified','status','completedAtMs','adId','discoveryCategory'].map(fieldPath=>({fieldPath}))},
+        where:{fieldFilter:{field:{fieldPath:'completedAtMs'},op:'GREATER_THAN_OR_EQUAL',value:firestoreValue(since)}},
+        orderBy:[{field:{fieldPath:'completedAtMs'},direction:'ASCENDING'},{field:{fieldPath:'__name__'},direction:'ASCENDING'}],limit:500};
+      if(cursor)query.startAt={values:[firestoreValue(cursor.time),{referenceValue:root+'/'+cursor.path}],before:false};
+      const rows=await call(':runQuery',{method:'POST',body:{structuredQuery:query}});
+      const documents=rows.filter(row=>row.document).map(({document:doc})=>({path:doc.name.split('/documents/')[1],data:firestoreDecode({mapValue:{fields:doc.fields}})}));
+      const last=documents.at(-1);
+      return {documents,nextCursor:documents.length===500?{time:last.data.completedAtMs,path:last.path}:null};
+    },
     async commit(changes) {
       return call(':commit',{method:'POST',body:{writes:changes.map(({doc,patch}) => ({update:{name:root+'/'+doc.path,fields:firestoreValue(patch).mapValue.fields},updateMask:{fieldPaths:Object.keys(patch)},currentDocument:doc.version ? {updateTime:doc.version} : {exists:false}}))}});
     }
   };
+}
+
+
+// JavaScript / home-trends.mjs / Cloudflare Workers / ranking público sem dados dos pedidos.
+const TREND_WEEK=7*86400000;
+const trendCache=new WeakMap();
+function trendCategory(ad={}) {
+  const key=String(ad.subcategory||ad.category||'').toLowerCase().replace(/\s+/g,'');
+  const categories={roblox:'roblox',freefire:'freefire',valorant:'valorant',fortnite:'fortnite',leagueoflegends:'lol',lol:'lol',cs2:'cs2',genshinimpact:'genshin',genshin:'genshin'};
+  return Object.hasOwn(categories,key)?categories[key]:'';
+}
+function rankCompletedGames(orders,now=Date.now()) {
+  const counts=new Map(),seen=new Set();
+  for(const order of orders) {
+    if(!order.id||seen.has(order.id)||order.secureVersion!==1||order.paymentVerified!==true||order.status!=='concluido'||!Number.isFinite(order.completedAtMs)||order.completedAtMs<now-TREND_WEEK||order.completedAtMs>now)continue;
+    seen.add(order.id);
+    const category=trendCategory({category:order.discoveryCategory});
+    if(category)counts.set(category,(counts.get(category)||0)+1);
+  }
+  return [...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,3).map(([category])=>category);
+}
+async function homeTrends(db,env,now=Date.now()) {
+  const key=env,previous=trendCache.get(key);
+  if(previous&&previous.expires>now)return previous.promise;
+  const promise=(async()=>{
+    const orders=[],adCategories=new Map();let cursor=null;
+    do {
+      const page=await db.recentCompletedOrders(now-TREND_WEEK,cursor);
+      for(const doc of page.documents) {
+        const order=doc.data;
+        if(order.secureVersion!==1||order.paymentVerified!==true||order.status!=='concluido')continue;
+        let category=order.discoveryCategory;
+        if(!category&&/^[A-Za-z0-9_-]{1,128}$/.test(order.adId||'')) {
+          if(!adCategories.has(order.adId))adCategories.set(order.adId,trendCategory((await db.get('ads/'+order.adId)).data||{}));
+          category=adCategories.get(order.adId);
+        }
+        orders.push({...order,id:doc.path,discoveryCategory:category});
+      }
+      cursor=page.nextCursor;
+    }while(cursor);
+    return {categories:rankCompletedGames(orders,now),windowDays:7,generatedAtMs:now};
+  })();
+  trendCache.set(key,{expires:now+300000,promise});
+  try{return await promise;}catch(error){trendCache.delete(key);throw error;}
 }
 
 
@@ -567,6 +622,7 @@ async function marketCreate(db,user,input) {
   const quote=marketQuote(doc.data,input,user),code='BZ'+crypto.randomUUID().replace(/-/g,'').toUpperCase();
   const order=await db.get('orders/'+code),now=Date.now(),ad=doc.data;
   const payload={secureVersion:1,code,adId:input.adId,adTitle:String(ad.title||'').slice(0,200)+(quote.itemName?' — '+quote.itemName:''),adCover:String(ad.cover||''),sellerUid:ad.sellerUid,sellerName:String(ad.sellerName||'Vendedor'),buyerUid:user.uid,buyerName:user.name,buyerEmail:user.email,category:String(ad.category||''),...quote,status:'aguardando_pagamento',createdAtMs:now,updatedAtMs:now};
+  payload.discoveryCategory=trendCategory(ad);
   const proof={path:'marketOrderProofs/'+code,version:null};
   const immutable=Object.fromEntries(['code','adId','buyerUid','sellerUid','total','price','quantity','feePercent','itemIndex'].map(field=>[field,payload[field]]));
   await db.commit([{doc:order,patch:payload},{doc:proof,patch:{...immutable,paymentVerified:false}},marketNotification(ad.sellerUid,payload,'Novo pedido',payload.adTitle)]); return {id:code,...payload};
@@ -658,6 +714,10 @@ async function marketHandle(request,env,dependencies={}) {
       if(!payment.metadata?.bloxzuh_order) return reply({ok:true});
       await marketSettle(db,payment,marketId(payment.metadata.bloxzuh_order));
       return reply({ok:true});
+    }
+    if(request.method==='GET'&&path==='/market/home-trends') {
+      await (dependencies.rate||marketRate)(env,'home-trends:'+(request.headers.get('CF-Connecting-IP')||'anonymous'),60);
+      return reply(await homeTrends(db,env));
     }
     if(request.method==='GET'&&['/market/public-profile','/market/public-profiles'].includes(path)) {
       await (dependencies.rate||marketRate)(env,'public-profile:'+(request.headers.get('CF-Connecting-IP')||'anonymous'),120);

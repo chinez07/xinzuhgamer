@@ -57,6 +57,17 @@ export function firestoreService(env, fetcher = fetch) {
       const data=await call('/'+collection+'?'+new URLSearchParams({pageSize:String(Math.min(80,pageSize)),...(pageToken?{pageToken}:{})}));
       return {documents:(data.documents||[]).map(doc=>({path:doc.name.split('/documents/')[1],version:doc.updateTime,data:firestoreDecode({mapValue:{fields:doc.fields}})})),nextPageToken:data.nextPageToken||''};
     },
+    async recentCompletedOrders(since,cursor=null) {
+      const query={from:[{collectionId:'orders'}],
+        select:{fields:['secureVersion','paymentVerified','status','completedAtMs','adId','discoveryCategory'].map(fieldPath=>({fieldPath}))},
+        where:{fieldFilter:{field:{fieldPath:'completedAtMs'},op:'GREATER_THAN_OR_EQUAL',value:firestoreValue(since)}},
+        orderBy:[{field:{fieldPath:'completedAtMs'},direction:'ASCENDING'},{field:{fieldPath:'__name__'},direction:'ASCENDING'}],limit:500};
+      if(cursor)query.startAt={values:[firestoreValue(cursor.time),{referenceValue:root+'/'+cursor.path}],before:false};
+      const rows=await call(':runQuery',{method:'POST',body:{structuredQuery:query}});
+      const documents=rows.filter(row=>row.document).map(({document:doc})=>({path:doc.name.split('/documents/')[1],data:firestoreDecode({mapValue:{fields:doc.fields}})}));
+      const last=documents.at(-1);
+      return {documents,nextCursor:documents.length===500?{time:last.data.completedAtMs,path:last.path}:null};
+    },
     async commit(changes) {
       return call(':commit',{method:'POST',body:{writes:changes.map(({doc,patch}) => ({update:{name:root+'/'+doc.path,fields:firestoreValue(patch).mapValue.fields},updateMask:{fieldPaths:Object.keys(patch)},currentDocument:doc.version ? {updateTime:doc.version} : {exists:false}}))}});
     }

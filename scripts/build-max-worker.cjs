@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 const shared = ['ad-catalog.js','content-policy.js'].map(file=>fs.readFileSync(path.join(root,'js',file),'utf8'));
-const sources = ['max-core.mjs','firestore-service.mjs','market-core.mjs','moderation-ai.mjs','ad-moderation.mjs'].map(file => fs.readFileSync(path.join(root,'workers',file),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/^export default \{fetch:handleModeration\};\r?\n?/gm,'').replace(/^export /gm,''));
+const sources = ['max-core.mjs','firestore-service.mjs','home-trends.mjs','market-core.mjs','moderation-ai.mjs','ad-moderation.mjs'].map(file => fs.readFileSync(path.join(root,'workers',file),'utf8').replace(/^import .*;\r?\n/gm,'').replace(/^export default \{fetch:handleModeration\};\r?\n?/gm,'').replace(/^export /gm,''));
 const entry = `export default {async fetch(request,env,ctx) {
   const path = new URL(request.url).pathname.replace(/\\/$/,'');
   if (path.startsWith('/max/')) return handleMaxRequest(request,env);

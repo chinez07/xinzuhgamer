@@ -2,6 +2,11 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const home=require('../js/home-sections.js');
 const ad=(id,visibility,sales,status='ativo')=>({id,visibility,sales,status});
+test('atalhos mostram top 3 sem repetir e completam com padrões; ignoram categorias desconhecidas',()=>{
+  assert.deepEqual(home.shortcutSelection(['fortnite','fortnite','__proto__','roblox']).map(x=>x.id),['fortnite','roblox','freefire']);
+  assert.deepEqual(home.shortcutSelection([]).map(x=>x.id),['roblox','freefire','valorant']);
+  assert.deepEqual(home.shortcutSelection(null).map(x=>x.id),['roblox','freefire','valorant']);
+});
 test('populares incluem somente Ouro/Diamante ativos com vendas reais',()=>{
   const ads=[ad('prata','prata',100),ad('sem-vendas','diamante',0),ad('pausado','ouro',90,'pausado'),ad('ouro','ouro',3),ad('diamante','diamante',10)];
   assert.deepEqual(home.popular(ads).map(x=>x.id),['diamante','ouro']);
