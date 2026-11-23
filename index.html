@@ -910,90 +910,6 @@ body.exp-bg .section-title,
 body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   text-shadow: 0 1px 8px rgba(0,0,0,0.5);
 }
-#bgChangeBtn {
-  display: none;
-  position: fixed;
-  bottom: 20px;
-  right: 16px;
-  z-index: 900;
-  background: linear-gradient(135deg, #7c3aed, #a855f7);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  padding: 12px 16px;
-  font-weight: 700;
-  font-size: 0.85rem;
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.45);
-  cursor: pointer;
-  align-items: center;
-  gap: 8px;
-}
-#bgChangeBtn.show { display: inline-flex; }
-#bgModal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0,0,0,0.65);
-  align-items: flex-end;
-  justify-content: center;
-  padding: 16px;
-}
-#bgModal.show { display: flex; }
-#bgModal .bg-panel {
-  background: var(--bg-card, #1a1228);
-  color: var(--text, #fff);
-  border-radius: 16px 16px 12px 12px;
-  width: 100%;
-  max-width: 420px;
-  padding: 18px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-#bgModal h3 { margin: 0 0 12px; font-size: 1.05rem; }
-.bg-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-.bg-opt {
-  border: 2px solid transparent;
-  border-radius: 12px;
-  overflow: hidden;
-  cursor: pointer;
-  position: relative;
-  aspect-ratio: 9/14;
-  background: #111;
-}
-.bg-opt img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.bg-opt.active { border-color: #a855f7; box-shadow: 0 0 0 2px rgba(168,85,247,0.4); }
-.bg-opt.pc-only { aspect-ratio: 16/7; }
-.bg-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-}
-.bg-actions button {
-  flex: 1;
-  padding: 11px;
-  border-radius: 10px;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-}
-.bg-actions .btn-cancel { background: #333; color: #fff; }
-.bg-actions .btn-reset { background: transparent; border: 1px solid #666; color: #ccc; }
-@media (min-width: 768px) {
-  .bg-grid { grid-template-columns: 1fr 1fr 1fr; }
-  .bg-opt { aspect-ratio: 16/9; }
-}
-
-
 /* Toggle switch (versão experimental) */
 .switch {
   position: relative;
@@ -1160,6 +1076,7 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/home.css?v=transparent-home-2">
+  <link rel="stylesheet" href="/css/home-refresh.css?v=1">
 </head>
 <body class="home-page">
   <!-- Header -->
@@ -1203,14 +1120,16 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <!-- Hero -->
   <section class="hero">
     <div class="container">
-      <h1 class="hero-tag">[ <span>comprar</span> e <span>vender</span> ]</h1>
-      <p class="hero-sub">contas, jogos, gift cards, gold, itens digitais e mais!</p>
+      <span class="home-eyebrow">SEU PRÓXIMO JOGO COMEÇA AQUI</span>
+      <h1 class="hero-tag">Compre. Venda. <span>Jogue mais.</span></h1>
+      <p class="hero-sub">Contas, itens e produtos digitais. Encontre seu próximo upgrade.</p>
 
       <div class="search-box">
         <i class="fas fa-search"></i>
         <input id="homeSearch" type="text" placeholder="Anúncio, usuário ou categoria">
       </div>
 
+      <nav class="home-shortcuts" aria-label="Explorar jogos"><a href="/categoria/roblox">Roblox <span>↗</span></a><a href="/categoria/free-fire">Free Fire <span>↗</span></a><a href="/categoria/valorant">Valorant <span>↗</span></a><a href="/categorias">Todos os jogos <span>→</span></a></nav>
       <a href="#como-funciona" class="hero-link">
         <i class="fas fa-question-circle"></i> Saiba como funciona
       </a>
@@ -1398,7 +1317,8 @@ body.exp-bg h1, body.exp-bg h2, body.exp-bg h3 {
   <script src="js/search-overlay.js?v=privacy-chat-1"></script>
   <script src="js/photos.js?v=privacy-chat-1"></script>
   <script src="js/favs.js"></script>
-  <script src="js/experimental.js"></script>
+  <script src="/js/background-settings.js?v=2"></script>
+  <script src="/js/experimental.js?v=backgrounds-2"></script>
   <script src="js/notificacoes.js"></script>
   <script>
 const adsData = [];
@@ -1517,134 +1437,7 @@ function doLogout() {
 
 // expose for onclick
 
-// ===== Versão experimental + fundo por conta =====
-  const BG_MOBILE = [
-    'assets/fundos/mobile1.jpg',
-    'assets/fundos/mobile2.jpg',
-    'assets/fundos/mobile3.jpg',
-    'assets/fundos/mobile4.jpg',
-    'assets/fundos/mobile5.png',
-    'assets/fundos/mobile6.png',
-    'assets/fundos/mobile7.png',
-    'assets/fundos/mobile8.png'
-  ];
-  const BG_PC = [
-    'assets/fundos/pc1.jpg',
-    'assets/fundos/pc2.jpg',
-    'assets/fundos/pc3.jpg',
-    'assets/fundos/pc4.png',
-    'assets/fundos/pc5.png',
-    'assets/fundos/pc6.png'
-  ];
-
-function bgUserKey() {
-  if (typeof expStorageKey === 'function') return expStorageKey();
-  const email = localStorage.getItem('xinzuh-email') || '';
-  const name = localStorage.getItem('xinzuh-username') || 'guest';
-  return 'xinzuh-exp-' + (email || name);
-}
-
-function isExperimental() {
-  return localStorage.getItem(bgUserKey() + '-on') === '1';
-}
-
-function getBgIndex() {
-  const v = localStorage.getItem(bgUserKey() + '-bg');
-  return v === null || v === '' ? -1 : parseInt(v, 10);
-}
-
-function isMobileView() {
-  return window.matchMedia('(max-width: 768px)').matches;
-}
-
-function applyExperimentalBackground() {
-  const btn = document.getElementById('bgChangeBtn');
-  const on = isExperimental();
-  if (btn) btn.classList.toggle('show', on && isLoggedIn);
-
-  if (!on || !isLoggedIn) {
-    document.body.classList.remove('exp-bg');
-    document.body.style.removeProperty('--exp-bg-image');
-    return;
-  }
-  const idx = getBgIndex();
-  if (idx < 0) {
-    document.body.classList.remove('exp-bg');
-    document.body.style.removeProperty('--exp-bg-image');
-    return;
-  }
-  const list = isMobileView() ? BG_MOBILE : BG_PC;
-  const safeIdx = idx % list.length;
-  const url = list[safeIdx];
-  document.body.classList.add('exp-bg');
-  document.body.style.setProperty('--exp-bg-image', 'url("' + url + '")');
-}
-
-function setExperimental(on) {
-  if (!isLoggedIn && localStorage.getItem('xinzuh-logged') !== 'true') {
-    alert('Entre na sua conta para usar a versão experimental.');
-    const t = document.getElementById('expToggle');
-    if (t) t.checked = false;
-    return;
-  }
-  localStorage.setItem(bgUserKey() + '-on', on ? '1' : '0');
-  applyExperimentalBackground();
-  const t = document.getElementById('expToggle');
-  if (t) t.checked = !!on;
-}
-
-function openBgModal() {
-  const modal = document.getElementById('bgModal');
-  const grid = document.getElementById('bgGrid');
-  if (!modal || !grid) return;
-  const mobile = isMobileView();
-  const list = mobile ? BG_MOBILE : BG_PC;
-  const current = getBgIndex();
-  grid.innerHTML = list.map(function (src, i) {
-    const active = current === i ? ' active' : '';
-    const cls = mobile ? 'bg-opt' : 'bg-opt pc-only';
-    return '<button type="button" class="' + cls + active + '" data-i="' + i + '"><img src="' + src + '" alt="Fundo ' + (i+1) + '"></button>';
-  }).join('');
-  grid.querySelectorAll('.bg-opt').forEach(function (el) {
-    el.addEventListener('click', function () {
-      const i = parseInt(el.getAttribute('data-i'), 10);
-      localStorage.setItem(bgUserKey() + '-bg', String(i));
-      applyExperimentalBackground();
-      openBgModal(); // refresh active state
-    });
-  });
-  modal.classList.add('show');
-}
-
-function closeBgModal() {
-  const modal = document.getElementById('bgModal');
-  if (modal) modal.classList.remove('show');
-}
-
-function resetBg() {
-  localStorage.setItem(bgUserKey() + '-bg', '-1');
-  applyExperimentalBackground();
-  closeBgModal();
-}
-
-window.setExperimental = setExperimental;
-window.openBgModal = openBgModal;
-
-document.addEventListener('DOMContentLoaded', function () {
-  const btn = document.getElementById('bgChangeBtn');
-  const modal = document.getElementById('bgModal');
-  const close = document.getElementById('bgClose');
-  const reset = document.getElementById('bgReset');
-  if (btn) btn.addEventListener('click', openBgModal);
-  if (close) close.addEventListener('click', closeBgModal);
-  if (reset) reset.addEventListener('click', resetBg);
-  if (modal) modal.addEventListener('click', function (e) {
-    if (e.target === modal) closeBgModal();
-  });
-  window.addEventListener('resize', function () {
-    if (isExperimental() && isLoggedIn) applyExperimentalBackground();
-  });
-});
+// Preferências de fundo são controladas por js/experimental.js.
 
 // After menu render, sync checkbox
 const _origRenderUserMenu = renderUserMenu;
@@ -2046,19 +1839,6 @@ if (adDetailContainer) {
 }
 
   </script>
-
-  <button type="button" id="bgChangeBtn" title="Mudar fundo"><i class="fas fa-image"></i> Mudar fundo</button>
-  <div id="bgModal" role="dialog" aria-modal="true">
-    <div class="bg-panel">
-      <h3><i class="fas fa-image"></i> Escolher fundo</h3>
-      <p style="font-size:0.8rem;opacity:0.75;margin:0 0 12px">Só na sua conta, com a versão experimental ligada.</p>
-      <div class="bg-grid" id="bgGrid"></div>
-      <div class="bg-actions">
-        <button type="button" class="btn-reset" id="bgReset">Padrão</button>
-        <button type="button" class="btn-cancel" id="bgClose">Fechar</button>
-      </div>
-    </div>
-  </div>
 
 <script src="js/home-contrast.js?v=contrast-1"></script></body>
 </html>

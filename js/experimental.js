@@ -72,14 +72,18 @@
     }
   } catch (eb) {}
 
-  var BG_MOBILE = [
-    '/assets/fundos/mobile1.jpg','/assets/fundos/mobile2.jpg','/assets/fundos/mobile3.jpg','/assets/fundos/mobile4.jpg',
-    '/assets/fundos/mobile5.png','/assets/fundos/mobile6.png','/assets/fundos/mobile7.png','/assets/fundos/mobile8.png'
-  ];
-  var BG_PC = [
-    '/assets/fundos/pc1.jpg','/assets/fundos/pc2.jpg','/assets/fundos/pc3.jpg',
-    '/assets/fundos/pc4.png','/assets/fundos/pc5.png','/assets/fundos/pc6.png'
-  ];
+  var backgroundDevice = null, backgroundBusy = false, backgroundEdit = 0, lastBgFocus;
+  function backgroundSettings() {
+    var value;try { value=JSON.parse(localStorage.getItem(expStorageKey()+'-backgrounds-v2')||'null'); } catch(e) {}
+    return BloxzuhBackgrounds.normalize(value,getBgIndex());
+  }
+  async function saveBackgrounds(settings) {
+    backgroundEdit++;
+    localStorage.setItem(expStorageKey()+'-backgrounds-v2',JSON.stringify(settings));
+    applyExperimentalBackground();
+    var u=currentUser();
+    if(u&&firebase.firestore)await firebase.firestore().collection('profiles').doc(u.uid).set({experimentalBackgrounds:settings,updatedAtMs:Date.now()},{merge:true});
+  }
 
   function currentUser() {
     try { if (typeof firebase !== 'undefined' && firebase.auth) return firebase.auth().currentUser; } catch (e) {}
@@ -244,12 +248,8 @@
       else { btn.classList.remove('show'); btn.style.display = 'none'; }
     }
     if (!on) { clearBg(); return; }
-    var idx = getBgIndex();
-    if (idx < 0) { clearBg(); return; }
-    var list = isMobileView() ? BG_MOBILE : BG_PC;
-    var safeIdx = ((idx % list.length) + list.length) % list.length;
-    var url = list[safeIdx];
-    if (url && url.charAt(0) !== '/') url = '/' + url;
+    var url = BloxzuhBackgrounds.pick(backgroundSettings(),isMobileView()?'mobile':'desktop');
+    if (!url) { clearBg(); return; }
     document.body.classList.add('exp-bg');
     document.documentElement.classList.add('exp-bg');
     document.documentElement.style.setProperty('--exp-bg-image', 'url("' + url + '")');
@@ -292,69 +292,53 @@
     applyExperimentalBackground();
   }
 
-  function openBgModal() {
-    ensureModal();
-    var modal = document.getElementById('bgModal');
-    var grid = document.getElementById('bgGrid');
-    if (!modal || !grid) return;
-    var list = isMobileView() ? BG_MOBILE : BG_PC;
-    var cur = getBgIndex();
-    grid.innerHTML = list.map(function (url, i) {
-      return '<button type="button" class="bg-opt' + (i === cur ? ' on' : '') + '" data-i="' + i + '"><img src="' + url + '" alt="" style="width:100%;height:80px;object-fit:cover;display:block"></button>';
-    }).join('');
-    grid.querySelectorAll('.bg-opt').forEach(function (el) {
-      el.onclick = function () {
-        var i = parseInt(el.getAttribute('data-i'), 10);
-        writeExpBg(i);
-        persistToProfile({ experimentalBg: i, updatedAtMs: Date.now() });
-        applyExperimentalBackground();
-        closeBgModal();
-      };
+  function renderBackgrounds() {
+    var device=backgroundDevice,settings=backgroundSettings(),row=settings[device],grid=document.getElementById('bgGrid');
+    document.getElementById('bgDeviceHint').textContent=device==='desktop'?'Fundos horizontais para PC. Sua escolha não muda o fundo do celular.':'Fundos verticais para celular. Sua escolha não muda o fundo do PC.';
+    document.querySelectorAll('[data-bg-device]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.bgDevice===device));});
+    grid.replaceChildren();
+    BloxzuhBackgrounds.presets[device].forEach(function(preset,i){
+      var button=document.createElement('button'),img=document.createElement('img'),label=document.createElement('span');
+      button.type='button';button.className='bg-opt';button.setAttribute('aria-pressed',String(!row.custom&&row.preset===i));img.src=preset.url;img.alt='';label.textContent=preset.name;button.append(img,label);
+      button.onclick=async function(){if(backgroundBusy)return;settings[device]={preset:i,custom:''};await storeChoice(settings);renderBackgrounds();};grid.append(button);
     });
-    modal.classList.add('show');
+    var custom=document.getElementById('bgCustomPreview');custom.hidden=!row.custom;
+    if(row.custom)custom.src=row.custom;else custom.removeAttribute('src');
+    document.getElementById('bgUpload').value='';
   }
-
-  function closeBgModal() {
-    var modal = document.getElementById('bgModal');
-    if (modal) modal.classList.remove('show');
+  async function storeChoice(settings) {
+    backgroundBusy=true;document.getElementById('bgStatus').textContent='Salvando…';
+    document.getElementById('bgUpload').disabled=true;
+    try{await saveBackgrounds(settings);document.getElementById('bgStatus').textContent=currentUser()?'Fundo salvo na sua conta.':'Fundo salvo neste navegador.';}
+    catch(error){document.getElementById('bgStatus').textContent='Aplicado neste navegador. Não foi possível sincronizar com a conta; tente novamente.';}
+    finally{backgroundBusy=false;document.getElementById('bgUpload').disabled=false;}
   }
-
-  function resetBg() {
-    writeExpBg(-1);
-    persistToProfile({ experimentalBg: -1, updatedAtMs: Date.now() });
-    applyExperimentalBackground();
-    closeBgModal();
+  function openBgModal() {
+    ensureModal();backgroundDevice=isMobileView()?'mobile':'desktop';lastBgFocus=document.activeElement;
+    renderBackgrounds();document.getElementById('bgStatus').textContent='';document.getElementById('bgModal').showModal();document.getElementById('bgClose').focus();
   }
-
+  function closeBgModal() {var modal=document.getElementById('bgModal');if(modal)modal.close();if(lastBgFocus)lastBgFocus.focus();}
+  async function resetBg() {
+    if(backgroundBusy)return;
+    var settings=backgroundSettings();settings[backgroundDevice]={preset:-1,custom:''};await storeChoice(settings);renderBackgrounds();
+  }
   function ensureModal() {
-    if (document.getElementById('bgModal')) {
-      var r = document.getElementById('bgReset');
-      var c = document.getElementById('bgClose');
-      if (r) r.onclick = resetBg;
-      if (c) c.onclick = closeBgModal;
-      var b = document.getElementById('bgChangeBtn');
-      if (b) b.onclick = openBgModal;
-      return;
-    }
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.id = 'bgChangeBtn';
-    btn.innerHTML = '<i class="fas fa-image"></i> Mudar fundo';
-    btn.onclick = openBgModal;
-    document.body.appendChild(btn);
-    var modal = document.createElement('div');
-    modal.id = 'bgModal';
-    modal.innerHTML = '<div class="bg-panel"><h3>Escolher fundo</h3><div class="bg-grid" id="bgGrid"></div><div class="bg-actions"><button type="button" id="bgReset">Padrão</button><button type="button" id="bgClose">Fechar</button></div></div>';
-    document.body.appendChild(modal);
-    if (!document.getElementById('bzExpBgStyles')) {
-      var st = document.createElement('style');
-      st.id = 'bzExpBgStyles';
-      st.textContent = '#bgChangeBtn{display:none;position:fixed;right:16px;bottom:18px;z-index:9000;padding:12px 16px;border:0;border-radius:999px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer}#bgChangeBtn.show{display:inline-flex;align-items:center;gap:8px}#bgModal{display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.55);align-items:flex-end;justify-content:center;padding:16px}#bgModal.show{display:flex}.bg-panel{width:100%;max-width:480px;background:#16161f;color:#f3f4f6;border-radius:16px;padding:16px;max-height:80vh;overflow:auto}.bg-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.bg-opt{border:2px solid transparent;border-radius:12px;padding:0;overflow:hidden;cursor:pointer;background:#0f0f14}.bg-opt.on{border-color:#7c3aed}.bg-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}.bg-actions button{padding:8px 14px;border-radius:8px;border:0;cursor:pointer;font-weight:600}#bgReset{background:#374151;color:#fff}#bgClose{background:#7c3aed;color:#fff}';
-      document.head.appendChild(st);
-    }
-    document.getElementById('bgClose').onclick = closeBgModal;
-    document.getElementById('bgReset').onclick = resetBg;
-    modal.addEventListener('click', function (e) { if (e.target === modal) closeBgModal(); });
+    if(document.getElementById('bgModal'))return;
+    if(!document.getElementById('bzBackgroundPickerCss')){var link=document.createElement('link');link.id='bzBackgroundPickerCss';link.rel='stylesheet';link.href='/css/background-picker.css?v=2';document.head.append(link);}
+    var btn=document.createElement('button');btn.type='button';btn.id='bgChangeBtn';btn.textContent='Mudar fundo';btn.onclick=openBgModal;document.body.append(btn);
+    var modal=document.createElement('dialog');modal.id='bgModal';modal.setAttribute('aria-labelledby','bgTitle');
+    modal.innerHTML='<div class="bg-panel"><div class="bg-heading"><div><span class="bg-eyebrow">DO SEU JEITO</span><h2 id="bgTitle">Personalizar meu fundo</h2></div><button type="button" id="bgClose" aria-label="Fechar personalização">×</button></div><p class="bg-description">Visível só para você, com a versão experimental ligada.</p><div class="bg-devices" role="group" aria-label="Dispositivo"><button type="button" data-bg-device="desktop">PC</button><button type="button" data-bg-device="mobile">Celular</button></div><p id="bgDeviceHint"></p><div class="bg-grid" id="bgGrid"></div><div class="bg-upload"><label for="bgUpload">Usar minha imagem</label><p>JPG, PNG ou WebP · até 10 MB. A imagem é ajustada para salvar na sua conta.</p><input type="file" id="bgUpload" accept="image/jpeg,image/png,image/webp"><img id="bgCustomPreview" alt="Sua imagem de fundo" hidden></div><p id="bgStatus" role="status"></p><button type="button" id="bgReset">Usar fundo padrão neste dispositivo</button></div>';
+    document.body.append(modal);
+    document.getElementById('bgClose').onclick=closeBgModal;document.getElementById('bgReset').onclick=resetBg;
+    modal.querySelectorAll('[data-bg-device]').forEach(function(button){button.onclick=function(){if(backgroundBusy)return;backgroundDevice=button.dataset.bgDevice;renderBackgrounds();};});
+    document.getElementById('bgUpload').onchange=async function(event){
+      var file=event.target.files[0];if(!file||backgroundBusy)return;
+      var device=backgroundDevice; backgroundBusy=true;event.target.disabled=true;document.getElementById('bgStatus').textContent='Preparando imagem…';
+      try{var image=await BloxzuhBackgrounds.readFile(file),settings=backgroundSettings();settings[device]={preset:-1,custom:image};await storeChoice(settings);renderBackgrounds();}
+      catch(error){document.getElementById('bgStatus').textContent=error.message;}
+      finally{backgroundBusy=false;event.target.disabled=false;}
+    };
+    modal.addEventListener('click',function(event){if(event.target===modal){var rect=modal.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)closeBgModal();}});
   }
 
   function wireModal() { ensureModal(); }
@@ -363,12 +347,15 @@
     forceDarkBg();
     var u = currentUser();
     if (!u || !firebase.firestore) { applyExperimentalBackground(); return; }
+    var editAtLoad=backgroundEdit;
     firebase.firestore().collection('profiles').doc(u.uid).get().then(function (doc) {
+      if(currentUser()?.uid!==u.uid||editAtLoad!==backgroundEdit)return;
       if (doc.exists) {
         var d = doc.data() || {};
         if (d.experimentalOn === true) writeExpOn(true);
         if (d.experimentalOn === false) writeExpOn(false);
         if (typeof d.experimentalBg === 'number') writeExpBg(d.experimentalBg);
+        if(d.experimentalBackgrounds)localStorage.setItem(expStorageKey()+'-backgrounds-v2',JSON.stringify(BloxzuhBackgrounds.normalize(d.experimentalBackgrounds,d.experimentalBg)));
       }
       var t = document.getElementById('expToggle');
       if (t) t.checked = isExperimental();
