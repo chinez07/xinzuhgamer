@@ -87,9 +87,6 @@ html { color-scheme: dark; background-color: #0f0f14; }
       display: flex; align-items: center; justify-content: center;
     }
     .card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .card--subscriptions{grid-column:span 2}
-    .card--subscriptions .card-img{aspect-ratio:1672/941;background:#09070d}
-    .card--subscriptions .card-img img{object-fit:contain}
     .placeholder {
       width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
       font-weight: 800; font-size: 1.5rem; color: #fff;
@@ -157,7 +154,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
     { id: 'genshin', name: 'Genshin Impact', img: 'assets/categorias/genshin.jpg' },
     { id: 'cs2', name: 'CS2', img: 'assets/categorias/cs2.jpg' },
     { id: 'outros', name: 'Outros jogos', img: '' },
-    { id: 'premium', name: 'Assinaturas', img: 'assets/categorias/assinaturas-banner.png' }
+    { id: 'premium', name: 'Assinaturas', img: 'assets/categorias/assinaturas-vertical.png' }
   ];
 
   function esc(s) {
@@ -181,7 +178,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       } else {
         media = '<div class="card-img"><div class="placeholder">' + esc(letter) + '</div></div>';
       }
-      html += '<a class="card' + (c.id === 'premium' ? ' card--subscriptions' : '') + '" href="anuncios.html?cat=' + encodeURIComponent(c.id) + '">' +
+      html += '<a class="card" href="anuncios.html?cat=' + encodeURIComponent(c.id) + '">' +
         media + '<div class="card-name">' + esc(c.name) + '</div></a>';
     }
     grid.innerHTML = html;
