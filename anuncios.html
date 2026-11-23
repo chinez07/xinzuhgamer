@@ -113,7 +113,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/photos.js?v=privacy-chat-1"></script>
   <script src="js/favs.js"></script>
   <script src="/js/background-settings.js?v=2"></script>
-  <script src="/js/experimental.js?v=backgrounds-2"></script>
+  <script src="/js/experimental.js?v=backgrounds-3"></script>
   <script>
   (function () {
     document.documentElement.setAttribute('data-mode', 'dark');
@@ -229,6 +229,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         var q = params.get('q') || '';
         if (q) document.getElementById('fSearch').value = q;
         categoryFilters();
+        [['fProduct','produto'],['fExperience','experiencia']].forEach(function(pair){var value=params.get(pair[1]),select=document.getElementById(pair[0]);if(value&&Array.from(select.options).some(function(option){return option.value===value;}))select.value=value;});
         applyFilters();
       } catch (e) {
         console.warn(e);

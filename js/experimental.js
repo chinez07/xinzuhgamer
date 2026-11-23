@@ -82,7 +82,7 @@
     localStorage.setItem(expStorageKey()+'-backgrounds-v2',JSON.stringify(settings));
     applyExperimentalBackground();
     var u=currentUser();
-    if(u&&firebase.firestore)await firebase.firestore().collection('profiles').doc(u.uid).set({experimentalBackgrounds:settings,updatedAtMs:Date.now()},{merge:true});
+    if(u&&firebase.firestore)await firebase.firestore().collection('profiles').doc(u.uid).set({experimentalBgDesktop:settings.desktop,experimentalBgMobile:settings.mobile,updatedAtMs:Date.now()},{merge:true});
   }
 
   function currentUser() {
@@ -355,7 +355,7 @@
         if (d.experimentalOn === true) writeExpOn(true);
         if (d.experimentalOn === false) writeExpOn(false);
         if (typeof d.experimentalBg === 'number') writeExpBg(d.experimentalBg);
-        if(d.experimentalBackgrounds)localStorage.setItem(expStorageKey()+'-backgrounds-v2',JSON.stringify(BloxzuhBackgrounds.normalize(d.experimentalBackgrounds,d.experimentalBg)));
+        if(d.experimentalBackgrounds||d.experimentalBgDesktop||d.experimentalBgMobile)localStorage.setItem(expStorageKey()+'-backgrounds-v2',JSON.stringify(BloxzuhBackgrounds.normalize(d.experimentalBackgrounds||{desktop:d.experimentalBgDesktop,mobile:d.experimentalBgMobile},d.experimentalBg)));
       }
       var t = document.getElementById('expToggle');
       if (t) t.checked = isExperimental();

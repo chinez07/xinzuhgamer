@@ -9,14 +9,14 @@ test('salva imagens e escolhas em profiles do próprio usuário',async()=>{
  const settings={desktop:{preset:0,custom:''},mobile:{preset:-1,custom:'data:image/jpeg;base64,YWJj'}};
  await c.saveBackgrounds(settings);
  assert.equal(applied,1);assert.equal(writes[0].name,'profiles');assert.equal(writes[0].id,'alice');assert.equal(writes[0].options.merge,true);
- assert.deepEqual(writes[0].patch.experimentalBackgrounds,settings);
+ assert.deepEqual(writes[0].patch.experimentalBgDesktop,settings.desktop);assert.deepEqual(writes[0].patch.experimentalBgMobile,settings.mobile);
  assert.deepEqual(JSON.parse(stored.get('bloxzuh-exp-alice-backgrounds-v2')),settings);
 });
 test('restaura fundos da conta sem sobrescrever edição mais recente',async()=>{
  const settings={desktop:{preset:1,custom:''},mobile:{preset:0,custom:''}},stored=new Map();let finish,applied=0;
  const c=vm.createContext({backgroundEdit:0,forceDarkBg(){},currentUser:()=>({uid:'alice'}),expStorageKey:()=> 'alice',localStorage:{setItem:(k,v)=>stored.set(k,v)},BloxzuhBackgrounds:require('../js/background-settings.js'),firebase:{firestore:()=>({collection:()=>({doc:()=>({get:()=>new Promise(r=>finish=r)})})})},writeExpOn(){},writeExpBg(){},document:{getElementById:()=>null},isExperimental:()=>true,applyExperimentalBackground:()=>applied++});
  vm.runInContext(extract('loadFromProfileThenApply','takeOver'),c);
- c.loadFromProfileThenApply();finish({exists:true,data:()=>({experimentalBackgrounds:settings})});await new Promise(r=>setImmediate(r));
+ c.loadFromProfileThenApply();finish({exists:true,data:()=>({experimentalBgDesktop:settings.desktop,experimentalBgMobile:settings.mobile})});await new Promise(r=>setImmediate(r));
  assert.deepEqual(JSON.parse(stored.get('alice-backgrounds-v2')),settings);assert.equal(applied,1);
- stored.clear();c.loadFromProfileThenApply();c.backgroundEdit++;finish({exists:true,data:()=>({experimentalBackgrounds:settings})});await new Promise(r=>setImmediate(r));assert.equal(stored.size,0);
+ stored.clear();c.loadFromProfileThenApply();c.backgroundEdit++;finish({exists:true,data:()=>({experimentalBgDesktop:settings.desktop,experimentalBgMobile:settings.mobile})});await new Promise(r=>setImmediate(r));assert.equal(stored.size,0);
 });
