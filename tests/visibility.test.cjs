@@ -76,3 +76,8 @@ test('Product and Roblox experience filters separate Robux from accounts',()=>{
   assert.match(elements.adsList.innerHTML,/\[robux\]/);assert.doesNotMatch(elements.adsList.innerHTML,/\[account\]/);
   elements.fExperience.value='Blox Fruits';vm.runInContext('applyFilters()',sandbox);assert.doesNotMatch(elements.adsList.innerHTML,/\[robux\]/);
 });
+test('Pending and rejected listings are never rendered in category results', () => {
+  const {sandbox,elements}=context([ad('ok','prata'),ad('pending','diamante',{status:'pendente'}),ad('rejected','ouro',{status:'reprovado'}),ad('paused','diamante',{status:'pausado'})]);
+  vm.runInContext('applyFilters()',sandbox);
+  assert.equal(elements.adsList.innerHTML,'[ok]');
+});

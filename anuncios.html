@@ -5,7 +5,7 @@
   <script src="/js/routes.js?v=1"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Anúncios | Bloxzuh</title>
+  <title>Anúncios | zuhstore</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
 html { color-scheme: dark; background-color: #0f0f14; }
@@ -53,25 +53,24 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="preload" as="image" href="assets/bloxzuh-logo.png" fetchpriority="high">
   <link rel="icon" type="image/png" href="assets/bloxzuh-favicon.png">
   <link rel="stylesheet" href="css/brand.css">
-<style>[hidden]{display:none!important}.filters{flex-wrap:wrap}</style></head>
-<body>
+<style>[hidden]{display:none!important}.filters{flex-wrap:wrap}</style><link rel="stylesheet" href="/css/category-page.css?v=1"></head>
+<body class="category-page">
   <header class="header">
     <div class="container header-content">
-      <a class="logo" href="index.html"><span class="logo-icon"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></span> Bloxzuh</a>
-      <a class="btn-anunciar" href="anunciar.html">+ Anunciar</a>
+      <a class="logo" href="index.html"><span class="logo-icon"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></span> zuhstore</a>
+      <nav class="category-header-links" aria-label="Navegação principal"><a href="/categorias">Categorias</a><a href="/favoritos" aria-label="Meus favoritos">♡</a><a class="btn-anunciar" href="/anunciar">+ Anunciar</a></nav>
     </div>
   </header>
 
-  <main class="container">
-    <div class="page-head">
-      <h1>Todos os Anúncios</h1>
-      <p>Encontre contas, itens, gold e assinaturas</p>
-    </div>
-
-    <div class="filters">
-      <label>BUSCAR<input id="fSearch" type="search" placeholder="Nome, jogo, vendedor..."></label>
-      <label>CATEGORIA
-        <select id="fCat">
+  <main class="container category-main">
+    <nav class="category-breadcrumb" aria-label="Caminho da página"><a href="/">Início</a><span aria-hidden="true">›</span><a href="/categorias">Categorias</a><span aria-hidden="true">›</span><span id="categoryCrumb">Anúncios</span></nav>
+    <section class="category-hero" aria-labelledby="categoryTitle"><div class="category-identity"><div class="category-emblem"><img id="categoryImage" alt="" hidden><span id="categoryFallback" aria-hidden="true">✦</span></div><div><span class="category-eyebrow">COMPRAR E VENDER NA ZUHSTORE</span><h1 id="categoryTitle">Todos os anúncios</h1><p id="categoryDescription">Encontre contas, itens e produtos digitais para sua próxima conquista.</p></div></div></section>
+    <nav id="categoryQuickLinks" class="category-quick-links" aria-label="Atalhos desta categoria"></nav>
+    <div class="listing-layout">
+      <div id="filterHomeSlot"><aside id="listingFilters" class="listing-sidebar" aria-label="Filtros e subcategorias">
+        <div class="listing-sidebar-heading"><h2>Explore a categoria</h2><button type="button" data-clear-filters>Limpar</button></div>
+        <a class="all-categories-link" href="/categorias"><span aria-hidden="true">▦</span> Ver todas as categorias <span aria-hidden="true">↗</span></a>
+        <label class="filter-label" for="fCat">Categoria</label><select id="fCat">
           <option value="">Todas</option>
           <option value="roblox">Roblox</option>
           <option value="valorant">Valorant</option>
@@ -82,26 +81,30 @@ html { color-scheme: dark; background-color: #0f0f14; }
           <option value="cs2">CS2</option>
           <option value="premium">Assinaturas</option><option value="outros">Outros jogos</option>
         </select>
-      </label>
-<label>PRODUTO<select id="fProduct"><option value="">Todos</option></select></label><label id="fExperienceLabel" hidden>JOGO NO ROBLOX<select id="fExperience"><option value="">Todos</option></select></label>
-      <label>PREÇO MÍN.<input id="fMin" type="number" min="0" step="0.01" value="0"></label>
-      <label>PREÇO MÁX.<input id="fMax" type="number" min="0" step="0.01" value="9999"></label>
-      <label>ORDENAR
-        <select id="fSort">
+        <section class="sidebar-group"><h3>O que você procura?</h3><select id="fProduct" aria-label="Produto" hidden><option value="">Todos</option></select><div id="categoryProducts" class="category-options"></div></section>
+        <section class="sidebar-group" id="fExperienceLabel" hidden><h3>Jogos no Roblox</h3><input type="search" id="experienceSearch" aria-label="Filtrar jogos do Roblox" placeholder="Encontrar jogo…"><select id="fExperience" aria-label="Jogo no Roblox" hidden><option value="">Todos</option></select><div id="categoryExperiences" class="category-options experience-options"></div><p id="experienceEmpty" class="filter-hint" hidden>Nenhum jogo com esse nome. Veja “Outros jogos”.</p></section>
+        <details class="sidebar-advanced"><summary>Faixa de preço</summary><div class="price-fields"><label for="fMin">Mínimo (R$)<input id="fMin" type="number" min="0" step="0.01" placeholder="0,00"></label><label for="fMax">Máximo (R$)<input id="fMax" type="number" min="0" step="0.01" placeholder="Sem limite"></label></div></details>
+        <a class="category-help" href="/ajuda">Precisa de ajuda para comprar? ↗</a>
+      </aside></div>
+      <section class="listing-results" aria-labelledby="listingHeading">
+        <div class="listing-tools"><label class="listing-search"><span aria-hidden="true">⌕</span><input id="fSearch" type="search" maxlength="120" aria-label="Buscar nesta categoria" placeholder="Buscar nesta categoria…"></label><button id="openListingFilters" type="button" class="listing-filter-button" aria-haspopup="dialog" aria-controls="listingFilterDialog">Filtros</button><label class="listing-sort" for="fSort"><span>Ordenar por</span><select id="fSort">
           <option value="rel">Relevância</option>
           <option value="price_asc">Menor preço</option>
           <option value="price_desc">Maior preço</option>
           <option value="sales">Mais vendidos</option>
-        </select>
-      </label>
+        </select></label></div>
+        <div class="listing-result-heading"><h2 id="listingHeading">Ofertas disponíveis</h2><div class="meta" id="adsMeta" role="status" aria-live="polite">Carregando…</div></div>
+        <div id="activeListingFilters" class="active-listing-filters" aria-label="Filtros aplicados"></div>
+        <div class="products-grid" id="adsList"></div>
+        <p class="listing-scope" id="listingScope" hidden>Os filtros consideram os anúncios carregados nesta página.</p>
+      </section>
     </div>
-
-    <div class="meta" id="adsMeta">Carregando…</div>
-    <div class="products-grid" id="adsList"></div>
+    <section class="category-faq" aria-labelledby="categoryFaqTitle"><span class="category-eyebrow">ANTES DA PRÓXIMA CONQUISTA</span><h2 id="categoryFaqTitle">Perguntas frequentes</h2><details><summary>Como encontro o produto ou jogo que quero?</summary><p>Escolha o tipo de produto e use a busca para refinar as ofertas. No Roblox, você também pode selecionar um jogo específico. Ajuste o preço e a ordem dos resultados quando precisar.</p></details><details><summary>Como funciona a compra?</summary><p>Confira a descrição e as condições do anúncio antes de comprar. Após a confirmação do pagamento, acompanhe o pedido e combine a entrega pelo chat da compra.</p></details><details><summary>E se houver um problema na compra?</summary><p>Abra o pedido e use “Reportar problema”. Descreva o que aconteceu para que a administração possa analisar sua solicitação.</p></details><details><summary>Como faço para anunciar?</summary><p>Use o botão “Anunciar”, selecione a categoria correta e envie informações e imagens do produto. O anúncio passa por revisão antes de ser liberado para compra.</p><a href="/anunciar">Criar meu anúncio →</a></details></section>
   </main>
+  <dialog id="listingFilterDialog" aria-labelledby="listingFilterTitle"><div class="filter-dialog-heading"><h2 id="listingFilterTitle">Refinar ofertas</h2><button type="button" id="closeListingFilters" aria-label="Fechar filtros">×</button></div><div id="mobileFilterSlot"></div><button type="button" id="applyListingFilters" class="filter-dialog-done">Ver resultados</button></dialog>
 
   <footer class="footer">
-    <div class="container">© 2026 Bloxzuh</div>
+    <div class="container">© 2026 zuhstore</div>
   </footer>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -114,15 +117,16 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/favs.js"></script>
   <script src="/js/background-settings.js?v=2"></script>
   <script src="/js/experimental.js?v=backgrounds-3"></script>
+  <script src="/js/category-page.js?v=1"></script>
   <script>
   (function () {
     document.documentElement.setAttribute('data-mode', 'dark');
-    var adsData = [];
+    var adsData = [], adsLoading=true;
 
     function esc(s) {
       return String(s == null ? '' : s)
         .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
-        .replace(/"/g, '"').replace(/'/g, '&#39;');
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function createProductCard(ad) {
@@ -143,10 +147,10 @@ html { color-scheme: dark; background-color: #0f0f14; }
       return (
         '<a href="anuncio.html?id=' + encodeURIComponent(id) + '" class="product-card">' +
           '<div class="product-img">' + img +
-            '<button class="' + favCls + '" type="button" data-id="' + esc(id) + '" onclick="event.preventDefault();event.stopPropagation();if(typeof toggleFav===\'function\')toggleFav(\'' + esc(id) + '\');">' +
+            '<button class="' + favCls + '" type="button" data-id="' + esc(id) + '" onclick="event.preventDefault();event.stopPropagation();if(typeof toggleFav===\'function\')toggleFav(this.getAttribute(\'data-id\'),this);">' +
               '<i class="' + heart + '"></i></button>' +
           '</div>' +
-          '<div class="product-body">' +
+          '<div class="product-body"><div class="product-caption">' + esc(ad.categoryLabel || ad.category || 'Produto digital') + (ad.productType ? ' · ' + esc(ad.productType) : '') + '</div>' +
             '<h3>' + esc(ad.title || 'Anúncio') + '</h3>' +
             '<div class="product-price">R$ ' + price + '</div>' +
             '<div class="product-seller">' + avatar + '<span data-max-uid="' + esc(ad.sellerUid || '') + '" data-max-name>' + esc(ad.seller || 'Vendedor') + '</span></div>' +
@@ -164,6 +168,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
     }
     document.getElementById('fCat').addEventListener('change',categoryFilters);
     function applyFilters() {
+      if(window.BloxzuhCategoryUI)window.BloxzuhCategoryUI.sync();
+      if(typeof adsLoading!=='undefined'&&adsLoading)return;
       var q = (document.getElementById('fSearch').value || '').toLowerCase().trim();
       var cat = (document.getElementById('fCat').value || '').toLowerCase();
       var min = Number(document.getElementById('fMin').value) || 0;
@@ -171,6 +177,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       if (isNaN(max) || max <= 0) max = 1e12;
       var sort = document.getElementById('fSort').value;
       var list = adsData.filter(function (ad) {
+        var status=(ad.raw&&ad.raw.status)||ad.status||'ativo';if(status!=='ativo'&&status!=='active')return false;
         if (cat && String(ad.category || '').toLowerCase() !== cat) return false;
         if(document.getElementById('fProduct').value && ad.productType!==document.getElementById('fProduct').value)return false;
         if(cat==='roblox'&&document.getElementById('fExperience').value && (ad.raw||{}).section!==document.getElementById('fExperience').value)return false;
@@ -198,11 +205,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
       var grid = document.getElementById('adsList');
       var meta = document.getElementById('adsMeta');
       if (!list.length) {
-        grid.innerHTML = '<div class="empty">Nenhum anúncio encontrado.</div>';
+        grid.innerHTML = '<div class="empty"><span class="listing-empty-icon" aria-hidden="true">⌕</span><h3>Nenhuma oferta por aqui ainda</h3><p>Tente outro termo ou remova os filtros para explorar mais opções.</p><button type="button" data-clear-filters>Limpar filtros</button></div>';
         meta.textContent = '0 anúncios';
         return;
       }
-      meta.textContent = list.length + (list.length === 1 ? ' anúncio' : ' anúncios');
+      meta.textContent = list.length + (list.length === 1 ? ' anúncio nesta seleção' : ' anúncios nesta seleção');
       grid.innerHTML = list.map(createProductCard).join('');
       if (typeof syncFavButtonsIn === 'function') syncFavButtonsIn(document);
     }
@@ -210,7 +217,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
     async function loadAds() {
       try {
         if (typeof fsGetPublicAds !== 'function') {
-          document.getElementById('adsMeta').textContent = 'Erro ao carregar (Firebase).';
+          document.getElementById('adsMeta').textContent = 'Não foi possível carregar as ofertas.';
+          document.getElementById('adsList').innerHTML='<div class="empty"><h3>Não foi possível carregar</h3><p>Atualize a página para tentar novamente.</p></div>';
           return;
         }
         var live = await fsGetPublicAds(80);
@@ -219,7 +227,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
         } else if (window.BloxzuhPhotos && BloxzuhPhotos.attachToAds) {
           try { live = await BloxzuhPhotos.attachToAds(live); } catch (e) {}
         }
-        adsData = live || [];
+        adsData = live || [];adsLoading=false;
+        document.getElementById('listingScope').hidden=adsData.length<80;
         var params = new URLSearchParams(location.search);
         var cat = BloxzuhRoutes.categoryId(location.pathname) || params.get('cat') || '';
         if (cat && document.getElementById('fCat')) {
@@ -229,11 +238,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
         var q = params.get('q') || '';
         if (q) document.getElementById('fSearch').value = q;
         categoryFilters();
-        [['fProduct','produto'],['fExperience','experiencia']].forEach(function(pair){var value=params.get(pair[1]),select=document.getElementById(pair[0]);if(value&&Array.from(select.options).some(function(option){return option.value===value;}))select.value=value;});
+        [['fProduct','produto'],['fExperience','experiencia'],['fSort','ordem']].forEach(function(pair){var value=params.get(pair[1]),select=document.getElementById(pair[0]);if(value&&Array.from(select.options).some(function(option){return option.value===value;}))select.value=value;});
+        ['fMin','fMax'].forEach(function(id){var value=params.get(id==='fMin'?'min':'max');if(value!==null&&Number.isFinite(Number(value))&&Number(value)>=0)document.getElementById(id).value=value;});
         applyFilters();
       } catch (e) {
         console.warn(e);
-        document.getElementById('adsMeta').textContent = 'Erro ao carregar anúncios.';
+        adsLoading=false;document.getElementById('adsMeta').textContent = 'Não foi possível carregar as ofertas.';
+        document.getElementById('adsList').innerHTML='<div class="empty"><h3>Não foi possível carregar</h3><p>Atualize a página para tentar novamente.</p></div>';
       }
     }
 
@@ -243,6 +254,13 @@ html { color-scheme: dark; background-color: #0f0f14; }
       if (el) el.addEventListener('change', applyFilters);
     });
 
+    var initialCategory=BloxzuhRoutes.categoryId(location.pathname)||new URLSearchParams(location.search).get('cat')||'';
+    if(Array.from(document.getElementById('fCat').options).some(function(option){return option.value===initialCategory;}))document.getElementById('fCat').value=initialCategory;
+    categoryFilters();
+    var initialParams=new URLSearchParams(location.search);document.getElementById('fSearch').value=initialParams.get('q')||'';
+    [['fProduct','produto'],['fExperience','experiencia'],['fSort','ordem']].forEach(function(pair){var select=document.getElementById(pair[0]),value=initialParams.get(pair[1]);if(value&&Array.from(select.options).some(function(option){return option.value===value;}))select.value=value;});
+    ['fMin','fMax'].forEach(function(id){var value=initialParams.get(id==='fMin'?'min':'max');if(value!==null&&Number.isFinite(Number(value))&&Number(value)>=0)document.getElementById(id).value=value;});
+    if(window.BloxzuhCategoryUI)window.BloxzuhCategoryUI.init(applyFilters);
     loadAds();
   })();
   </script>
