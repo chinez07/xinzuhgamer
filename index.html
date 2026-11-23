@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html data-mode="dark" lang="pt-BR">
 <head>
+  <script src="/js/routes.js?v=1"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bloxzuh | Marketplace de Jogos</title>
@@ -1685,11 +1686,12 @@ document.addEventListener('click', () => {
 // ===== Scroll helpers =====
 
 // Lembra a categoria que o usuário abriu
-document.querySelectorAll('a.category-card[href*="cat="]').forEach(function (a) {
+document.querySelectorAll('a.category-card').forEach(function (a) {
   a.addEventListener('click', function () {
     try {
       var m = (a.getAttribute('href') || '').match(/cat=([^&]+)/);
-      if (m) localStorage.setItem('bloxzuh-focus-cat', decodeURIComponent(m[1]));
+      var cat = m ? decodeURIComponent(m[1]) : BloxzuhRoutes.categoryId(new URL(a.href).pathname);
+      if (cat) localStorage.setItem('bloxzuh-focus-cat', cat);
     } catch (e) {}
   });
 });

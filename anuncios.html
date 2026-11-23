@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html data-mode="dark" lang="pt-BR">
 <head>
+  <base href="/">
+  <script src="/js/routes.js?v=1"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Anúncios | Bloxzuh</title>
@@ -218,7 +220,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         }
         adsData = live || [];
         var params = new URLSearchParams(location.search);
-        var cat = params.get('cat') || '';
+        var cat = BloxzuhRoutes.categoryId(location.pathname) || params.get('cat') || '';
         if (cat && document.getElementById('fCat')) {
           var opt = document.getElementById('fCat').querySelector('option[value="' + cat + '"]');
           if (opt) document.getElementById('fCat').value = cat;
