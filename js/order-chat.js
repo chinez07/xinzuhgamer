@@ -92,8 +92,26 @@
  $('composer').onsubmit=submit;$('messageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('composer').requestSubmit();}};
  $('loadOlder').onclick=older;$('newMessages').onclick=scrollBottom;$('chatScroll').onscroll=()=>{if(bottom()){$('newMessages').hidden=true;acknowledge();}};document.addEventListener('visibilitychange',acknowledge);window.addEventListener('focus',acknowledge);
  $('imageInput').onchange=chooseImage;$('removeAttachment').onclick=removeImage;$('closeImage').onclick=()=>$('imageDialog').close();
- $('helpButton').onclick=()=>{$('helpResult').textContent='';$('helpDialog').showModal();};$('closeHelp').onclick=()=>$('helpDialog').close();
- $('helpForm').onsubmit=async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const result=await api('/market/help',{orderId:state.id,reason:$('helpReason').value});$('helpResult').textContent='Solicitação '+result.id+' registrada. ';const link=element('a','Acompanhar resposta');link.href='suporte.html?ticket='+encodeURIComponent(result.id);$('helpResult').append(link);}catch(error){$('helpResult').textContent=error.message;}finally{button.disabled=false;}};
+ let reportBusy=false;
+ function reportCount(){const length=$('helpReason').value.trim().length;$('helpCount').value=String(length);$('helpCounter').classList.toggle('is-valid',length>=10);$('reportSubmit').disabled=reportBusy||length<10||length>2000;}
+ function reportTicket(id){$('helpResult').replaceChildren(document.createTextNode('Solicitação '+id+' registrada. '));const link=element('a','Acompanhar resposta');link.href='suporte.html?ticket='+encodeURIComponent(id);$('helpResult').append(link);$('reportInputWrap').hidden=true;$('reportSubmit').hidden=true;$('closeHelp').textContent='Fechar';}
+ function closeReport(){if(!reportBusy)$('helpDialog').close();}
+ $('helpButton').onclick=()=>{
+   $('helpResult').replaceChildren();$('reportInputWrap').hidden=false;$('reportSubmit').hidden=false;$('closeHelp').textContent='Cancelar';
+   $('reportPaymentNotice').textContent=state.order?.paymentVerified&&state.order?.secureVersion===1?'Em pedidos com pagamento confirmado, a solicitação bloqueia novos saques do vendedor durante a análise. Valores já transferidos não são devolvidos automaticamente.':'O pagamento deste pedido ainda não foi confirmado pelo serviço atual. A solicitação será encaminhada para conferência e não executa cobrança nem estorno.';
+   if(state.order?.supportOpenId)reportTicket(state.order.supportOpenId);
+   reportCount();$('helpDialog').showModal();if(!state.order?.supportOpenId)$('helpReason').focus();
+ };
+ $('helpReason').addEventListener('input',reportCount);$('closeHelp').onclick=closeReport;$('closeHelpX').onclick=closeReport;
+ $('helpDialog').addEventListener('cancel',event=>{if(reportBusy)event.preventDefault();});
+ $('helpDialog').addEventListener('click',event=>{if(event.target!==$('helpDialog'))return;const box=$('helpDialog').getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)closeReport();});
+ $('helpForm').onsubmit=async event=>{
+   event.preventDefault();const reason=$('helpReason').value.trim();if(reportBusy||reason.length<10||reason.length>2000){reportCount();return;}
+   reportBusy=true;reportCount();$('helpReason').readOnly=true;$('closeHelp').disabled=true;$('closeHelpX').disabled=true;$('reportSubmit').textContent='Enviando…';$('helpResult').textContent='';
+   try{const result=await api('/market/help',{orderId:state.id,reason:reason});reportTicket(result.id);$('helpReason').value='';}
+   catch(error){$('helpResult').textContent=error.message;}
+   finally{reportBusy=false;$('helpReason').readOnly=false;$('closeHelp').disabled=false;$('closeHelpX').disabled=false;$('reportSubmit').textContent='Enviar para análise';reportCount();}
+ };
  $('reviewForm').onsubmit=async e=>{e.preventDefault();e.submitter.disabled=true;try{await api('/market/review',{orderId:state.id,stars:Number($('reviewStars').value),comment:$('reviewComment').value});$('reviewResult').textContent='Avaliação registrada.';}catch(error){toast(error.message);}finally{e.submitter.disabled=false;}};
  firebase.auth().onAuthStateChanged(async user=>{
   if(!user){location.href='login.html?redirect='+encodeURIComponent('pedido.html?id='+state.id);return;}state.user=user;try{const profile=await fsGetProfile(user.uid);state.photos.set(user.uid,profile?.photo||profile?.photoURL||user.photoURL||'');}catch(e){}
