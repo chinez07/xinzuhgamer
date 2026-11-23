@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   var categories = {freefire:'free-fire',lol:'league-of-legends',fortnite:'fortnite',genshin:'genshin-impact',cs2:'cs2',roblox:'roblox',valorant:'valorant',premium:'assinaturas',outros:'outros-jogos'};
-  var pages = new Set(['admin','ajuda','anunciar','anuncio','anuncios','atualizacoes','cadastro','categorias','checkout','compras','config-pix','conta','favoritos','index','login','loja','niveis','notificacoes','pagamento','painel','pedido','perfil','plano-max','privacidade','reembolso','revisao-anuncios','suporte','termos','vendas']);
+  var pages = new Set(['admin','ajuda','anunciar','anuncio','anuncios','atualizacoes','cadastro','carrinho','categorias','checkout','compras','config-pix','conta','favoritos','index','login','loja','niveis','notificacoes','pagamento','painel','pedido','perfil','plano-max','privacidade','reembolso','revisao-anuncios','suporte','termos','vendas']);
   function categoryId(path) {
     var slug = path.replace(/\/$/, '').replace(/^\/categoria\//, '');
     return Object.keys(categories).find(function (id) { return categories[id] === slug; }) || '';

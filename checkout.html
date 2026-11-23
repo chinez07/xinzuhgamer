@@ -74,6 +74,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/max-client.js?v=max-benefits-2"></script>
   <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=privacy-chat-1"></script>
   <script src="js/photos.js?v=privacy-chat-1"></script>
+  <script src="/js/cart.js?v=1"></script>
 <script>
 
   window.__selectedItemPrice = null;
@@ -106,7 +107,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   function money(n){ return 'R$ ' + (Number(n)||0).toFixed(2).replace('.',','); }
   function esc(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-  var ad=null, order=null, vip='none', payMethod='pix';
+  var ad=null, order=null, vip='none', payMethod='pix', cartQuantity=1;
 
   // Fallback se firestore-db não exportar
   async function createOrderLocal(ad, extra) {
@@ -125,7 +126,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
     return 0;
   }
   function finalTotal(){
-    var t=Number(ad&&ad.price)||0;
+    var t=(Number(ad&&ad.price)||0)*cartQuantity;
     return t + vipFee(t);
   }
 
@@ -142,9 +143,9 @@ html { color-scheme: dark; background-color: #0f0f14; }
           '<div class="row"><span>Produto</span><span>'+esc(ad.title)+'</span></div>'+(window.__selectedItemName ? ('<div class="row"><span>Item</span><strong>'+esc(window.__selectedItemName)+'</strong></div>') : '')+
           '<div class="row"><span>Vendedor</span><span>'+esc(ad.seller)+'</span></div>'+
           '<div class="row"><span>Categoria</span><span>'+esc(ad.categoryLabel||ad.category)+'</span></div>'+
-          '<div class="row"><span>Subtotal</span><span class="price">'+money(ad.price)+'</span></div>'+
+          '<div class="row"><span>Subtotal</span><span class="price">'+money(Number(ad.price)*cartQuantity)+'</span></div>'+
           img+
-          '<div class="muted">1 × '+money(ad.price)+'</div>'+
+          '<div class="muted">'+cartQuantity+' × '+money(ad.price)+'</div>'+
         '</div>'+
         '<div class="box">'+
           '<h1>Plano adicional (opcional)</h1>'+
@@ -196,7 +197,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       var btn=document.getElementById('btnPix');
       btn.disabled=true; btn.textContent='Criando pedido…';
       try{
-        order = await createOrderLocal(ad, { quantity:1, itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName });
+        order = await createOrderLocal(ad, { quantity:cartQuantity, itemIndex: window.__selectedItemIndex, itemName: window.__selectedItemName });
         await setPaymentLocal(order.id, {
           method:'pix',
           payerName:name,
@@ -212,6 +213,9 @@ html { color-scheme: dark; background-color: #0f0f14; }
             link:'pedido.html?id='+encodeURIComponent(order.id),
             createdAtMs:Date.now()
           });
+        }
+        if(new URLSearchParams(location.search).get('fromCart')==='1'){
+          try{BloxzuhCart.consume(ad.id,window.__selectedItemIndex,cartQuantity);}catch(error){}
         }
         location.href='pagamento.html?id='+encodeURIComponent(order.id);
       }catch(e){
@@ -235,6 +239,9 @@ html { color-scheme: dark; background-color: #0f0f14; }
       if (typeof applyDynamicItem === 'function') ad = await applyDynamicItem(ad);
       if(ad && !ad.sellerUid && ad.raw) ad.sellerUid = ad.raw.sellerUid;
       if(!ad){ document.getElementById('app').innerHTML='<p class="muted">Anúncio não encontrado.</p>'; return; }
+      var requested=new URLSearchParams(location.search).get('quantity');
+      cartQuantity=requested==null?1:Number(requested);
+      BloxzuhCart.quote(ad,{adId:ad.id,itemIndex:window.__selectedItemIndex,quantity:cartQuantity},user.uid);
       render();
     }catch(e){
       document.getElementById('app').innerHTML='<p class="muted">Erro: '+esc(e.message)+'</p>';

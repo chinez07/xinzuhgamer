@@ -201,12 +201,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <link rel="stylesheet" href="css/brand.css">
   <link rel="stylesheet" href="css/ad-frame.css?v=5">
   <link rel="stylesheet" href="css/ad-layout.css?v=faq-2">
+  <link rel="stylesheet" href="/css/cart.css?v=1">
 </head>
 <body>
   <div class="top">
     <a class="logo" href="index.html"><div class="logo-i"><img src="assets/bloxzuh-logo.png" width="36" height="36" alt="" decoding="async" fetchpriority="high"></div> Bloxzuh</a>
     <div class="top-actions">
       <a class="btn-announce" href="anunciar.html">Anunciar</a>
+      <a class="icon-btn" id="headerCart" href="/carrinho" title="Carrinho" aria-label="Carrinho"><i class="fas fa-shopping-cart" aria-hidden="true"></i><span id="cartBadge" class="cart-quantity" hidden></span></a>
       <button class="icon-btn" type="button" aria-label="Meus favoritos" onclick="location.href='favoritos.html'"><i class="fas fa-heart"></i></button>
       <button class="icon-btn" type="button" aria-label="Ir para o início" onclick="location.href='index.html'"><i class="fas fa-home"></i></button>
     </div>
@@ -225,6 +227,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/ad-frame.js?v=4"></script>
   <script src="js/content-policy.js?v=moderation-queue-3"></script><script src="js/ad-catalog.js?v=moderation-queue-3"></script><script src="js/ad-moderation.js?v=moderation-queue-3"></script><script src="js/firestore-db.js?v=privacy-chat-1"></script>
   <script src="js/photos.js?v=privacy-chat-1"></script>
+  <script src="/js/cart.js?v=1"></script>
   <script src="js/favs.js"></script>
   <script src="/js/background-settings.js?v=2"></script>
   <script src="/js/experimental.js?v=backgrounds-3"></script>
@@ -419,7 +422,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
           if (blocked) {
             return '<div role="status" style="padding:12px 0"><strong>'+ (st==='pendente'?'Em revisão':st==='reprovado'?'Reprovado — anúncio desativado':'Anúncio desativado') +'</strong><p>'+esc(raw.moderationReason || (st==='pendente'?'As compras serão liberadas somente após a aprovação.':'Este anúncio não pode receber compras.'))+'</p>'+(isOwner&&st==='reprovado'?'<a href="anunciar.html?edit='+encodeURIComponent(ad.id)+'">Corrigir e reenviar para revisão</a>':'')+'</div><button type="button" class="btn-buy" id="btnBuy" disabled style="opacity:.55;cursor:not-allowed;background:#4b5563">'+(st==='pendente'?'EM REVISÃO':'ANÚNCIO DESATIVADO')+'</button>';
           }
-          return '<button type="button" class="btn-buy" id="btnBuy"' + (model === 'dinamico' ? ' disabled' : '') + '>COMPRAR · ' + money(ad.price) + '</button>';
+          return '<button type="button" class="btn-buy" id="btnBuy"' + (model === 'dinamico' ? ' disabled' : '') + '>COMPRAR · ' + money(ad.price) + '</button><button type="button" class="cart-add" id="btnAddCart">Adicionar ao carrinho</button><p class="cart-add-status" id="addCartStatus" role="status"></p>';
         })() +
         '</div>' +
         '</div></section><div class="ad-details"><nav class="ad-section-nav" aria-label="Detalhes do anúncio"><a href="#adCharacteristics">Características</a><a href="#adDescription">Descrição</a>' + (BloxzuhAdFAQ.complete(raw.faq).length ? '<a href="#adFAQ">FAQ</a>' : '') + '<a href="#adQuestions">Perguntas</a><a href="#adReviews">Avaliações</a></nav>' +
@@ -691,6 +694,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
       }
       const itemSel = document.getElementById('itemSel');
       const btnBuy = document.getElementById('btnBuy');
+      const btnAddCart = document.getElementById('btnAddCart');
+      if(btnAddCart)btnAddCart.onclick=function(){
+        var message=document.getElementById('addCartStatus');
+        try{
+          var selection=document.getElementById('itemSel'),index=model==='dinamico'&&selection&&selection.value!==''?Number(selection.value):null;
+          BloxzuhCart.add(ad,index,1);message.textContent='Produto adicionado! Abra o carrinho no topo para conferir.';
+        }catch(error){message.textContent=error.message||'Não foi possível adicionar.';}
+      };
       if (btnBuy && raw.status === 'ativo') {
         var pick = document.getElementById('dynPick');
         if (pick) {
