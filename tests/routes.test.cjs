@@ -25,10 +25,11 @@ test('todos os caminhos de categorias têm filtro e página servida',()=>{
   for(const rule of rules){
     const [path,target,status]=rule.split(/\s+/);
     assert.ok(categoryId(path),path);
-    assert.equal(target,'/anuncios.html');assert.equal(status,'200');
+    assert.equal(target,'/anuncios');assert.equal(status,'200');
     assert.equal(cleanHref('/anuncios.html?cat='+categoryId(path),base),path);
   }
   const html=fs.readFileSync('anuncios.html','utf8');
   assert.match(html,/<base href="\/">/);
   assert.match(html,/BloxzuhRoutes.categoryId\(location.pathname\)/);
 });
+

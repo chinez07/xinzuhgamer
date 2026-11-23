@@ -1,10 +1,11 @@
 # Categorias compartilham a listagem; o caminho seleciona o filtro no navegador.
-/categoria/free-fire /anuncios.html 200
-/categoria/league-of-legends /anuncios.html 200
-/categoria/fortnite /anuncios.html 200
-/categoria/genshin-impact /anuncios.html 200
-/categoria/cs2 /anuncios.html 200
-/categoria/roblox /anuncios.html 200
-/categoria/valorant /anuncios.html 200
-/categoria/assinaturas /anuncios.html 200
-/categoria/outros-jogos /anuncios.html 200
+/categoria/free-fire /anuncios 200
+/categoria/league-of-legends /anuncios 200
+/categoria/fortnite /anuncios 200
+/categoria/genshin-impact /anuncios 200
+/categoria/cs2 /anuncios 200
+/categoria/roblox /anuncios 200
+/categoria/valorant /anuncios 200
+/categoria/assinaturas /anuncios 200
+/categoria/outros-jogos /anuncios 200
+
