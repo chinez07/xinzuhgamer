@@ -10,7 +10,7 @@
     genshin:{name:'Genshin Impact',title:'Contas e produtos de Genshin Impact',description:'Explore ofertas e escolha o próximo passo da sua aventura.',image:'genshin.jpg'},
     cs2:{name:'CS2',title:'Contas, skins e produtos de CS2',description:'Filtre contas, skins, itens e serviços para encontrar o que procura.',image:'cs2.jpg'},
     premium:{name:'Assinaturas',title:'Assinaturas e produtos digitais',description:'Compare as ofertas e confira o período e as condições em cada anúncio.',image:'assinaturas-vertical.png'},
-    outros:{name:'Outros jogos',title:'Outros jogos, novas possibilidades',description:'Busque pelo nome do jogo e descubra contas, moedas, itens e serviços.',image:'outros-jogos-suave.png'}
+    outros:{name:'Outros jogos',title:'Outros jogos, novas possibilidades',description:'Busque pelo nome do jogo e descubra contas, moedas, itens e serviços.',image:'outros-jogos-v3.png'}
   };
   function info(id){return categories[id]||{name:'Todos os anúncios',title:'Explore todas as ofertas',description:'Encontre contas, itens e produtos digitais para sua próxima conquista.',image:''};}
   function filterParams(search,values){
