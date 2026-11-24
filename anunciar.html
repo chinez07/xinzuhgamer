@@ -466,7 +466,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    function clearMsg() { const el = document.getElementById('msg'); el.className = 'msg'; el.textContent = ''; }
+    function escapeSummary(value) { return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
     function goStep(n) {
+      clearMsg();
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById('step' + n).classList.add('active');
       document.querySelectorAll('.step-dot').forEach(d => {
@@ -566,6 +570,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
         const cur = btn.closest('.acc');
         const curName = cur ? cur.getAttribute('data-acc') : '';
         if (curName && !validateAcc(curName)) return;
+        clearMsg();
         if (cur) cur.querySelector('.acc-head').classList.add('done');
         openAcc(btn.getAttribute('data-next-acc'));
         // ao abrir preço, garante UI do modelo
@@ -764,6 +769,28 @@ html { color-scheme: dark; background-color: #0f0f14; }
     });
 
 
+    function removeGalleryImage(index) {
+      state.gallery.splice(index, 1);
+      state.galleryFiles = state.galleryFiles.filter(entry => entry.index !== index).map(entry => ({index: entry.index > index ? entry.index - 1 : entry.index, file: entry.file}));
+      renderGallery();
+    }
+    function renderGallery() {
+      const preview = document.getElementById('galPreview');
+      preview.textContent = '';
+      state.gallery.forEach((src, index) => {
+        const item = document.createElement('div');
+        const image = document.createElement('img');
+        image.src = src; image.alt = 'Foto da galeria ' + (index + 1);
+        image.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:8px';
+        const remove = document.createElement('button');
+        remove.type = 'button'; remove.className = 'btn btn-outline'; remove.textContent = 'Remover';
+        remove.style.cssText = 'font-size:12px;padding:6px;margin-top:4px';
+        remove.setAttribute('aria-label', 'Remover foto da galeria ' + (index + 1));
+        remove.addEventListener('click', () => removeGalleryImage(index));
+        item.append(image, remove); preview.appendChild(item);
+      });
+    }
+
     const galZone = document.getElementById('galZone');
     const galInput = document.getElementById('galInput');
     if (galZone && galInput) {
@@ -784,9 +811,8 @@ html { color-scheme: dark; background-color: #0f0f14; }
           state.gallery.push(url);
         } catch (e) {}
       }
-      document.getElementById('galPreview').innerHTML = state.gallery.map(src =>
-        '<img src="' + src + '" style="width:72px;height:72px;object-fit:cover;border-radius:8px">'
-      ).join('');
+      renderGallery();
+      galInput.value = '';
     });
     }
 
@@ -830,14 +856,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
       const receive = price - (price * fee / 100);
       const cat = [document.getElementById('category').value, document.getElementById('subcategory').value, document.getElementById('section').value].filter(Boolean).join(' > ');
       document.getElementById('summaryBox').innerHTML =
-        '<div class="summary-row"><span class="k">Título</span><strong>' + (document.getElementById('title').value || '—') + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Título</span><strong>' + escapeSummary(document.getElementById('title').value || '—') + '</strong></div>' +
         '<div class="summary-row"><span class="k">Preço</span><strong>R$ ' + price.toFixed(2).replace('.', ',') + '</strong></div>' +
         '<div class="summary-row"><span class="k">Estoque</span><strong>' + (document.getElementById('stock').value || 1) + '</strong></div>' +
-        '<div class="summary-row"><span class="k">Categoria</span><strong>' + (cat || '—') + '</strong></div>' +
-        '<div class="summary-row"><span class="k">Tipo</span><strong>' + document.getElementById('productType').value + ' · ' + state.model + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Categoria</span><strong>' + escapeSummary(cat || '—') + '</strong></div>' +
+        '<div class="summary-row"><span class="k">Tipo</span><strong>' + escapeSummary(document.getElementById('productType').value) + ' · ' + state.model + '</strong></div>' +
         '<div class="summary-row"><span class="k">Visibilidade</span><strong>' + state.visibility + ' (' + fee.toFixed(2).replace('.', ',') + '%)</strong></div>' +
         '<div class="summary-row"><span class="k">Você recebe (por venda)</span><strong style="color:#16a34a">R$ ' + receive.toFixed(2).replace('.', ',') + '</strong></div>' +
-        (state.cover ? '<img src="' + state.cover + '" style="margin-top:12px;max-width:160px;border-radius:10px">' : '');
+        (state.cover ? '<img src="' + escapeSummary(state.cover) + '" style="margin-top:12px;max-width:160px;border-radius:10px">' : '');
     }
 
     document.getElementById('btnPublish').addEventListener('click', async () => {
@@ -1091,19 +1117,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
       state.gallery = Array.isArray(d.gallery) ? d.gallery.slice(0,6) : [];
       state.galleryFiles = [];
-      var galleryPreview = document.getElementById('galPreview');
-      galleryPreview.textContent = '';
-      state.gallery.forEach(function (src) {
-        var image = document.createElement('img'); image.src = src; image.alt = 'Foto da galeria';
-        image.style.cssText = 'width:72px;height:72px;object-fit:cover;border-radius:8px'; galleryPreview.appendChild(image);
-      });
+      renderGallery();
       frameEditor.load(d.imageFrame);
 
       // Capa
       if (d.cover) {
         state.cover = d.cover;
         var coverZone = document.getElementById('coverZone');
-        if (coverZone) coverZone.innerHTML = '<img src="' + d.cover + '" alt="Capa"><p>Escolher outra imagem</p>';
+        if (coverZone) coverZone.innerHTML = '<img src="' + escapeSummary(d.cover) + '" alt="Capa"><p>Escolher outra imagem</p>';
       }
 
       // Marca etapas como done

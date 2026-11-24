@@ -1047,14 +1047,11 @@ img { max-width: 100%; display: block; }
     </div>
 
     <div class="conta-card danger-zone">
-      <h2>Desativação de conta</h2>
-      <p class="danger-text">
-        A conta desativada não conseguirá fazer login neste dispositivo até você entrar de novo.
-        A exclusão permanente remove a conta do Firebase (pode pedir login recente).
-      </p>
+      <h2>Acesso e exclusão da conta</h2>
+      <p class="danger-text">Sair encerra a sessão neste dispositivo. Para excluir sua conta, solicite atendimento: a equipe precisa conferir anúncios, pedidos e saldo antes de concluir a exclusão.</p>
       <div class="danger-actions">
-        <button type="button" class="btn-danger" id="btnDeactivate">Desativar</button>
-        <button type="button" class="btn-outline-danger" id="btnDelete">Excluir</button>
+        <button type="button" class="btn-danger" id="btnDeactivate">Sair deste dispositivo</button>
+        <a class="btn-outline-danger" href="suporte.html">Solicitar exclusão da conta</a>
       </div>
     </div>
   </div>
@@ -1105,10 +1102,12 @@ img { max-width: 100%; display: block; }
       }
     }
 
-    function fillForm(user) {
+    async function fillForm(user) {
       document.getElementById('username').value = user.displayName || '';
       document.getElementById('email').value = user.email || '';
-      document.getElementById('bio').value = getBio();
+      document.getElementById('btnBio').disabled = true;
+      try { document.getElementById('bio').value = await getBio(); document.getElementById('btnBio').disabled = false; }
+      catch (err) { msg('Não foi possível carregar a biografia. Tente novamente antes de editar.', 'err'); }
       renderAvatar(user);
     }
 
@@ -1187,34 +1186,20 @@ img { max-width: 100%; display: block; }
       }
     });
 
-    document.getElementById('btnBio').addEventListener('click', function () {
+    document.getElementById('btnBio').addEventListener('click', async function () {
+      const btn = this;
+      btn.disabled = true;
       try {
-        saveBio(document.getElementById('bio').value);
+        await saveBio(document.getElementById('bio').value);
         msg('Biografia salva!', 'ok');
       } catch (err) {
         msg(err.message, 'err');
-      }
+      } finally { btn.disabled = false; }
     });
 
     document.getElementById('btnDeactivate').addEventListener('click', async function () {
-      if (!confirm('Desativar a conta neste dispositivo?')) return;
-      await deactivateAccountLocal();
-    });
-
-    document.getElementById('btnDelete').addEventListener('click', async function () {
-      if (!confirm('Excluir permanentemente sua conta? Esta ação não pode ser desfeita.')) return;
-      try {
-        const user = auth.currentUser;
-        await user.delete();
-        saveUser(null);
-        window.location.href = 'index.html';
-      } catch (err) {
-        if (err.code === 'auth/requires-recent-login') {
-          msg('Por segurança, saia, entre de novo e tente excluir outra vez.', 'err');
-        } else {
-          msg(err.message || 'Erro ao excluir.', 'err');
-        }
-      }
+      try { await deactivateAccountLocal(); }
+      catch (err) { msg(err.message || 'Não foi possível sair. Tente novamente.', 'err'); }
     });
   
 </script>

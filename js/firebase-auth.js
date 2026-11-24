@@ -308,22 +308,28 @@ function getLocalPhoto(uid) {
   return '';
 }
 
-function getBio() {
+async function getBio() {
   const user = auth.currentUser;
   if (!user) return '';
-  return localStorage.getItem('xinzuh-bio-' + user.uid) || '';
+  if (typeof fsGetProfile !== 'function') throw new Error('Perfil indisponível. Recarregue a página.');
+  const profile = await fsGetProfile(user.uid);
+  const bio = profile && typeof profile.bio === 'string' ? profile.bio : '';
+  localStorage.setItem('xinzuh-bio-' + user.uid, bio);
+  return bio;
 }
 
-function saveBio(text) {
+async function saveBio(text) {
   const user = auth.currentUser;
   if (!user) throw new Error('Faça login primeiro.');
-  localStorage.setItem('xinzuh-bio-' + user.uid, text || '');
+  if (typeof fsSaveProfile !== 'function') throw new Error('Perfil indisponível. Recarregue a página.');
+  const bio = String(text || '').trim();
+  await fsSaveProfile({bio: bio});
+  localStorage.setItem('xinzuh-bio-' + user.uid, bio);
 }
 
 async function deactivateAccountLocal() {
   const user = auth.currentUser;
   if (!user) return;
-  localStorage.setItem('xinzuh-deactivated-' + user.uid, '1');
   try { if (typeof fsSetOffline === 'function') await fsSetOffline(user.uid); } catch (e) {}
   await auth.signOut();
   saveUser(null);

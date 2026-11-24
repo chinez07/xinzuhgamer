@@ -1633,7 +1633,7 @@ img { max-width: 100%; display: block; }
       document.getElementById('statSaldo').textContent = money(cacheWallet.saldo);
       document.getElementById('statVendas').textContent = String(cacheSales.length);
       document.getElementById('statAtivos').textContent = String(cacheAds.filter(function (a) { return a.status === 'ativo'; }).length);
-      document.getElementById('statNota').textContent = cacheSales.length ? '5.0 ★' : '—';
+      renderAverageRating();
       const wrap = document.getElementById('dashTableWrap');
       if (!cacheAds.length) {
         wrap.innerHTML = '<div class="empty-state"><i class="fas fa-tags"></i><p>Nenhum anúncio ainda. Crie o primeiro!</p></div>';
@@ -1793,6 +1793,10 @@ img { max-width: 100%; display: block; }
     }
 
     var cacheReviews = [];
+    function renderAverageRating() {
+      const stars = (cacheReviews || []).map(r => Number(r.stars)).filter(n => Number.isInteger(n) && n >= 1 && n <= 5);
+      document.getElementById('statNota').textContent = stars.length ? (stars.reduce((sum, n) => sum + n, 0) / stars.length).toFixed(1) + ' ★' : '—';
+    }
     async function loadReviews() {
       try {
         var u = firebase.auth().currentUser;
@@ -1811,6 +1815,7 @@ img { max-width: 100%; display: block; }
         }
       } catch (e) { console.warn(e); cacheReviews = []; }
       renderReviews();
+      renderAverageRating();
     }
     function renderReviews() {
       const el = document.getElementById('reviewsList');

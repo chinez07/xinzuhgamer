@@ -4,6 +4,7 @@
   <script src="/js/routes.js?v=1"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
   <title>Configurar Pix MP | Bloxzuh</title>
   <style>
 html { color-scheme: dark; background-color: #0f0f14; }
@@ -66,16 +67,14 @@ html { color-scheme: dark; background-color: #0f0f14; }
     <li>Commit no GitHub → Cloudflare Pages atualiza</li>
   </ol>
 
-  <h2>4. Testar</h2>
+  <h2>4. Verificar a integração</h2>
+  <div class="box">Esta é uma referência técnica para a administração. Gerar um Pix não confirma pagamento nem libera o chat.</div>
   <ol>
-    <li>COMPRAR → checkout → Pix com nome e CPF válidos</li>
-    <li>QR real do Mercado Pago aparece</li>
-    <li>Pague com conta de <strong>teste</strong> do MP (ou produção depois)</li>
-    <li>Em ~3s o site detecta e libera o chat</li>
+    <li>Execute os testes automatizados de pedidos e pagamentos no repositório antes de publicar alterações.</li>
+    <li>Na produção, o servidor confirma o pagamento diretamente no Mercado Pago e confere pedido, conta, valor e ambiente.</li>
+    <li>Pagamentos de teste não liberam compras reais. Não marque pedidos como pagos manualmente no Firebase.</li>
+    <li>O chat só é liberado após a confirmação verificada. Não há prazo fixo de três segundos.</li>
   </ol>
-
-  <div class="box">
-    <strong>Contas de teste MP:</strong> no painel de desenvolvedores há compradores de teste para Pix sandbox.
-  </div>
+  <p><a href="painel.html">Voltar ao painel</a></p>
 </body>
 </html>

@@ -281,7 +281,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
       } catch (e) { console.warn(e); }
 
       function statsOf(list) {
-        var avg = 5.0, pos = 0, neu = 0, neg = 0, sum = 0;
+        var avg = 0, pos = 0, neu = 0, neg = 0, sum = 0;
         if (!list.length) return { avg: avg, pos: 0, neu: 0, neg: 0, pct: 0 };
         list.forEach(function(r){
           var s = Number(r.stars)||0;
@@ -356,12 +356,12 @@ html { color-scheme: dark; background-color: #0f0f14; }
 
       var ratingSlide =
         '<div class="perfil-slide rating-box">' +
-          '<div class="n">' + avg.toFixed(1) + '</div>' +
+          '<div class="n">' + (reviews.length ? avg.toFixed(1) : '—') + '</div>' +
           '<div class="stars">' + '★'.repeat(Math.max(0, Math.min(5, Math.round(avg)))) + '☆'.repeat(Math.max(0, 5-Math.round(avg))) + '</div>' +
           '<div style="color:var(--muted);font-size:0.85rem">' +
             (reviews.length
               ? (reviews.length + ' avaliação' + (reviews.length!==1?'ões':'') + ' · <span class="pct-pos">' + pctPos + '% positivas</span>')
-              : (ads.length + ' anúncio(s) ativo(s)')) +
+              : 'Sem avaliações') +
           '</div>' +
         '</div>';
 
@@ -542,9 +542,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
           // atualiza card de nota do carrossel se existir
           var nEl = document.querySelector('#perfilSlides .rating-box .n');
           var sub = document.querySelector('#perfilSlides .rating-box div[style*="muted"]');
-          if (nEl && list.length) nEl.textContent = st.avg.toFixed(1);
-          if (sub && list.length) {
-            sub.innerHTML = list.length + ' avaliação' + (list.length!==1?'ões':'') +
+          if (nEl) nEl.textContent = list.length ? st.avg.toFixed(1) : '—';
+          var starsEl = document.querySelector('#perfilSlides .rating-box .stars');
+          if (starsEl) starsEl.textContent = '★'.repeat(Math.round(st.avg)) + '☆'.repeat(5 - Math.round(st.avg));
+          if (sub) {
+            sub.innerHTML = !list.length ? 'Sem avaliações' : list.length + ' avaliação' + (list.length!==1?'ões':'') +
               ' · <span class="pct-pos">' + st.pct + '% positivas</span>';
           }
           applyStarFilter();

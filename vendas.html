@@ -68,6 +68,7 @@ html { color-scheme: dark; background-color: #0f0f14; }
   <script src="js/firebase-auth.js?v=privacy-chat-1"></script>
   <script src="js/max-client.js?v=max-benefits-2"></script>
   <script>
+  function esc(value){return String(value == null ? '' : value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function money(n){ return 'R$ '+(Number(n)||0).toFixed(2).replace('.',','); }
   function label(s){ return ({aguardando_pagamento:'Aguardando pagamento',pago:'Pago',em_entrega:'Em entrega',concluido:'Concluído',cancelado:'Cancelado'})[s]||s; }
   firebase.auth().onAuthStateChanged(async function(user){
@@ -83,11 +84,11 @@ html { color-scheme: dark; background-color: #0f0f14; }
         return;
       }
       el.innerHTML=list.map(function(o){
-        var img=o.adCover?'<img class="thumb" src="'+o.adCover+'" alt="">':'<div class="thumb"></div>';
-        return '<a class="card" href="pedido.html?id='+encodeURIComponent(o.id)+'"><div class="row">'+img+'<div><div class="title">'+(o.adTitle||'Pedido')+'</div><div class="meta">#'+(o.code||'')+' · Comprador: '+(o.buyerName||'')+'</div><div class="price">'+money(o.total||o.price)+'</div><span class="badge st-'+(o.status||'')+'">'+label(o.status)+'</span></div></div></a>';
+        var img=o.adCover?'<img class="thumb" src="'+esc(o.adCover)+'" alt="">':'<div class="thumb"></div>';
+        return '<a class="card" href="pedido.html?id='+encodeURIComponent(o.id)+'"><div class="row">'+img+'<div><div class="title">'+esc((o.adTitle||'Pedido'))+'</div><div class="meta">#'+esc((o.code||''))+' · Comprador: '+esc((o.buyerName||''))+'</div><div class="price">'+money(o.total||o.price)+'</div><span class="badge st-'+esc((o.status||''))+'">'+esc(label(o.status))+'</span></div></div></a>';
       }).join('');
     }catch(e){
-      el.innerHTML='<div class="empty">Erro: '+(e.message||'')+'</div>';
+      el.innerHTML='<div class="empty">Erro: '+esc((e.message||''))+'</div>';
     }
   });
   </script>

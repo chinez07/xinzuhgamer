@@ -106,7 +106,7 @@ test('The former numeric-zero photo write is rejected without changing the profi
 
 function photoForm() {
   const html = read('conta.html');
-  const render = html.slice(html.indexOf('    function renderAvatar('), html.indexOf('    function fillForm('));
+  const render = html.slice(html.indexOf('    function renderAvatar('), html.indexOf('    async function fillForm('));
   const handler = html.slice(html.indexOf("    document.getElementById('photoInput').addEventListener('change'"), html.indexOf("    document.getElementById('btnSaveProfile').addEventListener"));
   let onChange, resolveSave, rejectSave;
   const saving = new Promise((resolve, reject) => {resolveSave = resolve; rejectSave = reject;});
