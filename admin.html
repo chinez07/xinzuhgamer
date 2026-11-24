@@ -129,6 +129,16 @@ body {
     return '<input type="search" class="search" id="' + id + '" placeholder="' + esc(placeholder) + '" value="' + esc(value || '') + '" autocomplete="off">';
   }
 
+  function renderSearchPanel(html, inputId) {
+    const current = document.getElementById(inputId);
+    if (!current || !panel.contains(current)) { panel.innerHTML = html; return; }
+    const draft = document.createElement('div'); draft.innerHTML = html;
+    const next = draft.querySelector('.box'), box = current.closest('.box');
+    box.querySelector('h1').textContent = next.querySelector('h1').textContent;
+    Array.from(box.children).forEach(child => { if (child !== current && child.tagName !== 'H1') child.remove(); });
+    Array.from(next.children).forEach(child => { if (child.tagName !== 'H1' && child.id !== inputId) box.appendChild(child); });
+  }
+
   async function loadOrders() {
     if (!cacheOrders.length) {
       var snap = await firebase.firestore().collection('orders').limit(120).get();
@@ -149,13 +159,13 @@ body {
         '<span class="' + badgeClass(o.status) + '">' + esc(o.status || '—') + '</span></div>';
     });
     html += '</div>';
-    panel.innerHTML = html;
+    renderSearchPanel(html, 'qOrders');
     var inp = document.getElementById('qOrders');
     if (inp) {
-      inp.addEventListener('input', function () {
+      inp.oninput = function () {
         qOrders = inp.value;
         loadOrders();
-      });
+      };
       try { inp.focus(); var v = inp.value; inp.value = ''; inp.value = v; } catch (e) {}
     }
   }
@@ -184,49 +194,21 @@ body {
         (w.pixKey ? ' · Pix: ' + esc(w.pixKey) : '') +
         (w.nome ? ' · ' + esc(w.nome) : '') +
         '</div>' +
-        '<div style="margin-top:8px">' +
-          '<button disabled type="button" class="mode-btn' + (mode === 'normal' ? ' on' : '') + '" data-mode="normal" data-wid="' + esc(w.id) + '">Normal</button>' +
-          '<button disabled type="button" class="mode-btn turbo' + (mode === 'turbo' ? ' on' : '') + '" data-mode="turbo" data-wid="' + esc(w.id) + '">Turbo</button>' +
-        '</div></div><div style="text-align:right">' +
+        '</div><div style="text-align:right">' +
         '<span class="' + badgeClass(st) + '">' + esc(w.legacyRecord ? 'Registro antigo · conferência necessária' : st) + ' · ' + (mode === 'turbo' ? 'Turbo' : 'Normal') + '</span>' +
         (canPay ? '<br><button type="button" class="btn" style="margin-top:8px" data-pay="' + esc(w.id) + '">Marcar pago</button>' : '') +
         '</div></div>';
     });
     html += '</div>';
-    panel.innerHTML = html;
+    renderSearchPanel(html, 'qWithdrawals');
 
     var inp = document.getElementById('qWithdrawals');
     if (inp) {
-      inp.addEventListener('input', function () {
+      inp.oninput = function () {
         qWithdrawals = inp.value;
         loadWithdrawals();
-      });
+      };
     }
-
-    document.querySelectorAll('[data-mode][data-wid]').forEach(function (btn) {
-      if (!adminOk) return;
-      btn.addEventListener('click', async function () {
-        var wid = btn.getAttribute('data-wid');
-        var mode = btn.getAttribute('data-mode') === 'turbo' ? 'turbo' : 'normal';
-        btn.disabled = true;
-        try {
-          var fee = mode === 'turbo' ? 2 : 0;
-          await firebase.firestore().collection('withdrawals').doc(wid).update({
-            mode: mode,
-            fee: fee,
-            updatedAtMs: Date.now()
-          });
-          // atualiza cache local
-          cacheWithdrawals.forEach(function (w) {
-            if (w.id === wid) { w.mode = mode; w.fee = fee; }
-          });
-          await loadWithdrawals();
-        } catch (e) {
-          alert(e.message || 'Erro ao mudar tipo de saque');
-          btn.disabled = false;
-        }
-      });
-    });
 
     document.querySelectorAll('[data-pay]').forEach(function (btn) {
       if (!adminOk) return;
@@ -271,20 +253,20 @@ body {
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
         '<span class="' + badgeClass(a.status) + '">' + esc(a.status || 'ativo') + '</span>' +
         (a.status === 'pendente' ? '<a class="btn btn-ghost" href="revisao-anuncios.html">Revisar imagens</a>' : '') +
-        (a.status !== 'pausado'
+        (a.status === 'ativo'
           ? '<button type="button" class="btn btn-ghost" data-pause="' + esc(a.id) + '">Pausar</button>'
-          : '<button type="button" class="btn btn-ghost" data-activate="' + esc(a.id) + '">Ativar</button>') +
+          : a.status === 'pausado' ? '<button type="button" class="btn btn-ghost" data-activate="' + esc(a.id) + '">Ativar</button>' : '') +
         '</div></div>';
     });
     html += '</div>';
-    panel.innerHTML = html;
+    renderSearchPanel(html, 'qAds');
 
     var inp = document.getElementById('qAds');
     if (inp) {
-      inp.addEventListener('input', function () {
+      inp.oninput = function () {
         qAds = inp.value;
         loadAds();
-      });
+      };
     }
 
     document.querySelectorAll('[data-pause]').forEach(function (btn) {

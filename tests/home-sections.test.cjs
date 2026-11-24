@@ -21,3 +21,14 @@ test('avaliações recentes não misturam avaliações do vendedor sobre comprad
   const rows=[{type:'buyer',stars:5,createdAtMs:100},{type:'ad',stars:5,createdAtMs:2},{type:'seller',stars:3,createdAtMs:3},{type:'ad',stars:9,createdAtMs:4}];
   assert.deepEqual(home.publicReviews(rows).map(x=>x.createdAtMs),[3,2]);
 });
+
+test('recent review links use the author UID, including legacy buyer reviews, without inventing a profile',()=>{
+ assert.deepEqual(home.reviewAuthor({fromUid:'reviewer',buyerUid:'buyer',fromName:'Ana',fromPhoto:'photo'}),{uid:'reviewer',name:'Ana',photo:'photo'});
+ assert.deepEqual(home.reviewAuthor({buyerUid:'legacy',buyerName:'Bia',buyerPhoto:'legacy-photo'}),{uid:'legacy',name:'Bia',photo:'legacy-photo'});
+ assert.equal(home.reviewAuthor({}).uid,'');
+});
+test('review avatars accept profile raster images and HTTPS, while rejecting scripts, SVG and oversized data',()=>{
+ assert.equal(home.safeReviewPhoto('data:image/png;base64,YWJj'),'data:image/png;base64,YWJj');
+ assert.equal(home.safeReviewPhoto('https://i.ibb.co/photo/avatar.jpg'),'https://i.ibb.co/photo/avatar.jpg');
+ for(const value of ['javascript:alert(1)','data:image/svg+xml;base64,YWJj','https://user:secret@example.test/a.jpg','http://example.test/a.jpg','a'.repeat(900001)])assert.equal(home.safeReviewPhoto(value),'');
+});
